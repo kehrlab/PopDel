@@ -39,11 +39,10 @@ popdel call myProfiles.txt
 PopDel has the following dependencies:
 - GCC 4.9 or higher
 - ZLIB
-- BZip2
 
-The latter ones can simply be installed using apt:
+ZLIB can simply be installed using apt:
 ```bash
-sudo apt install zlib1g-dev libbz2-dev
+sudo apt install zlib1g-dev
 ```
 PopDel uses SeqAn (www.seqan.de) version 2.3.1 as a header library. All required SeqAn-headers are included in the PopDel download. We advise against using your own SeqAn version for PopDel, since the header files were subject to small changes that are not (yet) part of the official SeqAn release.
 
