@@ -1,19 +1,20 @@
+
 PopDel - Population-wide Deletion Calling
 =========================================
 PopDel - Fast structural deletion calling on population-scale short-read paired-end data.
 
 ## Table of Contents
-1. [Quick Start](##Quick-Start)
-2. [Dependencies](##Dependencies)
-3. [Installation](##Installation)
-4. [Running PopDel Profile](##Running-PopDel-Profile)
-5. [Running PopDel Call](##Running_PopDel-Call)
-6. [Output Format](##Output-Format)
-7. [Running PopDel View](##Running-PopDel-View)
-8. [Parallelization](##Parallelization)
-9. [Further Help](##Further-Help)
-10. [Sampling Intervals for Profile Parameter Estimation](##Sampling-Intervals-for-Profile-Parameter-Estimation)
-11. [Version](##Version)
+1. [Quick Start](#1---quick-start)
+2. [Dependencies](#2---dependencies)
+3. [Installation](#3---installation)
+4. [Running PopDel Profile](#4---running-popdel-profile)
+5. [Running PopDel Call](#5---running-popdel-call)
+6. [Output Format](#6---output-format)
+7. [Running PopDel View](#7---running-popdel-view)
+8. [Parallelization](#8---parallelization)
+9. [Further Help](#9---further-help)
+10. [Sampling Intervals for Profile Parameter Estimation](#10---sampling-intervals-for-profile-parameter-estimation)
+11. [Version](#11---version)
 
 ## 1 - Quick Start
 Install
@@ -66,11 +67,11 @@ The profiling can also be limited to one or more regions by adding the samtools-
 popdel profile sample.bam chr21 chr1:2000000-5000000 chr4:30000000
 ```
 This creates a single profile file for the complete chr21, chr1 from 2000000-5000000 bp and chr4 from 30000000 bp till the end of the chromosome. It is however recommended to create the profiles on the whole genomes, as you can always limit the later calling to the desired regions and this will eliminate the risk that you later have to recreate a profile if you are interested in another region.
-Only the profiles are needed for the calling. Each profile should have a size of about 1-2% of the original file size. They are compressed binary files and can be viewed using the *popdel view* command (see respective [chapter](##Running-PopDel-View)).
-For information on the contents of the profile also see chapter [Running PopDel View](##Running-PopDel-View).
+Only the profiles are needed for the calling. Each profile should have a size of about 1-2% of the original file size. They are compressed binary files and can be viewed using the *popdel view* command (see respective [Running PopDel View](#7---running-popdel-view)).
+For information on the contents of the profile also see chapter [Running PopDel View](#7---running-popdel-view).
 
 **4.1 - Sampling options for parameter estimation**
-PopDel only considers a small portion of the genome for estimating the insert size distribution. Per default it uses one well-behaved region of each chromosome (see chapter [Sampling Intervals for Profile Parameter Estimation](##Sampling-Intervals-for-Profile-Parameter-Estimation)). If the first region does not contain sufficient reads, PopDel continues sampling from the next interval until the number of reads is sufficient. The default intervals PopDel uses refer to GRCh38, for other reference genomes it might be necessary to use different sampling intervals.
+PopDel only considers a small portion of the genome for estimating the insert size distribution. Per default it uses one well-behaved region of each chromosome (see chapter [Sampling Intervals for Profile Parameter Estimation](#10---sampling-intervals-for-profile-parameter-estimation)). If the first region does not contain sufficient reads, PopDel continues sampling from the next interval until the number of reads is sufficient. The default intervals PopDel uses refer to GRCh38, for other reference genomes it might be necessary to use different sampling intervals.
 A file containing these user-defined intervals can be given to PopDel by using the option '-i'. The intervals in the file have to follow the samtools-style notation, with one interval per line. For reliably results, the regions should not include regions containing abnormal sequence, like telomeric or centromeric regions. It is important, that the contig names used in the file are exactly the same as in the BAM-file (or a subset thereof). If PopDel can not sample from the default or user-defined regions, please check if the chromosomes of the BAM-file are named *chrNUM:START-END* (without leading 0's). If they don't follow this exact naming pattern, the user has to define the intervals as described above. The amount of required read-pairs for parameter estimation defaults to 50,000. This value can be modified using the option '-n'. Please note that, if the profiling is restricted to certain regions of the genome (see previous section), the sampling is only performed on the chromosomes of those regions. This behavior can be overwritten by specifying user-defined sampling intervals.
 
 ```
@@ -252,7 +253,7 @@ chr22:25000000-26000000
 
 ## 11 - VERSION
 ```
-    Last update: 2018-09-07
+    Last update: 2018-09-14
     PopDel version: 1.0
     SeqAn version: 2.3.1 (modified)
     Author: Sebastian Roskosch (Sebastian.Roskosch[at]bihealth.de)
