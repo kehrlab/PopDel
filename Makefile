@@ -15,7 +15,7 @@ CXXFLAGS+=-I$(SEQAN_LIB) -DSEQAN_HAS_ZLIB=1 -std=c++14 -DSEQAN_DISABLE_VERSION_C
 LDLIBS=-lz -lpthread
 
 DATE=on $(shell git log --pretty=format:"%cd" --date=iso | cut -f 1,2 -d " " | head -n 1)
-VERSION=1.0-$(shell git log --pretty=format:"%h" --date=iso | head -n 1)
+VERSION=1.0.1-$(shell git log --pretty=format:"%h" --date=iso | head -n 1)
 CXXFLAGS+=-DDATE=\""$(DATE)"\" -DVERSION=\""$(VERSION)"\"
 
 # Enable warnings
@@ -26,18 +26,32 @@ HEADERS=parse_popdel.h insert_histogram_popdel.h workflow_popdel.h utils_popdel.
 HEADERS+=popdel_profile/*.h
 HEADERS+=popdel_call/*.h
 
+.PHONY: all
 all: CXXFLAGS+=-O3 -DSEQAN_ENABLE_TESTING=0 -DSEQAN_ENABLE_DEBUG=0
 all: popdel
 
+.PHONY: profiling
 profiling: CXXFLAGS+=-g -O3 -DSEQAN_ENABLE_TESTING=0 -DSEQAN_ENABLE_DEBUG=1
 profiling: popdel
 
+.PHONY: debug
 debug: CXXFLAGS+=-g -O0 -DSEQAN_ENABLE_TESTING=0 -DSEQAN_ENABLE_DEBUG=1
 debug: popdel
+
+PREFIX = /usr/local
+.PHONY: install
+install: popdel
+	mkdir -p $(DESTDIR)$(PREFIX)/bin
+	cp $< $(DESTDIR)$(PREFIX)/bin/popdel
+
+.PHONY: uninstall
+uninstall:
+	rm -f $(DESTDIR)$(PREFIX)/bin/popdel
 
 popdel: popdel.o
 
 popdel.o: popdel.cpp $(HEADERS)
 
+.PHONY: clean
 clean:
 	rm -f *.o popdel
