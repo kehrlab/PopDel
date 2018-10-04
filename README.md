@@ -1,7 +1,16 @@
-
 PopDel - Population-wide Deletion Calling
 =========================================
-PopDel - Fast structural deletion calling on population-scale short-read paired-end data.
+PopDel - Fast structural deletion calling on population-scale short read paired-end data.
+
+
+
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/popdel/README.html) [![GitHub license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/kehrlab/PopDel/master/LICENSE) [![GitHub Releases](https://img.shields.io/github/release/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/releases) [![GitHub Issues](https://img.shields.io/github/issues/kehrlab/PopDel.svg)](https://github.com/dellytools/delly/issues)
+
+PopDel is lightweight tool for calling and genotyping structural deletions in short read paired-end data. Its main feature is the efficient processing
+of many samples in a single joint-calling process. Cohorts of 10,000  or more BAM-filese are no problem for PopDel. It works by first creating a small
+insert-size profile of every BAM file. Then, in the calling step, all profiles are jointly processed to generate the deletion calls in a likelihood based approach and genotype every sample. The results are presented in standard VCF-4.2 format.
+
+
 
 ## Table of Contents
 1. [Quick Start](#1---quick-start)
@@ -14,7 +23,7 @@ PopDel - Fast structural deletion calling on population-scale short-read paired-
 8. [Parallelization](#8---parallelization)
 9. [Further Help](#9---further-help)
 10. [Sampling Intervals for Profile Parameter Estimation](#10---sampling-intervals-for-profile-parameter-estimation)
-11. [Version](#11---version)
+11. [Version and License](#11---version-and-license)
 
 ## 1 - Quick Start
 Install
@@ -22,6 +31,10 @@ Install
 git clone https://github.com/kehrlab/PopDel.git
 cd PopDel
 sudo make install
+```
+or with conda:
+```bash
+conda install -c bioconda popdel
 ```
 Run
 ```bash
@@ -47,7 +60,11 @@ sudo apt install zlib1g-dev
 PopDel uses SeqAn (www.seqan.de) version 2.3.1 as a header library. All required SeqAn-headers are included in the PopDel download. We advise against using your own SeqAn version for PopDel, since the header files were subject to small changes that are not (yet) part of the official SeqAn release.
 
 ## 3 - Installation
-Simply run 'make install' in PopDel's directory. If you don't have writing access to 'usr/local/bin/', run the command with sudo. You can specify the target directory for the PopDel binary by appending 'PREFIX=/your/preferred/location' to the make install command, which will then create the binary as '/your/preferred/location/bin/popdel'.
+You can install PopDel from [Bioconda](https://anaconda.org/bioconda/popdel) or download the binary of the lastest version from the [relase page](https://github.com/kehrlab/PopDel/releases).  To build PopDel from source, first clone the repository:
+```bash
+git clone https://github.com/kehrlab/PopDel-develop.git
+```
+Then, inside the source directory, simply run 'make install'. If you don't have writing access to 'usr/local/bin/', run the command with sudo. You can specify the target directory for the PopDel binary by appending 'PREFIX=/your/preferred/location' to the 'make install' command, which will then create the binary as '/your/preferred/location/bin/popdel'.
 Alternatively you can also run 'make all' to create the binary in the source directory without copying it anywhere. A (very slow) debug build can be created with 'make debug'.
 ```bash
 # In source-directory
@@ -57,6 +74,10 @@ To uninstall PopDel after installing it via 'make install' use:
 ```bash
 # In source-directory
 sudo make uninstall
+```
+To instead install PopDel using conda:
+```bash
+conda install -c bioconda popdel
 ```
 
 ## 4 - Running PopDel Profile
@@ -254,10 +275,11 @@ chr21:21000000-22000000
 chr22:25000000-26000000
 ```
 
-## 11 - VERSION
+## 11 - Version and License
 ```
     Last update: 2018-10-01
     PopDel version: 1.0.1
     SeqAn version: 2.3.1 (modified)
     Author: Sebastian Roskosch (Sebastian.Roskosch[at]bihealth.de)
 ```
+PopDel is distributed under the GPL-3.0. Consult the accompanying [LICENSE](https://github.com/kehrlab/PopDel/blob/master/LICENSE) file for more details.
