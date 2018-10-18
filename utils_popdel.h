@@ -224,7 +224,7 @@ inline bool checkDelSizeSimilar(const unsigned & a, const unsigned & b, const do
 // =======================================================================================
 // Return true if the calls a and b overlap for at least for f-percent of the smaller variant's number of windows.
 inline bool checkEnoughOverlap(const Call & a, const Call & b, const double f = 0.5)
-{
+{   //TODO: Consider making this more generous for smaller deletions
     unsigned minLen = std::min(a.deletionLength, b.deletionLength);
     unsigned left = std::max(a.position, b.position);
     unsigned right = std::min(a.position + a.deletionLength, b.position + b.deletionLength);
@@ -271,8 +271,9 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
         return false;
     std::sort(begin(calls), end(calls), lowerCall);
     unsigned callCount = 1;
-    String<Triple<unsigned> > genotypes;
+
     Iterator<String<Call> >::Type currentIt = begin(calls, Standard());
+    String<Triple<unsigned> > genotypes;
     resize(genotypes, length(currentIt->gtLikelihoods), Triple<unsigned>(0, 0, 0));
     unsigned winCount = 1;
     for (Iterator<String<Call>, Standard >::Type it = begin(calls) + 1; it != end(calls); ++it)
@@ -289,7 +290,7 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
             }
             markInvalidCall(*it);
         }
-        else
+        else if (winCount != 1)
         {
             for (unsigned i = 0; i < length(genotypes); ++i)
             {

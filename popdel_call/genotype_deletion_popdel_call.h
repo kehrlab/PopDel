@@ -229,7 +229,7 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
         __uint32 rg = sample[i];
         const Histogram & hist = hists[rg];
         int refShift = referenceShifts[rg];
-        delLowerBorder =  deletion_length - hist.lowerQuantileDist;
+        delLowerBorder =  deletion_length - hist.lowerQuantileDist;  //TODO: Might be too strict
         delUpperBorder =  deletion_length + hist.upperQuantileDist;
         ChromosomeProfile::TActiveSet::const_iterator it(chromosomeProfiles.activeReads[rg].begin());
         ChromosomeProfile::TActiveSet::const_iterator itEnd(chromosomeProfiles.activeReads[rg].end());
@@ -414,8 +414,6 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                      const TRGs & rgs,
                                      PopDelCallParameters & params)
 {
-    if (chromosomeProfiles.currentPos == 5227680)
-        std::cout << "";
     // Initialize the deletion length.
     std::set<int> deletion_lengths = initialize_deletion_lengths(chromosomeProfiles,
                                                                  rgs,
@@ -538,7 +536,7 @@ inline bool genotype_deletion_window(String<Call> & calls,
         String<Pair<unsigned> > firstLasts; // Distance between lowest firstWin and highest lastWin for each sample.
         resize (firstLasts, length(rgs));
         Pair<unsigned> suppFirstLast(maxValue<unsigned>(), 0);
-        for (unsigned i = 0; i < length(rgs); ++i)                     // TODO: This is redundant if we break the loop.
+        for (unsigned i = 0; i < length(rgs); ++i)
             data_likelihoods[i] = compute_data_likelihoods(gtLogs[i],
                                                            lads[i],
                                                            dads[i],
@@ -549,6 +547,9 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                                            len,
                                                            referenceShifts,
                                                            params.histograms);
+
+        if (suppFirstLast.i1 ==  maxValue<unsigned>())
+            continue;                   // We dont't want calls that don't match their supporting reads.
 
         double logLR = deletion_likelihood_ratio(data_likelihoods, gtLikelihoods);
         if (logLR >= params.minimumLikelihoodRatio)
@@ -565,12 +566,6 @@ inline bool genotype_deletion_window(String<Call> & calls,
             }
             else
             {
-                if (suppFirstLast.i1 == maxValue<unsigned>())
-                {
-                    suppFirstLast.i1 = chromosomeProfiles.currentPos - 1;
-                    suppFirstLast.i2 = chromosomeProfiles.currentPos - 1;
-                }
-
                 appendValue(calls, Call(*it,
                                         iterations,
                                         len,
