@@ -277,8 +277,8 @@ chr22:25000000-26000000
 
 ## 11 - Version and License
 ```
-    Last update: 2018-10-18
-    PopDel version: 1.0.2
+    Last update: 2018-11-07
+    PopDel version: 1.0.3
     SeqAn version: 2.3.1 (modified)
     Author: Sebastian Roskosch (Sebastian.Roskosch[at]bihealth.de)
 ```

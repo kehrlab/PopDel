@@ -169,6 +169,7 @@ struct VcfOutputBundle
 {
     std::fstream out;
     VcfFileOut vcfOut;
+    bool contigNameLock;
     VcfOutputBundle(const CharString & outfile,
                     const String<CharString> & inputFiles,
                     const String<CharString> & contigNames,
@@ -182,14 +183,26 @@ struct VcfOutputBundle
         VcfHeader vcfHeader = buildVcfHeader(contigNames, contigLengths);
         writeHeader(vcfOut, vcfHeader);
         out << std::flush;
+        contigNameLock = false;
     }
     inline void flush()
     {
         out << std::flush;
     }
+    inline void unlockContigName()
+    {
+        SEQAN_ASSERT(contigNameLock);
+        contigNameLock = false;
+    }
+    // Only works if contigNameLock == false !
+    // Call unlockContigName() to remove lock.
     inline void appendContigName(const CharString & name)
     {
-        appendValue(contigNames(context(vcfOut)), name);
+        if (!contigNameLock)
+        {
+            appendValue(contigNames(context(vcfOut)), name);
+            contigNameLock = true;
+        }
     }
     inline void appendSampleNames(const String<CharString> & inputFiles)
     {

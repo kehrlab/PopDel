@@ -83,7 +83,7 @@ struct StartEntrySubset
     // =======================================================================================
     // Function reset()
     // =======================================================================================
-    // Clear the subset and prepare it to be used with the given offset and border. 
+    // Clear the subset and prepare it to be used with the given offset and border.
     // Also make sure it is not used for reading.
     inline void reset(const unsigned & idO, const unsigned & rightBorder)
     {
@@ -1583,6 +1583,7 @@ struct ChromosomeProfile
             it->readSet = 2;
             it->nextRead = begin(it->sets[2].subset, Rooted());
         }
+        currentRightBorder = startProfiles[0].sets[2].right;
     }
     // =======================================================================================
     // Function fullReset()
@@ -1598,6 +1599,23 @@ struct ChromosomeProfile
         globalMinPos = maxValue<unsigned>();
         currentPos = maxValue<unsigned>();
         profilesAtEnd = false;
+        currentRightBorder = startProfiles[0].sets[2].right;
+    }
+    inline void reportStatus()
+    {
+        std::cout << "ChromosomeProfile status report" << std::endl;
+        std::cout << "currentPos:\t\t"  << currentPos
+                  << "\nglobalMinPos:\t\t" << globalMinPos
+                  << "\nprofilesAtEnd:\t\t" << profilesAtEnd
+                  << "\ncurrentRightBorder:\t" << currentRightBorder
+                  << "\n#RG's:\t\t\t" << length(activeReads)
+                  << "\n#StartProf.:\t\t" << length(startProfiles)
+                  << "\n#EndProf.:\t\t" << length(endProfiles)
+                  << "\nStart read set:\t\t" << startProfiles[0].readSet
+                  << "\nStart write set:\t" << startProfiles[0].writeSet
+                  << "\nStart insert #:\t\t" << startProfiles[0].insertionCount
+                  << "\nEnd read set:\t\t"  << endProfiles[0].readSet
+                  << "\nEnd write set:\t\t" << endProfiles[0].writeSet << std::endl;
     }
 };
 // =======================================================================================

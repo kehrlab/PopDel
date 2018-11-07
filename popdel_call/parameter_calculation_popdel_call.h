@@ -102,19 +102,19 @@ inline void loadAndCalculateParameters(PopDelCallParameters & params)
     calculateMinimalLikelihoodRatio(params.minimumLikelihoodRatio, params.prior);
     if (!empty(params.roiFile))
     {
-        initializeRois(params.allRois, params.nextRoi, params.roiList, params.roiFile);
+        initializeRois(params.allRois, params.nextRoi, params.roiList, params.contigNames[0], params.roiFile);
         checkRois(params.allRois, params.contigNames[0]);
     }
     else if (!empty(params.roiList))
     {
-        initializeRois(params.allRois, params.nextRoi, params.roiList);
+        initializeRois(params.allRois, params.nextRoi, params.roiList, params.contigNames[0]);
         checkRois(params.allRois, params.contigNames[0]);
     }
     else
     {   // If there are no defined ROIs: Take the contigs of the first sample.
         std::vector<std::string> roiList;
         append(roiList, params.contigNames[0]);
-        initializeRois(params.allRois, params.nextRoi, roiList);
+        initializeRois(params.allRois, params.nextRoi, roiList, params.contigNames[0]);
     }
     msg.str("");
     msg << "Calculated minimum likelihood ratio as " << params.minimumLikelihoodRatio << " from the prior probability " 

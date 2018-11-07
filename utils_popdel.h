@@ -306,6 +306,11 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
             ++callCount;
             winCount = 1;
         }
+        else
+        {
+            markInvalidCall(*currentIt);
+            currentIt = it;
+        }
     }
     String<Call> tmp;
     reserve(tmp, callCount, Exact());
@@ -416,6 +421,7 @@ inline bool loadBai(BamIndex<Bai> & bai, TString filename)
 template<typename TString>
 inline bool parseGenomicRegion(GenomicRegion & reg, const TString & s)
 {
+    reg = GenomicRegion();   // Necessary to reset reg, because parse() does not guarantee to overwrite all old entries.
     if (length(s) == 0)
     {
         std::ostringstream msg;
@@ -608,6 +614,8 @@ inline unsigned getWholeGenomeIntervals(String<GenomicRegion> & intervals, const
 // Struct lowerGenomicRegion()
 // =======================================================================================
 // Return true if the first GenomicRegion starts before the second one starts.
+// Note that this function is based on the lexicographical order of the seq names and therefore must NOT be used
+// when the comparison is anyhow related to the order of the contigs in the bam file or profile!.
 // Meant for stable_sort.
 inline bool lowerGenomicRegion(const GenomicRegion & r1, const GenomicRegion & r2)
 {
@@ -637,7 +645,23 @@ inline void fillInvalidPositions(GenomicRegion & itv, const BamHeader & header)
         for (THeaderIter it = begin(header); it != itEnd; ++it)
         {
             if ((*it).type == BAM_HEADER_REFERENCE && (*it).tags[0].i2 == itv.seqName)
-                lexicalCastWithException(itv.endPos, (*it).tags[1].i2);                     //End position of sequence
+                lexicalCastWithException(itv.endPos, (*it).tags[1].i2);
+        }
+    }
+}
+// Overload working with a list of contig names and lengths instead of BAM header. Used for popdel view.
+inline void fillInvalidPositions(GenomicRegion & itv,
+                                 const String<String<char> > & contigNames,
+                                 const String<int32_t> & contigLengths)
+{
+    if (itv.beginPos == GenomicRegion::INVALID_POS)
+        itv.beginPos = 0;
+    if (itv.endPos == GenomicRegion::INVALID_POS)
+    {
+        for (unsigned i = 0; i < length(contigNames); ++i)
+        {
+            if (contigNames[i] == itv.seqName)
+                itv.endPos = contigLengths[i];
         }
     }
 }
@@ -917,7 +941,6 @@ inline bool lowerCoord(const Pair<CharString, unsigned> & first,
     const Iterator<const String<GenomicRegion>, Standard>::Type ROIend = end(allRois, Standard());
     unsigned rankFirst = getContigRank(first.i1, nextROI, ROIend);
     unsigned rankSecond = getContigRank(second.i1, nextROI, ROIend);
-    Lexical<> cmp(first, second);                      //Lexicographically compare the sequence names.
     if (rankFirst < rankSecond)                                   //first is lexicographically smaller.
         return true;
     else if (rankFirst > rankSecond)                           //first is lexicographically greater.

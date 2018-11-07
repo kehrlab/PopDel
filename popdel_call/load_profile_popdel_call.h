@@ -76,7 +76,30 @@ bool checkRois(const String<GenomicRegion> & allRois, const String<CharString> &
     }
     return true;
 }
+// Reorders the ROIS in allRois s.t. the order of the sequence names matches the one in desiredOrder.
+inline void recreateOrder(String<GenomicRegion> & allRois, const String<String<char> > & desiredOrder)
+{
+    String<Pair<unsigned>> order;
+    resize(order, length(allRois), Exact());
+    for (unsigned i = 0; i < length(allRois); ++i)
+    {
+        for (unsigned j = 0; j < length(desiredOrder); ++j)
+        {
+            if (allRois[i].seqName == desiredOrder[j])
+            {
+                order[i] = Pair<unsigned>(j, i);
+                break;
+            }
+        }
+    }
+    std::sort(begin(order), end(order));
+    String<GenomicRegion> reOrdered;
+    reserve(reOrdered, length(allRois), Exact());
+    for (Iterator<String<Pair<unsigned> > >::Type it = begin(order); it != end(order); ++it)
+        append(reOrdered, allRois[it->i2]);
 
+    move(allRois, reOrdered);
+}
 // =======================================================================================
 // Function initializeRois()
 // =======================================================================================
@@ -84,7 +107,8 @@ bool checkRois(const String<GenomicRegion> & allRois, const String<CharString> &
 // Return true on success, false otherwise or if the set is empty.
 inline bool initializeRois(String<GenomicRegion> & allRois,
                            Iterator<String<GenomicRegion> >::Type & nextRoi,
-                           const std::vector<std::string> & intervalStrings)
+                           const std::vector<std::string> & intervalStrings,
+                           const String<String<char> >  & contigNames) //Needed for correct ordering.
 {
     typedef std::vector<std::string>::const_iterator TIter;
     typedef std::map<CharString, String<GenomicRegion> >::iterator TRoiIter;
@@ -114,6 +138,7 @@ inline bool initializeRois(String<GenomicRegion> & allRois,
         mergeOverlappingIntervals(rIt->second);
         append(allRois, rIt->second);
     }
+    recreateOrder(allRois, contigNames);
     nextRoi = begin(allRois);
     if (!empty(allRois))
         return true;
@@ -124,6 +149,7 @@ inline bool initializeRois(String<GenomicRegion> & allRois,
 inline bool initializeRois(String<GenomicRegion> & allRois,
                            Iterator<String<GenomicRegion> >::Type & nextRoi,
                            std::vector<std::string> & intervalStrings,
+                           const String<String<char> >  & contigNames,
                            const CharString & filename)
 {
     std::ifstream file(toCString(filename));
@@ -144,7 +170,20 @@ inline bool initializeRois(String<GenomicRegion> & allRois,
     std::ostringstream msg;
     msg << "Finished reading " << len << " intervals from file \'" << filename << "\'.";
     printStatus(msg);
-    return initializeRois(allRois,nextRoi, intervalStrings);
+    return initializeRois(allRois,nextRoi, intervalStrings, contigNames);
+}
+// =======================================================================================
+// Function peekNextRoiIterator()
+// =======================================================================================
+// Return false if the last ROI has been processed, true otherwise.
+inline bool peekNextRoiIterator(const Iterator<String<GenomicRegion> >::Type & nextRoi,
+                                const String<GenomicRegion> & allRois)
+{
+    SEQAN_ASSERT_NEQ(nextRoi, end(allRois));
+    if (nextRoi + 1 == end(allRois))
+        return false;
+    else
+        return true;
 }
 // =======================================================================================
 // Function advanceRoiIterator()
@@ -186,7 +225,7 @@ inline bool adaptRegions(Pair<CharString, unsigned> & nextWindowCandidate, Genom
 // =======================================================================================
 // Function goNextRoi()
 // =======================================================================================
-// Advance nextRoi if all samples are done with the current ROI and jump to the its region.
+// Advance nextRoi if all samples are done with the current ROI and jump to its region.
 // Return false if the last ROI has been processed, true otherwise.
 inline bool goNextRoi(std::ifstream & file,
                       const unsigned & fileNum,
@@ -277,7 +316,7 @@ Pair<CharString, __uint32> getFirstWindowCoordinate (String<String<Window> >& co
         if (minCoord.i1 == params.nextRoi->seqName)
             break;
         else
-            advanceRoiIterator(params.nextRoi, params.allRois);
+            advanceRoiIterator(params.nextRoi, params.allRois); // TODO: Check potential for segfault
     }
     if (minCoord.i1 == "")
     {
@@ -290,6 +329,61 @@ Pair<CharString, __uint32> getFirstWindowCoordinate (String<String<Window> >& co
     msg << "The first window of all profiles starts at \'" << minCoord.i1 << ":" << minCoord.i2 << "\'.";
     printStatus(msg);
     return minCoord;
+}
+// ======================================================================================
+// Function getFirstWindowInNextROI()
+// ======================================================================================
+// Return the first (=smallest) window position from all input streams in the next ROI.
+// If there are no reads for the ROI in any sample, try the next ROI.
+// Return false if there are no reads for any of the remaining ROI's, true otherwise.
+inline bool getFirstWindowOnNextROI (Pair<CharString, __uint32> & minCoord,
+                                     String<String<Window> >& convertedWindows,
+                                     String<bool> & finishedROIs,
+                                     PopDelCallParameters & params)
+{
+    minCoord = Pair<CharString, __uint32>("", maxValue<__uint32>());
+    Pair<CharString, __uint32> currentCoord;
+    std::string str;
+    Window window;
+    while (true)
+    {
+        for (unsigned i = 0; i < params.fileCount; ++i)
+        {
+            String<Window> & currentSampleConvertedWindows = convertedWindows[i];
+            std::ifstream in(toCString(params.inputFiles[i]), std::ios::in | std::ios::binary);
+            if (!in.good())
+                SEQAN_THROW(FileOpenError(toCString(params.inputFiles[i])));
+
+            //jump to the region of interest.
+            goNextRoi(in, i, params.nextRoi, finishedROIs, params);
+
+            // decompress and read the window.
+            zlib_stream::zip_istream unzipper(in);
+            readWindow(unzipper, window, length(params.rgs[i]));
+            if (isEmpty(window))
+                continue;
+
+            //Convert the 256bp window to a string of 30bp windows.
+            convertWindow(window, currentSampleConvertedWindows, 256, 30);
+
+            // Compare the read window with the current minimum.
+            currentCoord.i1 = params.contigNames[i][currentSampleConvertedWindows[0].chrom];
+            currentCoord.i2 = currentSampleConvertedWindows[0].beginPos;
+            if (minCoord.i1 == "" || !lowerCoord(minCoord, currentCoord, params.nextRoi, params.allRois))
+                minCoord = currentCoord;
+        }
+        // If there were not entries, try the next ROI.
+        if (minCoord.i1 == params.nextRoi->seqName)
+            break;
+        else
+        {
+            if (peekNextRoiIterator(params.nextRoi, params.allRois))
+                advanceRoiIterator(params.nextRoi, params.allRois);
+            else
+                return false;
+        }
+    }
+    return true;
 }
 // =======================================================================================
 // Function checkAndSwitch())
@@ -313,7 +407,7 @@ inline bool checkAndSwitch(ChromosomeProfile & profile, const TReadGroupIndices 
 //         if (allEmpty)
 //         {
 //             profile.resetTo(beginPos);   //TODO: We must NOT use beginPos, but the min pos off all next reads of all samples!
-//             return true;
+//             return true;                 // Re-implement this for significant speed-up
 //         }
 //         else
         {
@@ -400,7 +494,7 @@ inline unsigned readTillRoi(ChromosomeProfile & profile,
 // Update coordinate to point to the first position at the next segment of the sample.
 // Return 0 if the segment is full.
 // Return 1 if the desired chromosome has not yet been reached.
-// Return 2 if the end of the chromosome has been reached.
+// Return 2 if the end of the chromosome or ROI has been reached.
 // Return 3 if EOF has been reached.
 inline unsigned readSegment(ChromosomeProfile & profile,
                             std::ifstream & file,
@@ -489,7 +583,7 @@ inline bool processSegmentCode(unsigned & nextReadPos,
         }
         return true;
     }
-    else                                  //  segemtn code == 3 -> EOF
+    else                                  //  segement code == 3 -> EOF
     {
         finishedROIs[i] = true;
         finishedFiles[i] = true;

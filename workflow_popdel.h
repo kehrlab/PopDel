@@ -57,7 +57,6 @@ void processSegment(ChromosomeProfile & chromosomeProfile,
         chromosomeProfile.profilesAtEnd = !(chromosomeProfile.nextWindow(params.windowShift));
 
     chromosomeProfile.initializeActiveReads();
-
     while (!chromosomeProfile.profilesAtEnd)
     {
         genotype_deletion_window(calls, chromosomeProfile, rgs, params);
@@ -66,6 +65,7 @@ void processSegment(ChromosomeProfile & chromosomeProfile,
     }
     if(unifyCalls(calls, params.meanStddev))
     {
+        vcfOutput.appendContigName(windows.currentWindow.i1);
         writeRegenotypedCalls(vcfOutput, calls, params);
         vcfOutput.flush();
     }
@@ -96,6 +96,9 @@ void processSegment(ChromosomeProfile & chromosomeProfile,
         windows.currentWindow.i2 += params.windowShift;
         chromosomeProfile.profilesAtEnd = !(chromosomeProfile.nextWindow(params.windowShift));
     }
+    if (!empty(calls))
+         vcfOutput.appendContigName(windows.currentWindow.i1);
+
     writeRegenotypedCalls(vcfOutput, calls, params);
     vcfOutput.flush();
 }
@@ -141,10 +144,11 @@ inline bool finalizeRoi(ChromosomeProfile & chromosomeProfile,
         ++(params.rID);
         chromosomeProfile.fullReset();
         nextReadPos = maxValue<unsigned>();
-        windows.currentWindow = windows.nextChromWindow;
+        windows.currentWindow.i1 = params.nextRoi->seqName;
+        windows.currentWindow.i2 = 0;
         windows.nextChromWindow.i1 = "";
         windows.nextChromWindow.i2 = maxValue<unsigned>();
-        vcfOutput.appendContigName(windows.currentWindow.i1);
+        vcfOutput.unlockContigName();
         for (Iterator<String<bool> >::Type it = begin(finishedROIs); it != end(finishedROIs); ++it)
             *it = false;
 
@@ -351,6 +355,13 @@ int popdel_call(int argc, char const ** argv)
         {
             if(!finalizeRoi(chromosomeProfile, params, nextReadPos, windows, vcfOutput, finishedROIs))
                 return 0;           // Last ROI has been processed.
+
+            getFirstWindowOnNextROI(windows.currentWindow, bufferedWindows, finishedROIs, params);
+            chromosomeProfile.currentPos = windows.currentWindow.i2;
+            chromosomeProfile.resetTo(chromosomeProfile.currentPos);
+            nextReadPos = maxValue<unsigned>();
+            for (auto it = begin(nextCandidateWindows); it != end(nextCandidateWindows); ++it)
+                *it = windows.currentWindow;
         }
         else
         {
@@ -412,6 +423,7 @@ int popdel_view(int argc, char const ** argv)
     else
     {
         // Read file offset from index and move the stream there.
+        fillInvalidPositions(params.region, contigNames, contigLengths);
         jumpToRegion(in, contigNames, contigLengths, indexRegionSize, params.region);
 
         // Write all windows in the region to std::cout.
