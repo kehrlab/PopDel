@@ -4,7 +4,7 @@ PopDel - Fast structural deletion calling on population-scale short read paired-
 
 
 
-[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/popdel/README.html) [![GitHub license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/kehrlab/PopDel/master/LICENSE) [![GitHub Releases](https://img.shields.io/github/release/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/releases) [![GitHub Issues](https://img.shields.io/github/issues/kehrlab/PopDel.svg)](https://github.com/dellytools/delly/issues)
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/popdel/README.html) [![GitHub license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/kehrlab/PopDel/master/LICENSE) [![GitHub Releases](https://img.shields.io/github/release/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/releases) [![GitHub Issues](https://img.shields.io/github/issues/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/issues)
 
 PopDel is lightweight tool for calling and genotyping structural deletions in short read paired-end data. Its main feature is the efficient processing
 of many samples in a single joint-calling process. Cohorts of 10,000  or more BAM-filese are no problem for PopDel. It works by first creating a small
@@ -95,6 +95,7 @@ This creates a single profile file for the complete chr21, chr1 from 2000000-500
 Only the profiles are needed for the calling. Each profile should have a size about 1-2% of the original file size. They are compressed binary files and can be viewed using the *popdel view* command (see respective [Running PopDel View](#7---running-popdel-view)).
 
 **4.1 - Sampling options for parameter estimation**
+
 PopDel only considers a small portion of the genome for estimating the insert size distribution. Per default it uses one well-behaved region of each chromosome (see chapter [Sampling Intervals for Profile Parameter Estimation](#10---sampling-intervals-for-profile-parameter-estimation)). If the first region does not contain sufficient reads, PopDel continues sampling from the next interval until the number of reads is sufficient. The default intervals PopDel uses refer to GRCh38, for other reference genomes it might be necessary to use different sampling intervals.
 A file containing user-defined intervals can be given to PopDel by using the option '-i'. The intervals in the file have to follow the samtools-style notation. There may only be one interval per line. For reliable results, the regions should not include regions containing abnormal sequence, like telomeric or centromeric regions. It is important, that the contig names used in the file are exactly the same as in the BAM-file (or a subset thereof). If PopDel can not sample from the default or user-defined regions, please check if the chromosomes of the BAM-file are named *chrNUM:START-END* (without leading 0's). If they don't follow this exact naming pattern, the user has to define the intervals as described above. The amount of required read-pairs for parameter estimation defaults to 50,000. This value can be modified using the option '-n'. Please note that, if the profiling is restricted to certain regions of the genome (see previous section), the sampling is only performed on the chromosomes of those regions. This behavior can be overwritten by specifying user-defined sampling intervals.
 
@@ -104,6 +105,7 @@ A file containing user-defined intervals can be given to PopDel by using the opt
 ```
 
 **4.2 - Filtering options**
+
 The filters used by PopDel profile are preconfigured for most use cases, but can be fine-tuned by the user:
 ```
 -d, --max-deletion-size  Maximum size of deletions. Default: 10000.
@@ -114,11 +116,13 @@ The filters used by PopDel profile are preconfigured for most use cases, but can
 -s, --min-align-score    Only use reads with an alignment score relative to read length above NUM. Default: 0.8.
 ```
 **4.3 - Running PopDel Profile on BAM-files only containing a part of the genome**
+
 It is possible to create profiles of BAM-files that only contain a part of the genome, e.g. only chr21.
 However, there is one thing to keep in mind to avoid errors: When simply called with the standard command line and default sampling regions, PopDel will try to sample reads from the whole genome, which will result in a very low and wrong coverage estimate since the BAM-file only contains reads for chromosome 21. To avoid this, there are two possibilities.  The first is to specify the region the BAM-file contains, in this case 'chr21'. The other option is to use user defined sampling intervals that lie in adequate regions of the chromosomes in the BAM-file. If you are not interested in the coverage, you can also just ignore it, as PopDel itself won't use the value later on.
 
 **4.4 - Examples**
-Run PopDel profile on *sample.bam*, creating the ouput *sample.bam.profile*.
+
+Run PopDel profile on *sample.bam*, creating the output *sample.bam.profile*.
 ```bash
 popdel profile sample.bam
 ```
@@ -149,6 +153,7 @@ popdel call myProfile1.profile myProfile2.profile [...] myProfileN.profile
 ```
 
 **5.1 - General calling options**
+
 Like the profiling, the calling can be restricted to a single or multiple regions of interest. This is done by either using the option '-r' followed by the samtools-style region (multiple times for multiple regions) or by using the option '-R' followed by the path of a file containing one region of interest per line. The profiles contain their own index, so jumping to the regions to perform the calling on them is fast. Other options include:
 ```
 -b, --buffer-size           Number of buffered windows. In range [10000..inf]. Default: 200000.
@@ -172,6 +177,7 @@ Note that changing the value for the buffer size has a direct influence on memor
 ```
 
 **5.4 - Examples**
+
 Perform calling on all profiles listed in *myProfiles.txt* and write the output to *myCalls.vcf*:
 ```bash
 popdel call -o myCalls.vcf myProfiles.txt
@@ -184,6 +190,7 @@ popdel call -l 450 -m 500 -d 5000 -r chr21 -r chr19:45000000-55000000 myProfiles
 PopDel's output is a standard VCF-4.2 file containing the genotypes for every sample. Every variant is defined by its genomic position and an estimate of its length. The precision of the  length estimate mainly depends on the 'sharpness' of the insert size distribution(s) of the samples. Because the position calculations are performed in windows of 30 bp, the the starting points of the positions have a precision of +-29 bp at best. Therefore all calls are marked as 'IMPRECISE' in the INFO field.  The *LR* value in the INFO column gives a good additional quality measure for the deletion, as the value of the QUAL field will quickly cap at 100 while the *Log-Likelihoo Ratio* has no upper limit. In fact, the QUAL value is simply a PHRED-like representation of the *LR* value.
 
 **6.1 - Special FORMAT fields**
+
 The *YIELD* represents how many samples could be genotyped for the deletion, regardless of carrier status.
 The *Likelihood-derived Allelic Depth (LAD)* represents the number of reads that shifted the likelihood ratio in favor for the REF or ALT model (or neither).
 The *Distribution-derived Allelic Depth (DAD)* is similar to the *LAD*, but is based on the quantiles of the distributions. Therefore, it also contains counts for read pairs that support both models, or have an insert size that is too big for the deletion model.
@@ -191,6 +198,7 @@ The *First & Last (FL)* values gives the position of the first and last read pai
 The *First to Last Distance (FLD)* is the distance between those two read pairs and should roughly correspond to the size of the deletion plus the median insert size.
 
 **6.2 - Window-wise output**
+
 For different applications PopDel can write the output in a window-wise fashion. This behavior is enabled by setting the flag '-n'. Consider the following deletion of length 3000:
 ```
 chr21 2000 . N <DEL> 100 PASS IMPRECISE;SVLEN=-3000;SVTYPE=DEL;AF=0.5 [...]
