@@ -169,7 +169,9 @@ struct VcfOutputBundle
 {
     std::fstream out;
     VcfFileOut vcfOut;
-    bool contigNameLock;
+    unsigned rID;                                                  // Keeps track of the ID for the current chromosome.
+    bool contigNameLock;                                           // True if the current contig already has been added.
+
     VcfOutputBundle(const CharString & outfile,
                     const String<CharString> & inputFiles,
                     const String<CharString> & contigNames,
@@ -183,16 +185,28 @@ struct VcfOutputBundle
         VcfHeader vcfHeader = buildVcfHeader(contigNames, contigLengths);
         writeHeader(vcfOut, vcfHeader);
         out << std::flush;
+        rID = 0;
         contigNameLock = false;
     }
+
     inline void flush()
     {
         out << std::flush;
     }
+
+    inline void lockContigName()
+    {
+        SEQAN_ASSERT(!contigNameLock);
+        contigNameLock = true;
+    }
+
     inline void unlockContigName()
     {
-        SEQAN_ASSERT(contigNameLock);
-        contigNameLock = false;
+        if (contigNameLock)
+        {
+            ++rID;
+            contigNameLock = false;
+        }
     }
     // Only works if contigNameLock == false !
     // Call unlockContigName() to remove lock.
@@ -201,9 +215,10 @@ struct VcfOutputBundle
         if (!contigNameLock)
         {
             appendValue(contigNames(context(vcfOut)), name);
-            contigNameLock = true;
+            lockContigName();
         }
     }
+
     inline void appendSampleNames(const String<CharString> & inputFiles)
     {
         for (unsigned i = 0; i < length(inputFiles); ++i)
@@ -211,6 +226,7 @@ struct VcfOutputBundle
             appendValue(sampleNames(context(vcfOut)), getSampleName(inputFiles[i]));
         }
     }
+
     inline void outputRecord(VcfRecord & record)
     {
         writeRecord(vcfOut, record);
@@ -228,7 +244,7 @@ inline void writeRegenotypedCalls(VcfOutputBundle & vcfOutput,
         {
             if (params.outputFailed || checkAllPass(*it))
             {
-                VcfRecord record = buildRecord(params.quantileMap, *it, params.rID);
+                VcfRecord record = buildRecord(params.quantileMap, *it, vcfOutput.rID);
                 vcfOutput.outputRecord(record);
             }
         }

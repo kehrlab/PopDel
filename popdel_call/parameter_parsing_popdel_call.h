@@ -164,7 +164,6 @@ struct PopDelCallParameters
     QuantileMap quantileMap;                        // Map for translating log LR into PHRED error-probabilities.
     unsigned fileCount;                             // Number of remaining files.
     unsigned sampleNum;                             // Total number of files/Samples.
-    unsigned rID;                                   // Keeps track of the ID for the current chromosome.
     String<String<CharString> > contigNames;        // Names of the contigs. One String per file.
     String<String<int32_t> > contigLengths;         // Lenghts of above contigs. One String per file.
     unsigned maxDeletionSize;                       // Maximum size of a deletion.
@@ -187,7 +186,6 @@ struct PopDelCallParameters
     quantileMap(0.0001),
     fileCount(0),
     sampleNum(0),
-    rID(0),
     maxDeletionSize(10000),
     minSampleFraction(0.75),
     meanStddev(0.0),

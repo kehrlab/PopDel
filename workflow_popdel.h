@@ -141,7 +141,6 @@ inline bool finalizeRoi(ChromosomeProfile & chromosomeProfile,
     }
     else
     {
-        ++(params.rID);
         chromosomeProfile.fullReset();
         nextReadPos = maxValue<unsigned>();
         windows.currentWindow.i1 = params.nextRoi->seqName;
