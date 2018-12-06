@@ -1407,6 +1407,8 @@ struct ChromosomeProfile
                     currentMax = lastWin;
             }
         }
+        if (currentMin == maxValue<unsigned>())
+            currentMin = 0;
         return Pair<unsigned>(currentMin, currentMax);
     }
     // =======================================================================================
@@ -1440,9 +1442,9 @@ struct ChromosomeProfile
                     int insertSize = std::max(0, deviation + currentMedian - currentDoubleReadLength);
                     const unsigned firstWin = startProfiles[*cReadGroupsIt].getFirstWinAt(*where);
                     const unsigned lastWin = ((firstWin + insertSize) / 30) * 30; // TODO: As parameter?
-                    if (firstWin < suppFirstLast.i1)
+                    if (firstWin > suppFirstLast.i1)
                         suppFirstLast.i1 = firstWin;
-                    if (lastWin > suppFirstLast.i2)
+                    if (lastWin < suppFirstLast.i2)
                         suppFirstLast.i2 = lastWin;
                 }
             }

@@ -533,9 +533,9 @@ inline bool genotype_deletion_window(String<Call> & calls,
         resize (lads, length(rgs), Triple<unsigned>(0, 0, 0));
         String<Dad> dads;                  // Distribution based counts of RP for the classes.
         resize (dads, length(rgs));
-        String<Pair<unsigned> > firstLasts; // Distance between lowest firstWin and highest lastWin for each sample.
+        String<Pair<unsigned> > firstLasts; // Lowest firstWin and highest lastWin for each sample.
         resize (firstLasts, length(rgs));
-        Pair<unsigned> suppFirstLast(maxValue<unsigned>(), 0);
+        Pair<unsigned> suppFirstLast(0, maxValue<unsigned>());
         for (unsigned i = 0; i < length(rgs); ++i)
             data_likelihoods[i] = compute_data_likelihoods(gtLogs[i],
                                                            lads[i],
@@ -548,7 +548,7 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                                            referenceShifts,
                                                            params.histograms);
 
-        if (suppFirstLast.i1 ==  maxValue<unsigned>())
+        if (suppFirstLast.i1 == 0)
             continue;                   // We dont't want calls that don't match their supporting reads.
 
         double logLR = deletion_likelihood_ratio(data_likelihoods, gtLikelihoods);

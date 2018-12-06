@@ -260,6 +260,27 @@ inline bool lowerCall(const Call & l, const Call & r)
     else
         return false;
 }
+inline void setFreqFromGTs(Call & call)
+{
+    unsigned alleleCount = 0;
+    for (Iterator<String<Triple<unsigned> > >::Type it = begin(call.gtLikelihoods); it != end(call.gtLikelihoods); ++it)
+    {
+        if (it->i1 == 0)
+        {
+            continue;
+        }
+        else if (it->i2 == 0)
+        {
+            alleleCount += 1;
+            continue;
+        }
+        else
+        {
+            alleleCount += 2;
+        }
+    }
+    call.frequency = static_cast<double>(alleleCount) / (length(call.gtLikelihoods) * 2);
+}
 // =======================================================================================
 // Function unifyCalls()
 // =======================================================================================
@@ -275,7 +296,13 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
     Iterator<String<Call> >::Type currentIt = begin(calls, Standard());
     String<Triple<unsigned> > genotypes;
     resize(genotypes, length(currentIt->gtLikelihoods), Triple<unsigned>(0, 0, 0));
+    long double lr = 0.0;
+    String<unsigned> startPositions;
+    String<unsigned> sizeEstimates;
+    append(startPositions, currentIt->position);
+    append(sizeEstimates, currentIt->deletionLength);
     unsigned winCount = 1;
+    Iterator<String<Call>, Standard >::Type last = end(calls) - 1;
     for (Iterator<String<Call>, Standard >::Type it = begin(calls) + 1; it != end(calls); ++it)
     {
         if (similar(*currentIt, *it, stddev))
@@ -288,7 +315,31 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
                 genotypes[i].i2 += it->gtLikelihoods[i].i2;
                 genotypes[i].i3 += it->gtLikelihoods[i].i3;
             }
+            if (checkAllPass(*it))
+            {
+                appendValue(startPositions, it->position);
+                appendValue(sizeEstimates, it->deletionLength);
+            }
+
+            lr += it->likelihoodRatio;
             markInvalidCall(*it);
+            if (it == last)
+            {
+                for (unsigned i = 0; i < length(genotypes); ++i)
+                {
+                    double minGt = std::min(std::min(genotypes[i].i1, genotypes[i].i2), genotypes[i].i3);
+                    currentIt->gtLikelihoods[i].i1 = std::round(static_cast<double> (genotypes[i].i1 - minGt) / winCount);
+                    currentIt->gtLikelihoods[i].i2 = std::round(static_cast<double> (genotypes[i].i2 - minGt) / winCount);
+                    currentIt->gtLikelihoods[i].i3 = std::round(static_cast<double> (genotypes[i].i3 - minGt) / winCount);
+                }
+                setFreqFromGTs(*currentIt);
+                currentIt->likelihoodRatio = lr / winCount;
+                std::sort(begin(startPositions), end(startPositions));
+                std::sort(begin(sizeEstimates), end(sizeEstimates));
+                currentIt->position = startPositions[length(startPositions) / 2];
+                currentIt->deletionLength = sizeEstimates[length(sizeEstimates) / 2];
+                break;
+            }
         }
         else if (winCount != 1)
         {
@@ -302,9 +353,18 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
                 genotypes[i].i2 = 0;
                 genotypes[i].i3 = 0;
             }
+            setFreqFromGTs(*currentIt);
+            currentIt->likelihoodRatio = lr / winCount;
+            std::sort(begin(startPositions), end(startPositions));
+            std::sort(begin(sizeEstimates), end(sizeEstimates));
+            currentIt->position = startPositions[length(startPositions) / 2];
+            currentIt->deletionLength = sizeEstimates[length(sizeEstimates) / 2];
             currentIt = it;
             ++callCount;
             winCount = 1;
+            clear(startPositions);
+            clear(sizeEstimates);
+            lr = 0.0;
         }
         else
         {
