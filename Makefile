@@ -14,8 +14,8 @@ SEQAN_LIB=.
 CXXFLAGS+=-I$(SEQAN_LIB) -DSEQAN_HAS_ZLIB=1 -std=c++14 -DSEQAN_DISABLE_VERSION_CHECK
 LDLIBS=-lz -lpthread
 
-DATE=on $(shell git log --pretty=format:"%cd" --date=iso | cut -f 1,2 -d " " | head -n 1)
-VERSION=1.0.5-$(shell git log --pretty=format:"%h" --date=iso | head -n 1)
+DATE=on 2018-12-14
+VERSION=1.0.6
 CXXFLAGS+=-DDATE=\""$(DATE)"\" -DVERSION=\""$(VERSION)"\"
 
 # Enable warnings

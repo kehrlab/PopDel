@@ -81,7 +81,7 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelProfileParameters & p
 // Set up the argument parser.
 void setupParser(ArgumentParser & parser, const PopDelProfileParameters & params)
 {
-    setShortDescription(parser, "profile creation from BAM-file");
+    setShortDescription(parser, "Profile creation from BAM-file");
     setVersion(parser, VERSION);
     setDate(parser, DATE);
     addUsageLine(parser, "[\\fIOPTIONS\\fP] \\fIBAM-FILE\\fP");

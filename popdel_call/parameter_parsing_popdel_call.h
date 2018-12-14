@@ -153,6 +153,7 @@ struct PopDelCallParameters
     String<BinnedHistogram> binnedHistograms;       // One binned histogram for each sample.
     String<unsigned> minInitDelLengths;             // Minimum length required for a deletion at initialization.
     unsigned minLen;                                // Minimum length estimation for deletion during iteration.
+    double minRelWinCover;                          // Minimum number for (#SignificantWindows * 30 / DelSize)
     unsigned windowSize;                            // Lenght of one window (in BP).
     unsigned windowShift;                           // Shift of the window per iterarion.   // TODO. Remove
     unsigned windowBuffer;                          // Number of windows to buffer.
@@ -178,6 +179,7 @@ struct PopDelCallParameters
     iterations(15),
     prior(0.0001),
     minLen(maxValue<unsigned>()),
+    minRelWinCover(0.5),
     windowSize(30),
     windowShift(0),
     windowBuffer(200000),
@@ -204,6 +206,7 @@ void setHiddenOptions(ArgumentParser & parser, bool hide, const PopDelCallParame
     hideOption(parser, "p", hide);
     hideOption(parser, "t", hide);
     hideOption(parser, "u", hide);
+    hideOption(parser, "c", hide);
 }
 // ---------------------------------------------------------------------------------------
 // Function addHiddenOptions()
@@ -213,17 +216,21 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelCallParameters & para
 {
     addOption(parser, ArgParseOption("b", "buffer-size",       "Number of buffered windows.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("F", "output-failed", "Also output calls which did not pass the filters."));
-    addOption(parser, ArgParseOption("n", "no-regenotyping",   "Outputs every potential variant window without re-genotyping."));
+    addOption(parser, ArgParseOption("n", "no-regenotyping",   "Outputs every potential variant window without re-genotyping and merging."));
     addOption(parser, ArgParseOption("p", "prior-probability", "Prior probability of a deletion.",                  ArgParseArgument::DOUBLE, "NUM"));
     addOption(parser, ArgParseOption("t", "iterations",        "Number of iterations in EM for length estimation.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("u", "unsmoothed",        "Disable the smoothing of the insert size histogram."));
+    addOption(parser, ArgParseOption("c", "min-relative-window-cover", "Determines which fraction of a deletion has to be covered by significant windows.", ArgParseArgument::DOUBLE, "NUM"));
 
     setDefaultValue(parser, "b",  params.windowBuffer);
     setDefaultValue(parser, "p",  params.prior);
     setDefaultValue(parser, "t", params.iterations);
+    setDefaultValue(parser, "c", params.minRelWinCover);
     setMinValue(parser, "buffer-size", "10000");
     setMinValue(parser, "prior-probability", "0.0");
     setMaxValue(parser, "prior-probability", "0.9999");
+    setMinValue(parser, "min-relative-window-cover", "0.0");
+    setMaxValue(parser, "min-relative-window-cover", "2.0");
     setHiddenOptions(parser, true, params);
 }
 // -----------------------------------------------------------------------------
@@ -232,7 +239,7 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelCallParameters & para
 // Set up the argument parser.
 void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
 {
-    setShortDescription(parser, "population-wide deletion calling");
+    setShortDescription(parser, "Population-wide deletion calling");
     setVersion(parser, VERSION);
     setDate(parser, DATE);
     addUsageLine(parser, "[\\fIOPTIONS\\fP] \\fPROFILE-LIST-FILE\\fP");
@@ -263,7 +270,6 @@ void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
     // Set min and max values
     setMinValue(parser, "min-sample-fraction", "0.0");
     setMaxValue(parser, "min-sample-fraction", "1.0");
-    setMinValue(parser, "min-sample-fraction", "0");
     // Add options that are visible only in the full help.
     addHiddenOptions(parser, params);
 }
@@ -291,6 +297,7 @@ void getParameterValues(PopDelCallParameters & params, ArgumentParser & parser)
     getOptionValue(params.roiFile,              parser, "ROI-file");
     getOptionValue(params.minSampleFraction,    parser, "min-sample-fraction");
     getOptionValue(params.windowBuffer,         parser, "buffer-size");
+    getOptionValue(params.minRelWinCover,       parser, "min-relative-window-cover");
     params.smoothing = !isSet(parser, "unsmoothed");
     if (isSet(parser, "min-init-length"))
     {

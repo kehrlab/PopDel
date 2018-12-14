@@ -67,6 +67,7 @@ struct Call
     double   frequency;             // Allele-frequency of the deletion across all samples.
     unsigned position;              // Assumed start-position (window) of the variant.
     unsigned endPosition;           // Assumed end-position (window) of the variant.
+    unsigned significantWindows;   // Number of significant windows that where merged into this variant.
     String<Triple<unsigned> > gtLikelihoods; // PHRED-scaled GT likelihhods of each sample. Order: HomRef, Het, HomDel.
     unsigned char filter;           // 8 Bits indicating the failed filters. 1 at the position indicates failed filter.
                                     // (right to left) 1.: LR ratio test failed, 2.: High coverage, 3.:Sample Number
@@ -78,6 +79,7 @@ struct Call
     frequency(0.0),
     position(0),
     endPosition(0),
+    significantWindows(0),
     filter(0){}
 
     Call(__uint32 initLen,
@@ -93,7 +95,8 @@ struct Call
     likelihoodRatio(llr),
     frequency(f),
     position(pos),
-    endPosition(endPos){}
+    endPosition(endPos),
+    significantWindows(0){}
 
     void reset(void)
     {
@@ -106,6 +109,7 @@ struct Call
         frequency = 0;
         position = 0;
         endPosition = 0;
+        significantWindows = 0;
         filter = 0;
     }
 };
@@ -177,12 +181,32 @@ inline bool checkGT0Pass(const Call & call)
     return !(call.filter & 8);   // 1000
 }
 // =======================================================================================
+// Function setRelWinCovFilter()
+// =======================================================================================
+// Return true if the realtive window coverage filter has been passed, false otherwise.
+inline void setRelWinCovFilter(Call & call)
+{
+    call.filter |= 16;             // 10000
+}
+// =======================================================================================
+// Function checkRelWinCovPass()
+// =======================================================================================
+// Return true if the realtive window coverage filter has been passed, false otherwise.
+inline bool checkRelWinCovPass(const Call & call)
+{
+    return !(call.filter & 16);    // 10000
+}
+// =======================================================================================
 // Function checkAllPass()
 // =======================================================================================
 // Return true if the high coverage filter has been passed, false otherwise.
 inline bool checkAllPass(const Call & call)
 {
-    return checkCoveragePass(call) & checkLRPass(call) & checkSamplePass(call) && checkGT0Pass(call);
+    return checkCoveragePass(call) &&
+           checkLRPass(call) &&
+           checkSamplePass(call) &&
+           checkGT0Pass(call) &&
+           checkRelWinCovPass(call);
 }
 // Reset all filters.
 inline void resetFilters(Call & call)
@@ -286,24 +310,38 @@ inline void setFreqFromGTs(Call & call)
 // =======================================================================================
 // Unifies duplicate calls in c.
 // Return false if the string of calls is empty, true otherwise.
-inline bool unifyCalls(String<Call> & calls, const double & stddev)
+inline bool unifyCalls(String<Call> & calls, const double & stddev, const double & r, const bool outputFailed = false)
 {
-    if (length(calls) == 0)
+    if (length(calls) <= 1u)
         return false;
-    std::sort(begin(calls), end(calls), lowerCall);
-    unsigned callCount = 1;
 
+    std::sort(begin(calls), end(calls), lowerCall);
     Iterator<String<Call> >::Type currentIt = begin(calls, Standard());
+    const Iterator<String<Call>, Standard >::Type last = end(calls) - 1;
+    if (!outputFailed)
+    {
+        while (!checkAllPass(*currentIt))        // Skip all windows that did not pass all filters.
+        {
+            if (currentIt == last)
+                return false;
+            else
+                ++currentIt;
+        }
+    }
+    const Iterator<String<Call> >::Type firstGoodWin = currentIt;
     String<Triple<unsigned> > genotypes;
     resize(genotypes, length(currentIt->gtLikelihoods), Triple<unsigned>(0, 0, 0));
-    long double lr = 0.0;
     String<unsigned> startPositions;
     String<unsigned> sizeEstimates;
     append(startPositions, currentIt->position);
     append(sizeEstimates, currentIt->deletionLength);
+    unsigned callCount = 1;
     unsigned winCount = 1;
-    Iterator<String<Call>, Standard >::Type last = end(calls) - 1;
-    for (Iterator<String<Call>, Standard >::Type it = begin(calls) + 1; it != end(calls); ++it)
+    unsigned significantWindows = 1;
+    long double lr = currentIt->likelihoodRatio;
+
+    Iterator<String<Call>, Standard >::Type it = firstGoodWin + 1;
+    while (true)
     {
         if (similar(*currentIt, *it, stddev))
         {
@@ -319,6 +357,7 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
             {
                 appendValue(startPositions, it->position);
                 appendValue(sizeEstimates, it->deletionLength);
+                ++significantWindows;
             }
 
             lr += it->likelihoodRatio;
@@ -327,7 +366,7 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
             {
                 for (unsigned i = 0; i < length(genotypes); ++i)
                 {
-                    double minGt = std::min(std::min(genotypes[i].i1, genotypes[i].i2), genotypes[i].i3);
+                    unsigned minGt = std::min(std::min(genotypes[i].i1, genotypes[i].i2), genotypes[i].i3);
                     currentIt->gtLikelihoods[i].i1 = std::round(static_cast<double> (genotypes[i].i1 - minGt) / winCount);
                     currentIt->gtLikelihoods[i].i2 = std::round(static_cast<double> (genotypes[i].i2 - minGt) / winCount);
                     currentIt->gtLikelihoods[i].i3 = std::round(static_cast<double> (genotypes[i].i3 - minGt) / winCount);
@@ -338,6 +377,9 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
                 std::sort(begin(sizeEstimates), end(sizeEstimates));
                 currentIt->position = startPositions[length(startPositions) / 2];
                 currentIt->deletionLength = sizeEstimates[length(sizeEstimates) / 2];
+                currentIt->significantWindows = significantWindows;
+                if (30.0 * significantWindows / currentIt->deletionLength < r)
+                    setRelWinCovFilter(*currentIt);
                 break;
             }
         }
@@ -359,22 +401,40 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev)
             std::sort(begin(sizeEstimates), end(sizeEstimates));
             currentIt->position = startPositions[length(startPositions) / 2];
             currentIt->deletionLength = sizeEstimates[length(sizeEstimates) / 2];
-            currentIt = it;
-            ++callCount;
-            winCount = 1;
+            currentIt->significantWindows = significantWindows;
+            if (30.0 * significantWindows / currentIt->deletionLength < r)
+                setRelWinCovFilter(*currentIt);
             clear(startPositions);
             clear(sizeEstimates);
+            currentIt = it;
+            winCount = 1;
+            significantWindows = 1;
             lr = 0.0;
+            ++callCount;
         }
         else
         {
             markInvalidCall(*currentIt);
             currentIt = it;
         }
+        if (it != last)
+        {
+            ++it;
+        }
+        else
+        {
+            if (winCount == 1)
+            {
+                --callCount;
+                markInvalidCall(*currentIt);
+            }
+            break;
+        }
     }
     String<Call> tmp;
     reserve(tmp, callCount, Exact());
-    for (Iterator<String<Call> >::Type it = begin(calls); it != end(calls); ++it)
+    it = firstGoodWin;
+    for (; it <= last; ++it)
     {
         if (it->filter != maxValue<unsigned char>())
             appendValue(tmp, *it);

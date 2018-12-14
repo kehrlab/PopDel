@@ -40,10 +40,12 @@ VcfHeader buildVcfHeader(const String<CharString> & contigNames, const String<in
     appendValue(header, VcfHeaderRecord("INFO", "<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=LR,Number=1,Type=String,Description=\"Log-Likelihood ratio that the test is correct\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=YIELD,Number=1,Type=Float,Description=\"Fraction of genotyped samples\">"));
+    appendValue(header, VcfHeaderRecord("INFO", "<ID=SWIN,Number=1,Type=Integer,Description=\"Number of significant windows merged into this variant\">"));
     appendValue(header, VcfHeaderRecord("FILTER", "<ID=LowLR,Description=\"Likelihood ratio below threshold\">"));
     //appendValue(header, VcfHeaderRecord("FILTER", "<ID=highCov,Description=\"High coverage region\">")); // TODO. Add Filter
     appendValue(header, VcfHeaderRecord("FILTER", "<ID=missingSamples,Description=\"Too many samples not genotyped\">"));
     appendValue(header, VcfHeaderRecord("FILTER", "<ID=allRefGT,Description=\"All samples genotyped as homozygous reference\">"));
+    appendValue(header, VcfHeaderRecord("FILTER", "<ID=CSWin,Description=\"Low fraction of significant windows\">"));
     appendValue(header, VcfHeaderRecord("FORMAT", "<ID=GT,Number=1,Type=String,Description=\"Genotype\">"));
     appendValue(header, VcfHeaderRecord("FORMAT", "<ID=PL,Number=G,Type=Integer,Description=\"Phred-scaled genotype likelihoods rounded to the closest integer\">"));
     appendValue(header, VcfHeaderRecord("FORMAT", "<ID=LAD,Number=3,Type=Integer,Description=\"Likelihood derived allelic depth: Count of read-pairs supporting REF, ambiguous, ALT\">"));
@@ -135,6 +137,15 @@ inline String<char> setFilterString(const Call & call)
                 appendValue(filter, ';');
             }
             append(filter, "allRefGT");
+            oneSet = true;
+        }
+        if (!checkRelWinCovPass(call))
+        {
+            if (oneSet)
+            {
+                appendValue(filter, ';');
+            }
+            append(filter, "CSWin");
             //oneSet = true;  // Uncomment if more filters are added.
         }
         return filter;
@@ -157,7 +168,8 @@ inline VcfRecord buildRecord(const QuantileMap& quantileMap, const Call& call, i
          << "SVTYPE=DEL;"
          << "AF=" << call.frequency << ";"
          << "LR=" << call.likelihoodRatio << ";"
-         << "YIELD=" << getYield(call);
+         << "YIELD=" << getYield(call) << ";"
+         << "SWIN=" << call.significantWindows;
     record.info =  info.str();
     record.format = "GT:PL:LAD:DAD:FL:FLD";
     for (unsigned i = 0; i < length(call.gtLikelihoods); ++i)

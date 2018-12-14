@@ -63,7 +63,7 @@ void processSegment(ChromosomeProfile & chromosomeProfile,
         windows.currentWindow.i2 += params.windowShift;
         chromosomeProfile.profilesAtEnd = !(chromosomeProfile.nextWindow(params.windowShift));
     }
-    if(unifyCalls(calls, params.meanStddev))
+    if(unifyCalls(calls, params.meanStddev, params.minRelWinCover, params.outputFailed))
     {
         vcfOutput.appendContigName(windows.currentWindow.i1);
         writeRegenotypedCalls(vcfOutput, calls, params);

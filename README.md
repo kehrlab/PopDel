@@ -10,7 +10,7 @@ PopDel is lightweight tool for calling and genotyping structural deletions in sh
 of many samples in a single joint-calling process. Cohorts of 10,000  or more BAM-filese are no problem for PopDel. It works by first creating a small
 insert-size profile of every BAM file. Then, in the calling step, all profiles are jointly processed to generate the deletion calls in a likelihood based approach and genotype every sample. The results are presented in standard VCF-4.2 format.
 
-
+PopDel is designed for short read paired end data of germline WGS data of diploid organisms (like human) only and is therefore unsuited for the analysis of WES data or somatic variants in cancer.
 
 ## Table of Contents
 1. [Quick Start](#1---quick-start)
@@ -189,9 +189,10 @@ popdel call -l 450 -m 500 -d 5000 -r chr21 -r chr19:45000000-55000000 myProfiles
 ## 6 - Output Format
 PopDel's output is a standard VCF-4.2 file containing the genotypes for every sample. Every variant is defined by its genomic position and an estimate of its length. The precision of the  length estimate mainly depends on the 'sharpness' of the insert size distribution(s) of the samples. Because the position calculations are performed in windows of 30 bp, the the starting points of the positions have a precision of +-29 bp at best. Therefore all calls are marked as 'IMPRECISE' in the INFO field.  The *LR* value in the INFO column gives a good additional quality measure for the deletion, as the value of the QUAL field will quickly cap at 100 while the *Log-Likelihoo Ratio* has no upper limit. In fact, the QUAL value is simply a PHRED-like representation of the *LR* value.
 
-**6.1 - Special FORMAT fields**
+**6.1 - Special INFO and FORMAT fields**
 
-The *YIELD* represents how many samples could be genotyped for the deletion, regardless of carrier status.
+The *SWIN* value represents the number of significant 30 bp windows that have been merged into the variant.
+The *YIELD* represents which fraction of the samples could be genotyped for the deletion, regardless of carrier status.
 The *Likelihood-derived Allelic Depth (LAD)* represents the number of reads that shifted the likelihood ratio in favor for the REF or ALT model (or neither).
 The *Distribution-derived Allelic Depth (DAD)* is similar to the *LAD*, but is based on the quantiles of the distributions. Therefore, it also contains counts for read pairs that support both models, or have an insert size that is too big for the deletion model.
 The *First & Last (FL)* values gives the position of the first and last read pair that acted in favor of the deletion model in the  *DAD*-calculation.
@@ -285,8 +286,8 @@ chr22:25000000-26000000
 
 ## 11 - Version and License
 ```
-    Last update: 2018-12-06
-    PopDel version: 1.0.5
+    Last update: 2018-12-14
+    PopDel version: 1.0.6
     SeqAn version: 2.3.1 (modified)
     Author: Sebastian Roskosch (Sebastian.Roskosch[at]bihealth.de)
 ```
