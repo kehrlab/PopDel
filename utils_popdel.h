@@ -327,6 +327,10 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
             else
                 ++currentIt;
         }
+        if (currentIt == last)
+        {
+            return false;
+        }
     }
     const Iterator<String<Call> >::Type firstGoodWin = currentIt;
     String<Triple<unsigned> > genotypes;
