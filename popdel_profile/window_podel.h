@@ -280,7 +280,8 @@ inline bool readWindow(zlib_stream::zip_istream & stream,
 // Function convertWindow()
 // =======================================================================================
 // Convert a window of size "oldWinSize" to a string of windows with "newWinSize".  //TODO: Adapt to sorted orig. win.
-inline void convertWindow(Window & o, String<Window> & c, unsigned oldWinSize = 256, unsigned newWinSize = 30)
+// Return true on success, false if there are no entries in the window.
+inline bool convertWindow(Window & o, String<Window> & c, unsigned oldWinSize = 256, unsigned newWinSize = 30)
 {
     SEQAN_ASSERT_LT(newWinSize, oldWinSize);
     const unsigned rgNum = length(o.insertSizes);
@@ -329,6 +330,10 @@ inline void convertWindow(Window & o, String<Window> & c, unsigned oldWinSize = 
         {
             ++totalWinNum;
         }
+    }
+    if (totalWinNum == 0)
+    {
+        return false;               // No content. Profile corrupted?
     }
     // Create a string indicating how many windows were skipped before to a given window.
     // E.g. winCountMap hold 9 windows, but 4,6,7 (starting from 0) are empty.
@@ -379,6 +384,7 @@ inline void convertWindow(Window & o, String<Window> & c, unsigned oldWinSize = 
             appendValue(c[winIndex].insertSizes[rg], o.insertSizes[rg][i]);
         }
     }
+    return true;
 }
 
 #endif /* WINDOW_POPDEL_H_ */

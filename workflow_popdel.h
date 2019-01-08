@@ -272,7 +272,7 @@ int popdel_call(int argc, char const ** argv)
     loadAndCalculateParameters(params);
     printStatus("Finished parameter calculation.\n");
     std::ostringstream msg;
-    msg << "Initialized insert size profiles from " << params.fileCount << " input files.";
+    msg << "Initialized insert size profiles from " << params.sampleNum << " input files.";
     printStatus(msg);
 
     // Create objects for tracking the progress and buffering.
@@ -281,7 +281,7 @@ int popdel_call(int argc, char const ** argv)
     String<bool> finishedROIs;        // True for every sample that finished the current ROI.
     resize(finishedROIs, params.sampleNum, false, Exact());
     String<String<Window> > bufferedWindows;
-    resize(bufferedWindows, params.fileCount);
+    resize(bufferedWindows, params.sampleNum, Exact());
     String<Call> bufferedCalls;        //create and resize output buffer.
     reserve(bufferedCalls, params.windowBuffer / 10);
 
@@ -321,8 +321,9 @@ int popdel_call(int argc, char const ** argv)
                 {
                     unsigned segmentCode = readSegment(chromosomeProfile,        // 0 - Segment finished
                                                        inStream,                 // 1 - ROI or Chrom not yet reached
-                                                       params.rgs[i],            // 2 - End of ROI or chromosome
-                                                       params.histograms,        // 3 - End of file
+                                                       params.inputFiles[i],     // 2 - End of ROI or chromosome
+                                                       params.rgs[i],            // 3 - End of file
+                                                       params.histograms,
                                                        params.contigNames[i],
                                                        nextCandidateWindows[i],
                                                        *params.nextRoi,
@@ -395,7 +396,7 @@ int popdel_view(int argc, char const ** argv)
     String<CharString> contigNames;
     String<int32_t> contigLengths;
     unsigned indexRegionSize;
-    readProfileHeader(in, readGroups, histograms, contigNames, contigLengths, indexRegionSize);
+    readProfileHeader(in, params.infile, readGroups, histograms, contigNames, contigLengths, indexRegionSize);
     // Write the header to std::cout.
     if (params.writeHeader || params.writeOnlyHeader)
         writeProfileHeader(std::cout, readGroups, contigNames, contigLengths);

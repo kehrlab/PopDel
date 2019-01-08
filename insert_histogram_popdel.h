@@ -317,6 +317,7 @@ inline void writeIndexIntoHeader(TStream & stream, String<String<uint64_t> > pro
 // =======================================================================================
 template<typename TStream>
 inline void readProfileHeader(TStream & stream,
+                              const CharString & filename,
                               String<CharString> & readGroups,
                               String<Histogram> & histograms,
                               String<CharString> & contigNames,
@@ -328,26 +329,50 @@ inline void readProfileHeader(TStream & stream,
     resize(buffer, 7);
     stream.read(&buffer[0], 7);
 
+    //Prepare message for potential errors.
+    std::ostringstream msg;
+    msg << "[PopDel] Corrupted profile \"" << filename << "\": ";
+
     if (!stream.good())
-        SEQAN_THROW(ParseError("[PopDel] Unable to read magic string."));
+    {
+        msg << "Unable to read magic string.";
+        SEQAN_THROW(ParseError(toCString(msg.str())));
+    }
     if (buffer != "POPDEL\1")
-        SEQAN_THROW(ParseError("[PopDel] Magic string is wrong."));
+    {
+        msg << "Magic string is wrong.";
+        SEQAN_THROW(ParseError(toCString(msg.str())));
+    }
 
     // Read the index regions size, size of the index and skip (ignore) the index.
     stream.read(reinterpret_cast<char *>(&indexRegionSize), sizeof(uint32_t));
     if (!stream.good())
-        SEQAN_THROW(ParseError("[PopDel] Unable to read index region size."));
+    {
+        msg << "Unable to read index region size.";
+        SEQAN_THROW(ParseError(toCString(msg.str())));
+    }
     unsigned numRegions = 0;
     stream.read(reinterpret_cast<char *>(&numRegions), sizeof(uint32_t));
     if (!stream.good())
-        SEQAN_THROW(ParseError("[PopDel] Unable to read index size."));
+    {
+        msg << "Unable to read index size.";
+        SEQAN_THROW(ParseError(toCString(msg.str())));
+    }
     stream.ignore(numRegions * sizeof(uint64_t));
 
     // Read the number of read groups.
     uint32_t numReadGroups = 0;
     stream.read(reinterpret_cast<char *>(&numReadGroups), sizeof(uint32_t));
     if (!stream.good())
-        SEQAN_THROW(ParseError("[PopDel] Unable to read number of read groups."));
+    {
+        msg << "Unable to read number of read groups.";
+        SEQAN_THROW(ParseError(toCString(msg.str())));
+    }
+    if (numReadGroups == 0) // How can this even happen?
+    {
+        msg << "Profile seems to have 0 read groups.";
+        SEQAN_THROW(ParseError(toCString(msg.str())));
+    }
     resize(readGroups, numReadGroups);
     resize(histograms, numReadGroups);
 
@@ -358,39 +383,66 @@ inline void readProfileHeader(TStream & stream,
         uint32_t nameLen = 0;
         stream.read(reinterpret_cast<char *>(&nameLen), sizeof(uint32_t));
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read length of read group name."));
+        {
+            msg << "Unable to read length of read group name.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
 
         // Read the read group name.
         resize(readGroups[i], nameLen-1);
         stream.read(reinterpret_cast<char *>(&readGroups[i][0]), nameLen-1);
         stream.read(&buffer[0], 1);
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read read group name."));
+        {
+            msg << "Unable to read read group name.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
         if (buffer[0] != '\0') // Expect read group names to be null-terminated.
-            SEQAN_THROW(ParseError("[PopDel] Expecting read group name to be null-terminated."));
+        {
+            msg << "Expecting read group name to be null-terminated.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
         // Read the insert size statistics.
         stream.read(reinterpret_cast<char *>(&histograms[i].median), sizeof(uint16_t));
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read median insert size."));
+        {
+            msg << "Unable to read median insert size.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
         stream.read(reinterpret_cast<char *>(&histograms[i].stddev), sizeof(double));
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read standard deviation of insert size."));
+        {
+            msg << "Unable to read standard deviation of insert size.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
         stream.read(reinterpret_cast<char *>(&histograms[i].readLength), sizeof(uint16_t));
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read read length."));
+        {
+            msg << "Unable to read read length.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
         stream.read(reinterpret_cast<char *>(&histograms[i].offset), sizeof(uint16_t));
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read offset of insert size histogram."));
+        {
+            msg << "Unable to read offset of insert size histogram.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
         unsigned histEnd = 0;
         stream.read(reinterpret_cast<char *>(&histEnd), sizeof(uint16_t));
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read insert size histogram size."));
+        {
+            msg << "Unable to read insert size histogram size.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
         resize(histograms[i].values, histEnd - histograms[i].offset);
         for (unsigned h = 0; h < histEnd - histograms[i].offset; ++h)
         {
             stream.read(reinterpret_cast<char *>(&histograms[i].values[h]), sizeof(double));
             if (!stream.good())
-                SEQAN_THROW(ParseError("[PopDel] Unable to read value from histogram."));
+            {
+                msg << "Unable to read value from histogram.";
+                SEQAN_THROW(ParseError(toCString(msg.str())));
+            }
         }
     }
 
@@ -398,7 +450,10 @@ inline void readProfileHeader(TStream & stream,
     uint32_t numContigs = 0;
     stream.read(reinterpret_cast<char *>(&numContigs), sizeof(uint32_t));
     if (!stream.good())
-        SEQAN_THROW(ParseError("[PopDel] Unable to read number of contigs."));
+    {
+        msg << "Unable to read number of contigs.";
+        SEQAN_THROW(ParseError(toCString(msg.str())));
+    }
     resize(contigNames, numContigs);
     resize(contigLengths, numContigs);
 
@@ -409,21 +464,33 @@ inline void readProfileHeader(TStream & stream,
         uint32_t nameLen = 0;
         stream.read(reinterpret_cast<char *>(&nameLen), sizeof(uint32_t));
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read length of contig name."));
+        {
+            msg << "Unable to read length of contig name.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
 
         // Read the chromosome name.
         resize(contigNames[i], nameLen-1);
         stream.read(reinterpret_cast<char *>(&contigNames[i][0]), nameLen-1);
         stream.read(&buffer[0], 1);
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read contig name."));
+        {
+            msg << "Unable to read contig name.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
         if (buffer[0] != '\0') // Expect chromosome names to be null-terminated.
-            SEQAN_THROW(ParseError("[PopDel] Expecting contig name to be null-terminated."));
+        {
+            msg << "Expecting contig name to be null-terminated.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
 
         // Read the chromosome length.
         stream.read(reinterpret_cast<char *>(&contigLengths[i]), sizeof(int32_t));
         if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read contig length."));
+        {
+            msg << "Unable to read contig length.";
+            SEQAN_THROW(ParseError(toCString(msg.str())));
+        }
     }
 }
 
@@ -1190,7 +1257,7 @@ inline void processHistogram(Histogram & hist,
 // -----------------------------------------------------------------------------
 // Load histogram of insert sizes from file and call _normalizeHistogram, _setMinimumProbability, _logHistogram.
 // Add the loaded and processed histograms to the set of all histograms (one hist per Read Group)
-inline void loadInsertSizeHistograms(String<Histogram> & histograms,              // TODO: Add test. Rename to loadHeaders?
+inline void loadInsertSizeHistograms(String<Histogram> & histograms,           // TODO: Add test. Rename to loadHeaders?
                                      std::map<CharString, unsigned> & readGroups,
                                      String<unsigned> & rgs,
                                      const CharString & filename,
@@ -1206,6 +1273,7 @@ inline void loadInsertSizeHistograms(String<Histogram> & histograms,            
     String<int32_t> sampleContigLengths;  // TODO: Make this more efficient by directly writing to the final sets.
     unsigned indexRegionSize = 0;
     readProfileHeader(infile,
+                      filename,
                       sampleReadGroups,
                       sampleHistograms,
                       sampleContigNames,

@@ -133,17 +133,27 @@ inline bool initializeRois(String<GenomicRegion> & allRois,
 
         appendValue(roiMap[itv.seqName], itv);
     }
+    unsigned c = 0; // Get total number of ROIs.
+    for (TRoiIter rIt = roiMap.begin(); rIt != roiMap.end(); ++rIt)
+        c += length(rIt->second);
+
+    if (c == 0)
+        return false;
+
+    resize(allRois, c);
+    unsigned i = 0;
     for (TRoiIter rIt = roiMap.begin(); rIt != roiMap.end(); ++rIt)
     {
         mergeOverlappingIntervals(rIt->second);
-        append(allRois, rIt->second);
+        for (unsigned j = 0; j < length(rIt->second); ++j)
+        {
+            allRois[i] = (rIt->second[j]);
+            ++i;
+        }
     }
     recreateOrder(allRois, contigNames);
     nextRoi = begin(allRois);
-    if (!empty(allRois))
-        return true;
-    else
-        return false;
+    return true;
 }
 //Overload for loading ROIs only from file or adding them to those loaded from command line.
 inline bool initializeRois(String<GenomicRegion> & allRois,
@@ -304,7 +314,14 @@ Pair<CharString, __uint32> getFirstWindowCoordinate (String<String<Window> >& co
                 continue;
 
             //Convert the 256bp window to a string of 30bp windows.
-            convertWindow(window, currentSampleConvertedWindows, 256, 30);
+            if(!convertWindow(window, currentSampleConvertedWindows, 256, 30))
+            {
+                std::cerr << "[PopDel] Error in profile \"" << params.inputFiles[i] << "\"." << std::endl;
+                std::ostringstream msg;
+                msg << "[PopDel] Could not convert window " << params.contigNames[i][window.chrom] <<
+                       ":" << window.beginPos << ". The profile \"" << params.inputFiles[i] << "\" might be corrupted.";
+                SEQAN_THROW(IOError(toCString(msg.str())));
+            }
 
             // Compare the read window with the current minimum.
             currentCoord.i1 = params.contigNames[i][currentSampleConvertedWindows[0].chrom];
@@ -364,7 +381,14 @@ inline bool getFirstWindowOnNextROI (Pair<CharString, __uint32> & minCoord,
                 continue;
 
             //Convert the 256bp window to a string of 30bp windows.
-            convertWindow(window, currentSampleConvertedWindows, 256, 30);
+            if (!convertWindow(window, currentSampleConvertedWindows, 256, 30))
+            {
+                std::cerr << "[PopDel] Error in profile \"" << params.inputFiles[i] << "\"." << std::endl;
+                std::ostringstream msg;
+                msg << "[PopDel] Could not convert window at " << params.contigNames[window.chrom] <<
+                ":" << window.beginPos << ". The profile \"" <<  params.inputFiles[i] << "\" might be corrupted.";
+                SEQAN_THROW(IOError(toCString(msg.str())));
+            }
 
             // Compare the read window with the current minimum.
             currentCoord.i1 = params.contigNames[i][currentSampleConvertedWindows[0].chrom];
@@ -460,12 +484,12 @@ inline void addRgRecordsToProfile(ChromosomeProfile & profile,
 // Perform the necessary switches if necessary.
 // Return 0 on success, 2 if the contig is not present (or lies before the starting point of reading) and 3 at EOF.
 inline unsigned readTillRoi(ChromosomeProfile & profile,
-                        zlib_stream::zip_istream & unzipper,
-                        Window & window,
-                        const String<CharString> & contigNames,
-                        Pair<CharString, __uint32> & coordinate,
-                        const TReadGroupIndices & rg,
-                        const GenomicRegion & roi)
+                            zlib_stream::zip_istream & unzipper,
+                            Window & window,
+                            const String<CharString> & contigNames,
+                            Pair<CharString, __uint32> & coordinate,
+                            const TReadGroupIndices & rg,
+                            const GenomicRegion & roi)
 {
     do
     {
@@ -498,6 +522,7 @@ inline unsigned readTillRoi(ChromosomeProfile & profile,
 // Return 3 if EOF has been reached.
 inline unsigned readSegment(ChromosomeProfile & profile,
                             std::ifstream & file,
+                            const CharString & fileName,
                             const TReadGroupIndices & rg,
                             const String<Histogram> & histograms,
                             const String<CharString> & contigNames,
@@ -513,7 +538,14 @@ inline unsigned readSegment(ChromosomeProfile & profile,
         if (ret > 0)
             return ret;
 
-        convertWindow(window, convertedWindows, 256, 30);
+        if(!convertWindow(window, convertedWindows, 256, 30))
+        {
+            std::cerr << "[PopDel] Error in profile \"" << fileName << "\"." << std::endl;
+            std::ostringstream msg;
+            msg << "[PopDel] Could not convert window at " << contigNames[window.chrom] <<
+            ":" << window.beginPos << ". The profile \"" << fileName << "\" might be corrupted.";
+            SEQAN_THROW(IOError(toCString(msg.str())));
+        }
         for (Iterator<const String<Window> >::Type it = begin(convertedWindows); it != end(convertedWindows); ++it)
         {
             if (contigNames[it->chrom] != roi.seqName || it->beginPos >= roi.endPos)
