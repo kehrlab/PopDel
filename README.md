@@ -48,6 +48,7 @@ realpath myBam*.profile > myProfiles.txt
 popdel call myProfiles.txt
 ```
 
+Note: We observed that PopDel takes 50% more time for calling variants when installed via conda. It still is considerably faster than most other tools, but if you want to use it on a bigger cohort or want to save some time, please consider installing PopDel from GitHub until the problem has been resolved.
 ## 2 - Dependencies
 PopDel has the following dependencies:
 - GCC 4.9 or higher
@@ -79,6 +80,7 @@ To instead install PopDel using conda:
 ```bash
 conda install -c bioconda popdel
 ```
+Note: We observed that PopDel takes 50% more time for calling variants when installed via conda. It still is considerably faster than most other tools, but if you want to use it on a bigger cohort or want to save some time, please consider installing PopDel from GitHub until the problem has been resolved.
 
 ## 4 - Running PopDel Profile
 The first step of PopDel is the creation of insert size profiles for each individual sample.
