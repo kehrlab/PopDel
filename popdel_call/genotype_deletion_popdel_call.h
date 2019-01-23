@@ -30,10 +30,11 @@ inline int upperHalfMedian(String<TValue> & values)
 // Function initialize_deletion_lengths()
 // -----------------------------------------------------------------------------
 // Initialize the size of deletions as the upper half median of insert sizes. Use only those which are within
-// 50 BP proximity and above the thresholds.
+// 50 BP proximity and above the thresholds. Mark the samples as lowCoverage in lowCoverageSample if cov < 2.
 inline std::set<int> initialize_deletion_lengths(const ChromosomeProfile & chromosomeProfiles,  //TODO: dont return set.
                                                  const TRGs & rgs,
-                                                 const String<unsigned> & thresholds)
+                                                 const String<unsigned> & thresholds,
+                                                 String<bool> & lowCoverageSamples)
 {
     unsigned sampleCount = length(rgs);
     String<int> deviations;                                     // Index corresponds to sample
@@ -43,7 +44,10 @@ inline std::set<int> initialize_deletion_lengths(const ChromosomeProfile & chrom
     {
         String<int> sampleValues;
         if(chromosomeProfiles.getActiveReadsDeviations(sampleValues, rgs[i], 2u) < 2)
+        {
+            lowCoverageSamples[i] = true;
             continue;                                                                    // TODO: Parameter min cov.
+        }
         appendValue(deviations, upperHalfMedian(sampleValues));     // TODO: Try different initializations for del-size.
     }
     // Keep only averages of medians that are less than 50 bp apart  and those that are above the threshold.
@@ -73,6 +77,7 @@ inline std::set<int> initialize_deletion_lengths(const ChromosomeProfile & chrom
     }
     if (sum/n > static_cast<int>(threshold))
         deletion_lengths.insert(sum/n);
+
     return deletion_lengths;
 }
 // -----------------------------------------------------------------------------
@@ -204,9 +209,23 @@ inline Triple<long double> compute_data_likelihoods(String<Triple<long double> >
     }
     // Scale the likelihoods with the largest of the three genotypes.
     long double max_gt = std::max(std::max(logLikelihoods.i1, logLikelihoods.i2), logLikelihoods.i3);
-    return Triple<long double>(exp(logLikelihoods.i1 - max_gt),              //Apply exp to get rid of of the logarithm.
-                               exp(logLikelihoods.i2 - max_gt),
-                               exp(logLikelihoods.i3 - max_gt));
+    Triple<long double> res = Triple<long double>(exp(logLikelihoods.i1 - max_gt), //Apply exp to get rid of of the log
+                                                  exp(logLikelihoods.i2 - max_gt),
+                                                  exp(logLikelihoods.i3 - max_gt));
+    // If the likelihoods are too small res will contain 0's. This should only happen for extremely high coverage
+    if (res.i1 == 0 || res.i2 == 0 || res.i3 == 0)
+    {
+        res.i1 = 1;                 // For high coverage regions: Assume reference to avoid calls. TODO: Check
+        res.i2 = 0.0000000001;
+        res.i3 = 0.0000000001;
+    }
+    if (res.i1 == res.i2 && res.i1 == res.i3)
+    {
+        res.i1 = 1;                 // If everything fits equally good/bad assume reference.
+        res.i2 = 0.0000000001;
+        res.i3 = 0.0000000001;
+    }
+    return res;
 }
 //Overload, giving information on the genotype likelihoods and LAD, DAD and mappDist.
 inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs,
@@ -266,9 +285,29 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
     gtLogs.i1 -= max_gt;
     gtLogs.i2 -= max_gt;
     gtLogs.i3 -= max_gt;
-    return Triple<long double>(exp(logLikelihoods.i1 - max_dl),              //Apply exp to get rid of of the logarithm.
-                               exp(logLikelihoods.i2 - max_dl),
-                               exp(logLikelihoods.i3 - max_dl));
+    if (gtLogs.i1  == gtLogs.i2  && gtLogs.i1 == gtLogs.i3) // TODO: Check if beneficial for nested deletions.
+    {
+        gtLogs.i1 = 0;
+        gtLogs.i2 = -10;
+        gtLogs.i3 = -10;
+    }
+    Triple<long double> res = Triple<long double>(exp(logLikelihoods.i1 - max_dl), //Apply exp to get rid of of the log
+                                                  exp(logLikelihoods.i2 - max_dl),
+                                                  exp(logLikelihoods.i3 - max_dl));
+    // If the likelihoods are too small res will contain 0's. This should only happen for extremely high coverage
+    if (res.i1 == 0 || res.i2 == 0 || res.i3 == 0)
+    {
+        res.i1 = 1;                 // For high coverage regions: Assume reference to avoid calls. TODO: Check
+        res.i2 = 0.0000000001;
+        res.i3 = 0.0000000001;
+    }
+    if (res.i1 == res.i2 && res.i1 == res.i3)    // TODO: Check if beneficial for nested deletions.
+    {
+        res.i1 = 1;                 // If everything fits equally good/bad assume reference.
+        res.i2 = 0.0000000001;
+        res.i3 = 0.0000000001;
+    }
+    return res;
 }
 // -----------------------------------------------------------------------------
 // Function compute_gt_likelihoods()
@@ -414,10 +453,13 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                      const TRGs & rgs,
                                      PopDelCallParameters & params)
 {
-    // Initialize the deletion length.
+    // Initialize the deletion length and check if the samples have sufficient coverage.
+    String<bool> lowCoverageSamples;
+    resize(lowCoverageSamples, length(rgs), false);
     std::set<int> deletion_lengths = initialize_deletion_lengths(chromosomeProfiles,
                                                                  rgs,
-                                                                 params.minInitDelLengths);
+                                                                 params.minInitDelLengths,
+                                                                 lowCoverageSamples);
     if (deletion_lengths.empty())
         return false;
 
@@ -427,18 +469,16 @@ inline bool genotype_deletion_window(String<Call> & calls,
     for (std::set<int>::iterator it = deletion_lengths.begin(); it != deletion_lengths.end(); ++it)
     {
         for (auto refIt = begin(referenceShifts); refIt != end(referenceShifts); ++refIt)
-        {
             *refIt = 0;
-        }
+
         // Keep track of the deletion length estimates in order to notice convergence.
         std::map<int, double> visited;
         // Initialize the allele frequency.
         double freq = initialize_allele_frequency(chromosomeProfiles, rgs, *it, params.histograms);
 
         if (freq == 0)
-        {
             continue;
-        }
+
         // Initialize likelihoods of data given genotype.
         String<Triple<long double> > rgWiseDataLikelihoods;
         resize(rgWiseDataLikelihoods, length(params.histograms));
@@ -549,7 +589,7 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                                            params.histograms);
 
         if (suppFirstLast.i1 == 0)
-            continue;                   // We dont't want calls that don't match their supporting reads.
+            continue;                   // We don't want calls that don't match their supporting reads.
 
         double logLR = deletion_likelihood_ratio(data_likelihoods, gtLikelihoods);
         if (logLR >= params.minimumLikelihoodRatio)
@@ -582,7 +622,8 @@ inline bool genotype_deletion_window(String<Call> & calls,
             ret = true;
 
             resetFilters(currentCall);
-            if (!checkSampleNumber(currentCall, params.minSampleFraction))
+            setNoDataSamples(currentCall, lowCoverageSamples);
+            if (!checkSampleNumber(lowCoverageSamples, params.minSampleFraction))
                 setSampleFilter(currentCall);
         }
     }

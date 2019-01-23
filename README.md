@@ -171,11 +171,12 @@ Note that changing the value for the buffer size has a direct influence on memor
 
 **5.2 - Filtering options for calling**
 ```
+-c, --min-relative-window-cover  Determines which fraction of a deletion has to be covered by significant windows (see SWIN INFO field). In range [0..2.0]. Default: 0.5
 -d, --max-deletion-size     Maximum size of deletions. Default: 10000.
 -F, --output-failed         Also output calls which did not pass the filters.
 -l, --min-init-length       Minimal deletion length at initialization of iteration. Default: standard deviation.
 -m, --min-length            Minimal deletion length during iteration. Default: 95th percentile of standard deviations.
--s, --min-sample-fraction   Minimum fraction of samples which is required to have enough data in the window. In range [0..1.0]. Default: 0.75.
+-s, --min-sample-fraction   Minimum fraction of samples which is required to have enough data in the window. In range [0..1.0]. Default: 0.1.
 ```
 
 **5.4 - Examples**
@@ -288,8 +289,8 @@ chr22:25000000-26000000
 
 ## 11 - Version and License
 ```
-    Last update: 2019-01-08
-    PopDel version: 1.0.8
+    Last update: 2019-01-23
+    PopDel version: 1.0.9
     SeqAn version: 2.3.1 (modified)
     Author: Sebastian Roskosch (Sebastian.Roskosch[at]bihealth.de)
 ```

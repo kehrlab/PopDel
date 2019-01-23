@@ -189,7 +189,7 @@ struct PopDelCallParameters
     fileCount(0),
     sampleNum(0),
     maxDeletionSize(10000),
-    minSampleFraction(0.75),
+    minSampleFraction(0.1),
     meanStddev(0.0),
     windowWiseOutput(false)
     {}

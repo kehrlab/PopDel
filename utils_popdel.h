@@ -473,16 +473,32 @@ inline bool allTrue(const String<bool> & s)
     return true;
 }
 // =======================================================================================
+// Function setNoDataSamples()
+// =======================================================================================
+// Sets all genotypes for samples marked in lowCoverageSamples to 0.
+inline void setNoDataSamples(Call & currentCall, const String<bool> & lowCoverageSamples)
+{
+    for (unsigned i = 0; i < length(lowCoverageSamples); ++i)
+    {
+        if (lowCoverageSamples[i])
+        {
+            currentCall.gtLikelihoods[i].i1 = 0;
+            currentCall.gtLikelihoods[i].i2 = 0;
+            currentCall.gtLikelihoods[i].i3 = 0;
+        }
+    }
+}
+// =======================================================================================
 // Function checkSampleNumber()
 // =======================================================================================
 // Checks if the number of samples with data at the current position is high enough.
 // Return true if so, false otherwise.
-inline bool checkSampleNumber(const Call & call, const double & threshold)
+inline bool checkSampleNumber(const String<bool> & lowCoverageSamples, const double & threshold)
 {
-    unsigned total = length(call.gtLikelihoods);
+    unsigned total = length(lowCoverageSamples);
     unsigned dataSample = total;
     for (unsigned  i = 0; i < total; ++i)
-        if (sum(call.gtLikelihoods[i]) == 0)
+        if (lowCoverageSamples[i])
             --dataSample;
     if (static_cast<double>(dataSample) / total < threshold)
         return false;
