@@ -143,6 +143,7 @@ struct PopDelCallParameters
     String<CharString> inputFiles;                  // Path/filename of file containing the paths to the profiles.
     CharString histogramsFile;                      // Path/filename of input histogram file.
     CharString roiFile;                             // File containing the regions of interest.
+    CharString maxLoadFile;                         // File containing the maximum load for each read group.
     CharString outfile;                             // Output path/filename.
     unsigned iterations;                            // Max number of iterations for determination of deletion length.
     double prior;                                   // Prior for a deletion.
@@ -170,8 +171,10 @@ struct PopDelCallParameters
     unsigned maxDeletionSize;                       // Maximum size of a deletion.
     double minSampleFraction;                       // Minimum fraction of samples which has to have data in the window.
     double meanStddev;                              // The mean of all standard deviations of the histograms.
-    bool windowWiseOutput;                         // Output each window after window-wise genotyping.
+    bool windowWiseOutput;                          // Output each window after window-wise genotyping.
     String<unsigned> indexRegionSizes;
+    unsigned defaultMaxLoad;                         // Default value for the maximum load.
+    String<unsigned> maxLoad;                       // Maximum number of active reads per read group.
 
     PopDelCallParameters() :
     histogramsFile(""),
@@ -191,7 +194,8 @@ struct PopDelCallParameters
     maxDeletionSize(10000),
     minSampleFraction(0.1),
     meanStddev(0.0),
-    windowWiseOutput(false)
+    windowWiseOutput(false),
+    defaultMaxLoad(100)
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -215,12 +219,12 @@ void setHiddenOptions(ArgumentParser & parser, bool hide, const PopDelCallParame
 void addHiddenOptions(ArgumentParser & parser, const PopDelCallParameters & params)
 {
     addOption(parser, ArgParseOption("b", "buffer-size",       "Number of buffered windows.", ArgParseArgument::INTEGER, "NUM"));
+    addOption(parser, ArgParseOption("c", "min-relative-window-cover", "Determines which fraction of a deletion has to be covered by significant windows.", ArgParseArgument::DOUBLE, "NUM"));
     addOption(parser, ArgParseOption("F", "output-failed", "Also output calls which did not pass the filters."));
     addOption(parser, ArgParseOption("n", "no-regenotyping",   "Outputs every potential variant window without re-genotyping and merging."));
     addOption(parser, ArgParseOption("p", "prior-probability", "Prior probability of a deletion.",                  ArgParseArgument::DOUBLE, "NUM"));
     addOption(parser, ArgParseOption("t", "iterations",        "Number of iterations in EM for length estimation.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("u", "unsmoothed",        "Disable the smoothing of the insert size histogram."));
-    addOption(parser, ArgParseOption("c", "min-relative-window-cover", "Determines which fraction of a deletion has to be covered by significant windows.", ArgParseArgument::DOUBLE, "NUM"));
 
     setDefaultValue(parser, "b",  params.windowBuffer);
     setDefaultValue(parser, "p",  params.prior);
@@ -253,9 +257,11 @@ void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
     // Add visible options.
     addOption(parser, ArgParseOption("H", "fullHelp",              "Displays full list of options."));
     addSection(parser, "PopDel call options");
+    addOption(parser, ArgParseOption("A", "active-coverage-file",  "File with lines consisting of \"ReadGroup  maxCov\". If this value is reached no more new reads are loaded for this read group until the coverage drops again. A value of 0 disables the filter for the read group.", ArgParseArgument::INPUT_FILE, "FILE"));
+    addOption(parser, ArgParseOption("a", "active-coverage",       "Maximum number of active read pairs (~coverage). This value is taken for all read groups that are not listed in \'active-coverage-file\'. Setting it to 0 disables the filter for all read groups that are not specified in \'active-coverage-file\'.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("d", "max-deletion-size",     "Maximum size of deletions.", ArgParseArgument::INTEGER, "NUM"));
-    addOption(parser, ArgParseOption("l", "min-init-length",       "Minimal deletion length at initialization of iteration. Default: \\fIstandard deviation\\fP.", ArgParseArgument::INTEGER, "NUM"));
-    addOption(parser, ArgParseOption("m", "min-length",            "Minimal deletion length during iteration. Default: \\fI95th percentile of standard deviations\\fP.", ArgParseArgument::INTEGER, "NUM"));
+    addOption(parser, ArgParseOption("l", "min-init-length",       "Minimal deletion length at initialization of iteration. Default: \\fI4 * standard deviation\\fP.", ArgParseArgument::INTEGER, "NUM"));
+    addOption(parser, ArgParseOption("m", "min-length",            "Minimal deletion length during iteration. Default: \\fI95th percentile of min-init-lengths\\fP.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("o", "out",                   "Output file name.", ArgParseArgument::OUTPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("r", "region-of-interest",    "Genomic region 'chr:start-end' (closed interval, 1-based index). Calling is limited to this region. "
                                                                    "Multiple regions can be defined by using the parameter -r multiple times.",ArgParseArgument::STRING, "REGION", "isList"));
@@ -264,10 +270,12 @@ void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
     addOption(parser, ArgParseOption("s",  "min-sample-fraction",  "Minimum fraction of samples which is required to have enough data in the window.", ArgParseArgument::DOUBLE, "NUM"));
 
     // Set default values for visible options.
+    setDefaultValue(parser, "a", params.defaultMaxLoad);
     setDefaultValue(parser, "d", params.maxDeletionSize);
     setDefaultValue(parser, "o", params.outfile);
     setDefaultValue(parser, "s", params.minSampleFraction);
     // Set min and max values
+    setMinValue(parser, "active-coverage", "0");
     setMinValue(parser, "min-sample-fraction", "0.0");
     setMaxValue(parser, "min-sample-fraction", "1.0");
     // Add options that are visible only in the full help.
@@ -295,9 +303,11 @@ void getParameterValues(PopDelCallParameters & params, ArgumentParser & parser)
     getOptionValue(params.prior,                parser, "prior-probability");
     getOptionValue(params.iterations,           parser, "iterations");
     getOptionValue(params.roiFile,              parser, "ROI-file");
+    getOptionValue(params.maxLoadFile,          parser, "active-coverage-file");
     getOptionValue(params.minSampleFraction,    parser, "min-sample-fraction");
     getOptionValue(params.windowBuffer,         parser, "buffer-size");
     getOptionValue(params.minRelWinCover,       parser, "min-relative-window-cover");
+    getOptionValue(params.defaultMaxLoad,       parser, "active-coverage");
     params.smoothing = !isSet(parser, "unsmoothed");
     if (isSet(parser, "min-init-length"))
     {

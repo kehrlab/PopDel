@@ -241,7 +241,8 @@ inline bool checkDelSizeSimilar(const unsigned & a, const unsigned & b, const do
     }
     if (l + 2 * stddev >= r)
         return true;
-    return l >= f * r;
+    else
+        return l >= f * r;
 }
 // =======================================================================================
 // Function checkEnoughOverlap()
@@ -1117,7 +1118,7 @@ inline Infix<const String<char> >::Type getSampleName(const String<char> & path)
         ++it;
     }
     if (lastDelimPos == 0)
-        return prefix(path, lastDotPos);       
+        return prefix(path, lastDotPos);
     if (lastDotPos < lastDelimPos)
         return suffix(path, lastDelimPos + 1);
     else

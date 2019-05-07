@@ -48,21 +48,36 @@ VcfHeader buildVcfHeader(const String<CharString> & contigNames, const String<in
     appendValue(header, VcfHeaderRecord("FILTER", "<ID=CSWin,Description=\"Low fraction of significant windows\">"));
     appendValue(header, VcfHeaderRecord("FORMAT", "<ID=GT,Number=1,Type=String,Description=\"Genotype\">"));
     appendValue(header, VcfHeaderRecord("FORMAT", "<ID=PL,Number=G,Type=Integer,Description=\"Phred-scaled genotype likelihoods rounded to the closest integer\">"));
+    appendValue(header, VcfHeaderRecord("FORMAT", "<ID=GQ,Number=1,Type=Integer,Description=\"Genotype quality. Difference of the best and second-best PL\">"));
     appendValue(header, VcfHeaderRecord("FORMAT", "<ID=LAD,Number=3,Type=Integer,Description=\"Likelihood derived allelic depth: Count of read-pairs supporting REF, ambiguous, ALT\">"));
     appendValue(header, VcfHeaderRecord("FORMAT", "<ID=DAD,Number=5,Type=Integer,Description=\"Distribution derived allelic depth: Count of read-pairs supporting REF only, REF and ALT, neither(between the histograms), ALT only, bigger than ALT\">"));
     appendValue(header, VcfHeaderRecord("FORMAT", "<ID=FL,Number=2,Type=Integer,Description=\"Window of the first and last read active in this window\">"));
     appendValue(header, VcfHeaderRecord("FORMAT", "<ID=FLD,Number=1,Type=Integer,Description=\"Distance between first and last window\">"));
     return header;
 }
-// Translate the pair of bools to a GT string.
+// Calculate the GQ from the PL values.
+inline unsigned calculateGQ(const Triple<unsigned> & pl)
+{
+    if (sum(pl) == 0u)
+        return 0;
+
+    if (pl.i1 == 0u)
+        return std::min(pl.i2, pl.i3);
+    else if (pl.i2 == 0u)
+        return std::min(pl.i1, pl.i3);
+    else
+        return std::min(pl.i1, pl.i2);
+}
+// Create the format string.
 inline void buildFormatString(VcfRecord & record,
                               const Triple<unsigned> & phredLikelihoods,
                               const Triple<unsigned> & lads,
                               const Dad & dads,
                               const Pair<unsigned> & mappDist)
 {
+    unsigned gq = calculateGQ(phredLikelihoods);
     std::ostringstream formatString;
-    if (sum(phredLikelihoods) == 0u)
+    if (gq == 0u)
     {
         formatString << "./.:0,0,0";
     }
@@ -82,6 +97,7 @@ inline void buildFormatString(VcfRecord & record,
         formatString << std::min(phredLikelihoods.i2, 255u) << ",";
         formatString << std::min(phredLikelihoods.i3, 255u);
     }
+    formatString << ":" << gq;
     formatString << ":" << lads.i1 << "," << lads.i2 << "," << lads.i3;
     formatString << ":" << dads.ref << "," << dads.both << "," << dads.between << "," << dads.alt << "," << dads.right;
     formatString << ":" << mappDist.i1 << "," << mappDist.i2;
@@ -171,7 +187,7 @@ inline VcfRecord buildRecord(const QuantileMap& quantileMap, const Call& call, i
          << "YIELD=" << getYield(call) << ";"
          << "SWIN=" << call.significantWindows;
     record.info =  info.str();
-    record.format = "GT:PL:LAD:DAD:FL:FLD";
+    record.format = "GT:PL:GQ:LAD:DAD:FL:FLD";
     for (unsigned i = 0; i < length(call.gtLikelihoods); ++i)
         buildFormatString(record, call.gtLikelihoods[i], call.lads[i], call.dads[i], call.firstLast[i]);
     return record;

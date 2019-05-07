@@ -297,7 +297,7 @@ int popdel_call(int argc, char const ** argv)
     vcfOutput.appendContigName(windows.currentWindow.i1);
 
     // Create the object for managing all the read pairs from all samples and set it to the first position.
-    ChromosomeProfile chromosomeProfile(length(params.readGroups), params.windowBuffer);
+    ChromosomeProfile chromosomeProfile(length(params.readGroups), params.maxLoad, params.windowBuffer);
     chromosomeProfile.currentPos = windows.currentWindow.i2;
     chromosomeProfile.resetTo(chromosomeProfile.currentPos);
 

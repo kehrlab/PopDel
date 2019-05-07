@@ -603,7 +603,16 @@ struct EndEntrySubset
     {
         readable = false;
     }
+    inline ChromosomeProfileEndEntry at(const unsigned & i) const
+    {
+        SEQAN_ASSERT_LT(i, length(subset));
+        return subset[i];
+    }
 };
+inline unsigned length(const EndEntrySubset & e)
+{
+    return length(e.subset);
+}
 // =======================================================================================
 // Operator== overloads
 // =======================================================================================
@@ -663,9 +672,12 @@ struct CyclicEndEntryTable
 {
     String<EndEntrySubset>                                           sets;
     Iterator<std::vector<ChromosomeProfileEndEntry>, Rooted>::Type   nextRead;    // Element of next read action.
-    unsigned                                                         writeSet;       // 0: first, 1: second, 2:third.
+    unsigned                                                         dNext;       // Index in the current write set, where the count of active reads is reduced.
+    unsigned                                                         dNextOffset; // Offset after look-ahead.
+    unsigned                                                         writeSet;    // 0: first, 1: second, 2:third.
+    unsigned                                                         endPosSet;   // EndPositions may lag behind write set.
     unsigned                                                         readSet;
-    unsigned                                                         numWindows;     // Max number of windows per set.
+    unsigned                                                         numWindows;  // Max number of windows per set.
 
     CyclicEndEntryTable(unsigned firstWin = 0, unsigned windows = 10000)
     {
@@ -678,6 +690,9 @@ struct CyclicEndEntryTable
         sets[2].reset(sets[1].right + windows);
         readSet = 2;
         nextRead = begin(sets[readSet].subset, Rooted());
+        dNext = 0;
+        dNextOffset = 0;
+        endPosSet = 0;
     }
     // =======================================================================================
     // Function needsSwitch()
@@ -703,6 +718,22 @@ struct CyclicEndEntryTable
         nextNextSet.reset(nextSet.right + numWindows);  //We do not reset nextSet but the one after
         writeSet = (writeSet + 1) % 3;                  //Because nextSet might already contain entries.
         currentSet.permitReading(); // No neccessary if switchReadSets has been applied before.
+    }
+    inline void correctConsecutiveSwitch(unsigned & activeLoad)
+    {
+        if (endPosSet != (writeSet + 2) % 3) // There have been two consecutive switches.
+        {
+            endPosSet = writeSet;
+            dNext = 0;
+            SEQAN_ASSERT_EQ(dNextOffset, 0u);
+            activeLoad = 0;
+        }
+        else if (length(sets[endPosSet]) == 0u)
+        {
+            SEQAN_ASSERT_EQ(dNext, 0u);
+            SEQAN_ASSERT_EQ(activeLoad, 0u);
+            endPosSet = writeSet;
+        }
     }
     // =======================================================================================
     // Function switchReadSet()
@@ -831,6 +862,67 @@ struct CyclicEndEntryTable
         return *nextRead;
     }
     // =======================================================================================
+    // Function getEndCount()
+    // =======================================================================================
+    // Return the number of reads that end in the current writing set between the position of [dNext and pos[.
+    // Also updates the position of dNext.
+    inline unsigned getEndCount(const unsigned & pos)
+    {
+        bool lookAhead = false;                             // Indicates that we have to look in endPosSet + 1.
+        unsigned i = dNext;
+        unsigned c = 0;                                     // Counter for removed reads.
+        unsigned cEndPosSet = endPosSet;
+        unsigned n = length(sets[cEndPosSet]);
+        if (i == n)
+        {
+            if (endPosSet != writeSet)  // We are done with the current endSet. Update it to the current writeSet.
+            {
+                endPosSet = (endPosSet + 1) % 3;
+                dNext = dNextOffset;
+                dNextOffset = 0;
+                i = dNext;
+                cEndPosSet = endPosSet;
+                n = length(sets[cEndPosSet]);
+
+            }
+            else
+            {
+                return 0;
+            }
+        }
+        while(sets[cEndPosSet].at(i).lastWindow < pos)
+        {
+            if (lookAhead)
+                ++dNextOffset;
+            ++c;
+            ++i;
+            if (i == n)
+            {
+                if (endPosSet != writeSet)  // We are done with the current endSet. Update it to the current writeSet.
+                {
+                    endPosSet = (endPosSet + 1) % 3;
+                    dNext = dNextOffset;
+                    dNextOffset = 0;
+                    return c;
+                }
+                else
+                {
+                    // some of the previous end pos. have been added to the next writeSet,
+                    // but the current endSet might still be used later.
+                    // So we cannot yet permanently switch to the next endPosSet.
+                    cEndPosSet = (cEndPosSet + 1) % 3;
+                    n = length(sets[cEndPosSet]);
+                    if (n == 0)
+                        break;
+                    i = dNextOffset;
+                    lookAhead = true;
+                }
+            }
+        }
+        dNext += c - dNextOffset;
+        return c;
+    }
+    // =======================================================================================
     // Function getId()
     // =======================================================================================
     // Return the ID of the element nextRead is pointing to.
@@ -953,17 +1045,21 @@ struct ChromosomeProfile
     bool                                    profilesAtEnd;      // That the start and endProfiles have ended.
     unsigned                                currentRightBorder; // Right border of the currently active profile subset.
                                                                 // Corresponds to startProfiles[rg].sets[readSet].right.
+    String<unsigned>                        activeLoad;// Number of active reads in current writing window. One per RG.
+    String<unsigned>                        maxLoad; // while the load is above this threshold no new reads are added.
 
-    ChromosomeProfile(unsigned numReadGroups, unsigned bufferSize = 100)
+    ChromosomeProfile(unsigned numReadGroups, String<unsigned> & maximumLoad, unsigned bufferSize = 100)
     {
         resize(startProfiles, numReadGroups, CyclicStartEntryTable(0, bufferSize), Exact());
         resize(endProfiles, numReadGroups, CyclicEndEntryTable(0, bufferSize), Exact());
         resize(activeReads, numReadGroups, Exact());
         resize(avgNewReadsPerWindow, numReadGroups, 0.0, Exact());
+        resize(activeLoad, numReadGroups, 0, Exact());
         globalMinPos = maxValue<unsigned>();
         currentPos = maxValue<unsigned>();
         profilesAtEnd = false;
         currentRightBorder = startProfiles[0].sets[2].right;
+        move(maxLoad, maximumLoad);
     }
     // =======================================================================================
     // Function add()
@@ -980,8 +1076,29 @@ struct ChromosomeProfile
         CyclicStartEntryTable& currentStartEntryTable = startProfiles[readGroup];
         CyclicEndEntryTable&   currentEndEntryTable = endProfiles[readGroup];
         unsigned id = currentStartEntryTable.insertionCount;
-        currentStartEntryTable.add(firstWindow, deviation);
-        currentEndEntryTable.add(id, lastWindow);
+        if (activeLoad[readGroup] >= maxLoad[readGroup])
+        {
+            // Don't add new reads, only look for closing reads.
+            unsigned closingReads = currentEndEntryTable.getEndCount(firstWindow);
+            SEQAN_ASSERT_GT(activeLoad[readGroup], closingReads);
+            activeLoad[readGroup] -= closingReads;
+            if (activeLoad[readGroup] < maxLoad[readGroup]) // Maybe it dropped below the threshold now.
+            {
+                currentStartEntryTable.add(firstWindow, deviation);
+                currentEndEntryTable.add(id, lastWindow);
+                ++activeLoad[readGroup];
+            }
+        }
+        else
+        {
+            currentStartEntryTable.add(firstWindow, deviation);
+            currentEndEntryTable.add(id, lastWindow);
+            ++activeLoad[readGroup];
+            unsigned closingReads = currentEndEntryTable.getEndCount(firstWindow);
+            SEQAN_ASSERT_GT(activeLoad[readGroup], closingReads);
+            activeLoad[readGroup] -= closingReads;
+        }
+       // std::cout << "RG:" << readGroup << "\tPos:" << firstWindow << "\tLoad:" << activeLoad[readGroup] << std::endl;
     }
     // =======================================================================================
     // Function initializeActiveReads()
@@ -1723,6 +1840,7 @@ inline void performSwitches(ChromosomeProfile & profile,
 
         profile.startProfiles[i].switchBothSets(profile.currentRightBorder);
         profile.endProfiles[i].switchWriteSet();
+        profile.endProfiles[i].correctConsecutiveSwitch(profile.activeLoad[i]);
         profile.endProfiles[i].switchReadSet();
     }
 }

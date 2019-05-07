@@ -246,6 +246,10 @@ void writeHistograms(const CharString & outfile,
     msg << "Histograms written to \'" << histogramFile << "\'.";
     printStatus(msg);
 }
+// =======================================================================================
+// Function checkCoverage()
+// =======================================================================================
+// Gives a warning of the coverage of a read group is below minCov 
 inline void checkCoverage(const PopDelProfileParameters & params,
                           const unsigned minCov = 5)
 {

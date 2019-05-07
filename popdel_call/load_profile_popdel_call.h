@@ -449,6 +449,7 @@ inline bool checkAndSwitch(ChromosomeProfile & profile, const TReadGroupIndices 
         for (unsigned r = 0; r < length(rg); ++r)
         {
             profile.endProfiles[rg[r]].switchWriteSet();
+            profile.endProfiles[rg[r]].correctConsecutiveSwitch(profile.activeLoad[rg[r]]);
         }
     }
     return true;
