@@ -75,7 +75,7 @@ inline void buildFormatString(VcfRecord & record,
                               const Dad & dads,
                               const Pair<unsigned> & mappDist)
 {
-    unsigned gq = calculateGQ(phredLikelihoods);
+    unsigned gq = std::min(calculateGQ(phredLikelihoods), 255u);
     std::ostringstream formatString;
     if (gq == 0u)
     {

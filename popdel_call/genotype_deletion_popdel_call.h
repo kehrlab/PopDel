@@ -43,12 +43,18 @@ inline std::set<int> initialize_deletion_lengths(const ChromosomeProfile & chrom
     for (unsigned i = 0; i < sampleCount; ++i)                  // For each sample...
     {
         String<int> sampleValues;
-        if(chromosomeProfiles.getActiveReadsDeviations(sampleValues, rgs[i], 2u) < 2)
+        unsigned cov = chromosomeProfiles.getActiveReadsDeviations(sampleValues, rgs[i], 2u);
+        if(cov < 2u)
         {
             lowCoverageSamples[i] = true;
             continue;                                                                    // TODO: Parameter min cov.
         }
-        appendValue(deviations, upperHalfMedian(sampleValues));     // TODO: Try different initializations for del-size.
+        else if (length(sampleValues) == 0u)
+            continue;
+        else
+        {
+            appendValue(deviations, upperHalfMedian(sampleValues));     // TODO: Try different initializations for del-size.
+        }
     }
     // Keep only averages of medians that are less than 50 bp apart  and those that are above the threshold.
     std::set<int> deletion_lengths;
@@ -101,7 +107,7 @@ inline double initialize_allele_frequency(const ChromosomeProfile & chromosomePr
         {
             __uint32 rg = currentSample[j];
             unsigned currentRgActiveReadCount = chromosomeProfiles.activeReads[rg].size();
-            if (currentRgActiveReadCount == 0)
+            if (currentRgActiveReadCount == 0 || currentRgActiveReadCount >= chromosomeProfiles.maxLoad[rg])
                 continue;
             total += currentRgActiveReadCount;
             // Define a window of size 4 * stddev around the deletion length.
@@ -121,7 +127,10 @@ inline double initialize_allele_frequency(const ChromosomeProfile & chromosomePr
         globalCount += count;
         globalTotal += total;
     }
-    return static_cast<double>(globalCount) / globalTotal;
+    if (globalTotal == 0u)
+        return 0.0;
+    else
+        return static_cast<double>(globalCount) / globalTotal;
 }
 // -----------------------------------------------------------------------------
 // Function assignDad()
@@ -179,14 +188,18 @@ inline Triple<long double> compute_data_likelihoods(String<Triple<long double> >
     for (unsigned i = 0; i < length(sample); ++i)
     {
         __uint32 rg = sample[i];
-        int refShift = referenceShifts[rg];
         Triple<long double> & currentRgWiseDataLikelihoods = rgWiseDataLikelihoods[rg];
         currentRgWiseDataLikelihoods = Triple<long double>(0, 0, 0);
+        if (chromosomeProfiles.isHighCov(rg))       // Skip read groups with high coverage.
+            continue;
+
+        int refShift = referenceShifts[rg];
         const Histogram & hist = hists[rg];
         ChromosomeProfile::TActiveSet::const_iterator it(chromosomeProfiles.activeReads[rg].begin());
         ChromosomeProfile::TActiveSet::const_iterator itEnd(chromosomeProfiles.activeReads[rg].end());
         while (it != itEnd)
         {
+
             int currentDeviation = chromosomeProfiles.getSingleDeviation(rg, it);
             long double g0 = log(I(hist, currentDeviation - refShift));
             long double g1 = log(I(hist, currentDeviation - refShift) +
@@ -246,6 +259,9 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
     for (unsigned i = 0; i < length(sample); ++i)
     {
         __uint32 rg = sample[i];
+        if (chromosomeProfiles.isHighCov(rg))       // Skip read groups with high coverage.
+            continue;
+
         const Histogram & hist = hists[rg];
         int refShift = referenceShifts[rg];
         delLowerBorder =  deletion_length - hist.lowerQuantileDist;  //TODO: Might be too strict
@@ -280,6 +296,8 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
     firstLast = chromosomeProfiles.getActiveReadsFirstLast(hists, sample);
     chromosomeProfiles.updateSupportFirstLast(suppFirstLast, hists, sample, delLowerBorder, delUpperBorder);
     // Scale the likelihoods with the largest of the three genotypes.
+    if (sum(gtLogs) == 0.0)
+        return Triple<long double>(1, 0.0000000001, 0.0000000001);
     long double max_gt = std::max(std::max(gtLogs.i1, gtLogs.i2), gtLogs.i3);
     long double max_dl = std::max(std::max(logLikelihoods.i1, logLikelihoods.i2), logLikelihoods.i3);
     gtLogs.i1 -= max_gt;
@@ -357,6 +375,11 @@ inline unsigned update_deletion_length(const ChromosomeProfile & chromosomeProfi
         Iterator <const TReadGroupIndices>::Type rgItEnd = end(*sIt);
         while (rgIt != rgItEnd)
         {
+            if (chromosomeProfiles.isHighCov(*rgIt))
+            {
+                ++rgIt;
+                continue;
+            }
             double sumRef = 0;
             double weighted_sumRef = 0;
             double aSumRg = getValueI1(*rgDlIt) * gt_likelihoods.i1 +
@@ -390,6 +413,8 @@ inline unsigned update_deletion_length(const ChromosomeProfile & chromosomeProfi
         }
         ++sIt;
     }
+    if (sumDel == 0 )
+        return 0;
     double len = (weighted_sumDel / sumDel);
     if (len < 0)
         return 0;

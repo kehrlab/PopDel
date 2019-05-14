@@ -171,7 +171,7 @@ Note that changing the value for the buffer size has a direct influence on memor
 
 **5.2 - Filtering options for calling**
 ```
--A, --active-coverage-file  File with lines consisting of "ReadGroup maxCov". If this value is reached no more new reads are loaded for this read group until the coverage drops again. A value of 0 disables the filter for the read group.
+-A, --active-coverage-file  File with lines consisting of "ReadGroup maxCov". If this value is reached no more new reads are loaded for this read group until the coverage drops again. Further, the sample will be excluded from calling in high-coverage windows. A value of 0 disables the filter for the read group.
 -a, --active-coverage       Maximum number of active read pairs (~coverage). This value is taken for all read groups that are not listed in 'active-coverage-file'. Setting it to 0 disables the filter for all read groups that are not specified in 'active-coverage-file'. In range [0..inf]. Default: 100.
 -c, --min-relative-window-cover  Determines which fraction of a deletion has to be covered by significant windows (see SWIN INFO field). In range [0..2.0]. Default: 0.5
 -d, --max-deletion-size     Maximum size of deletions. Default: 10000.
@@ -291,8 +291,8 @@ chr22:25000000-26000000
 
 ## 11 - Version and License
 ```
-    Last update: 2019-05-07
-    PopDel version: 1.0.10
+    Last update: 2019-05-14
+    PopDel version: 1.0.11
     SeqAn version: 2.3.1 (modified)
     Author: Sebastian Roskosch (Sebastian.Roskosch[at]bihealth.de)
 ```

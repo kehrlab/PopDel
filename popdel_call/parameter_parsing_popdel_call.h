@@ -257,7 +257,7 @@ void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
     // Add visible options.
     addOption(parser, ArgParseOption("H", "fullHelp",              "Displays full list of options."));
     addSection(parser, "PopDel call options");
-    addOption(parser, ArgParseOption("A", "active-coverage-file",  "File with lines consisting of \"ReadGroup  maxCov\". If this value is reached no more new reads are loaded for this read group until the coverage drops again. A value of 0 disables the filter for the read group.", ArgParseArgument::INPUT_FILE, "FILE"));
+    addOption(parser, ArgParseOption("A", "active-coverage-file",  "File with lines consisting of \"ReadGroup  maxCov\". If this value is reached no more new reads are loaded for this read group until the coverage drops again. Further, the sample will be excluded  from calling in high-coverage windows. A value of 0 disables the filter for the read group.", ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("a", "active-coverage",       "Maximum number of active read pairs (~coverage). This value is taken for all read groups that are not listed in \'active-coverage-file\'. Setting it to 0 disables the filter for all read groups that are not specified in \'active-coverage-file\'.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("d", "max-deletion-size",     "Maximum size of deletions.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("l", "min-init-length",       "Minimal deletion length at initialization of iteration. Default: \\fI4 * standard deviation\\fP.", ArgParseArgument::INTEGER, "NUM"));

@@ -455,8 +455,13 @@ inline double sum(const Pair<double> & p)
 {
     return (p.i1 + p.i2);
 }
+
 // Return the sum of all three values in a triple of unsigned integers.
 inline unsigned sum(const Triple<unsigned> & t)
+{
+    return (t.i1 + t.i2 + t.i3);
+}
+inline long double sum(const Triple<long double> & t)
 {
     return (t.i1 + t.i2 + t.i3);
 }

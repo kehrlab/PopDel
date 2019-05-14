@@ -890,6 +890,8 @@ struct CyclicEndEntryTable
                 return 0;
             }
         }
+        if (n == 0)
+            return 0;
         while(sets[cEndPosSet].at(i).lastWindow < pos)
         {
             if (lookAhead)
@@ -1062,6 +1064,14 @@ struct ChromosomeProfile
         move(maxLoad, maximumLoad);
     }
     // =======================================================================================
+    // Function isHighCov()
+    // =======================================================================================
+    // Return true of the active set of the given readgroup currently is has too highCoverage.
+    inline bool isHighCov(const unsigned & readGroup) const
+    {
+        return activeReads[readGroup].size() >= maxLoad[readGroup];
+    }
+    // =======================================================================================
     // Function add()
     // =======================================================================================
     // Append values to the read group's profile. Exspects the added Elements to be ordered by firstWindow.
@@ -1080,7 +1090,7 @@ struct ChromosomeProfile
         {
             // Don't add new reads, only look for closing reads.
             unsigned closingReads = currentEndEntryTable.getEndCount(firstWindow);
-            SEQAN_ASSERT_GT(activeLoad[readGroup], closingReads);
+            SEQAN_ASSERT_GEQ(activeLoad[readGroup], closingReads);
             activeLoad[readGroup] -= closingReads;
             if (activeLoad[readGroup] < maxLoad[readGroup]) // Maybe it dropped below the threshold now.
             {
@@ -1098,7 +1108,6 @@ struct ChromosomeProfile
             SEQAN_ASSERT_GT(activeLoad[readGroup], closingReads);
             activeLoad[readGroup] -= closingReads;
         }
-       // std::cout << "RG:" << readGroup << "\tPos:" << firstWindow << "\tLoad:" << activeLoad[readGroup] << std::endl;
     }
     // =======================================================================================
     // Function initializeActiveReads()
@@ -1428,6 +1437,7 @@ struct ChromosomeProfile
     // =======================================================================================
     // Get the insert size deviations of the currently active reads for all given read groups.
     // Return the number of active reads in the given read groups.
+    // If the are is highCoverage, the set of deviations is left empty.
     inline unsigned getActiveReadsDeviations(String<int> & deviations,
                                              const TReadGroupIndices & rgs,
                                              unsigned minCov) const
@@ -1436,17 +1446,23 @@ struct ChromosomeProfile
         unsigned readCount = 0;
         Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
         Iterator<const TReadGroupIndices >::Type cReadGroupsItEnd(end(rgs));
+        unsigned highCovReads = 0;
         while (cReadGroupsIt != cReadGroupsItEnd)               // For each active read group...
         {
-            readCount += activeReads[*cReadGroupsIt].size();    //...get the total number of active reads.
+            unsigned c =  activeReads[*cReadGroupsIt].size();
+            readCount += c;    //...get the total number of active reads.
+            if (c >= maxLoad[*cReadGroupsIt])
+                highCovReads += c;
             ++cReadGroupsIt;
         }
         if (readCount < minCov)
             return readCount;
-        resize(deviations, readCount);
+        resize(deviations, readCount - highCovReads , 0);
         unsigned i = 0;
         for (cReadGroupsIt = begin(rgs); cReadGroupsIt != cReadGroupsItEnd; ++cReadGroupsIt)
         {
+            if (isHighCov(*cReadGroupsIt))
+                continue;
             TActiveSet::const_iterator where(activeReads[*cReadGroupsIt].begin());
             TActiveSet::const_iterator whereEnd(activeReads[*cReadGroupsIt].end());
             while (where != whereEnd)
@@ -1507,6 +1523,8 @@ struct ChromosomeProfile
         unsigned currentMax = 0;
         for (cReadGroupsIt = begin(rgs); cReadGroupsIt != cReadGroupsItEnd; ++cReadGroupsIt)
         {
+            if (isHighCov(*cReadGroupsIt))
+                continue;
             const Histogram & hist = hists[*cReadGroupsIt];
             int currentMedian = hist.median;
             int currentDoubleReadLength = 2 * hist.readLength;
@@ -1546,6 +1564,8 @@ struct ChromosomeProfile
         Iterator<const TReadGroupIndices >::Type cReadGroupsItEnd(end(rgs));
         for (cReadGroupsIt = begin(rgs); cReadGroupsIt != cReadGroupsItEnd; ++cReadGroupsIt)
         {
+            if (isHighCov(*cReadGroupsIt))
+                continue;
             const Histogram & hist = hists[*cReadGroupsIt];
             int currentMedian = hist.median;
             int currentDoubleReadLength = 2 * hist.readLength;
@@ -1701,8 +1721,14 @@ struct ChromosomeProfile
             it->writeSet = 0;
             it->readSet = 2;
             it->nextRead = begin(it->sets[2].subset, Rooted());
+            it->endPosSet = 0;
+            it->dNext = 0;
+            it->dNextOffset = 0;
         }
         currentRightBorder = startProfiles[0].sets[2].right;
+        //Reset the activeLoad
+        for (Iterator<String<unsigned> >::Type it = begin(activeLoad); it != end(activeLoad); ++it)
+            *it = 0;
     }
     // =======================================================================================
     // Function fullReset()
@@ -1734,7 +1760,11 @@ struct ChromosomeProfile
                   << "\nStart write set:\t" << startProfiles[0].writeSet
                   << "\nStart insert #:\t\t" << startProfiles[0].insertionCount
                   << "\nEnd read set:\t\t"  << endProfiles[0].readSet
-                  << "\nEnd write set:\t\t" << endProfiles[0].writeSet << std::endl;
+                  << "\nEnd write set:\t\t" << endProfiles[0].writeSet
+                  << "\nEnd pos set:\t\t" << endProfiles[0].endPosSet
+                  << "\ndNext:\t\t" << endProfiles[0].dNext
+                  << "\ndNextOffset:\t\t" << endProfiles[0].dNextOffset
+                  << "\ndActive Load:\t\t" << activeLoad[0] << std::endl;
     }
 };
 // =======================================================================================
