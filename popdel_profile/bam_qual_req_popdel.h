@@ -107,29 +107,4 @@ inline bool meetsRequirements(const BamAlignmentRecord & record, BamQualReq & qu
         return false;                                                                      // Check the alignment score.
     return true;
 }
-// =======================================================================================
-// Function readRecord()
-// =======================================================================================
-// Read a record from BAM-file and perform checks.
-// Return true if all checks are passed, false otherwise.
-inline bool readRecord(BamAlignmentRecord & record, BamFileIn & infile, BamQualReq & qualReq)
-{
-    while (!atEnd(infile))
-    {
-        try
-        {
-            readRecord(record, infile);
-        }
-        catch (Exception const & e)
-        {
-            std::ostringstream msg;
-            msg << "WARNING: Could no read record in BAM-File. Skipping in file..." << std::endl;
-            printStatus(msg);
-            return false;
-        }
-        if (meetsRequirements(record, qualReq))
-            return true;
-    }
-    return false;
-}
 #endif /* BAM_QUAL_REQ_POPDEL_H_ */

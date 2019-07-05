@@ -1,3 +1,4 @@
+
 PopDel - Population-wide Deletion Calling
 =========================================
 PopDel - Fast structural deletion calling on population-scale short read paired-end data.
@@ -122,7 +123,17 @@ The filters used by PopDel profile are preconfigured for most use cases, but can
 It is possible to create profiles of BAM-files that only contain a part of the genome, e.g. only chr21.
 However, there is one thing to keep in mind to avoid errors: When simply called with the standard command line and default sampling regions, PopDel will try to sample reads from the whole genome, which will result in a very low and wrong coverage estimate since the BAM-file only contains reads for chromosome 21. To avoid this, there are two possibilities.  The first is to specify the region the BAM-file contains, in this case 'chr21'. The other option is to use user defined sampling intervals that lie in adequate regions of the chromosomes in the BAM-file. If you are not interested in the coverage, you can also just ignore it, as PopDel itself won't use the value later on.
 
-**4.4 - Examples**
+**4.4 - Merging of read groups**
+
+In case your BAM-file contains multiple read groups of the individual and prepared with the same library,
+PopDel can be prompted to treat all reads of a BAM-file as if they originated from the same read group, thereby effectively merging all read groups. This is especially useful, if the coverage of the individual read groups is very low. Please be sure that your read groups share the same distribution of insert-sizes, especially the mean insert-size and standard deviation of the insert-size distribution. Also the read length must be the same. PopDel will NOT check, if the merged read groups follow the same distributions.
+
+```
+-mrg, --merge-read-groups     Merge all read groups of the sample.
+```
+All read groups will be merged into the first read group of the sample.
+
+**4.5 - Examples**
 
 Run PopDel profile on *sample.bam*, creating the output *sample.bam.profile*.
 ```bash
@@ -159,11 +170,13 @@ popdel call myProfile1.profile myProfile2.profile [...] myProfileN.profile
 Like the profiling, the calling can be restricted to a single or multiple regions of interest. This is done by either using the option '-r' followed by the samtools-style region (multiple times for multiple regions) or by using the option '-R' followed by the path of a file containing one region of interest per line. The profiles contain their own index, so jumping to the regions to perform the calling on them is fast. Other options include:
 ```
 -b, --buffer-size           Number of buffered windows. In range [10000..inf]. Default: 200000.
+-f, --pseudocount-fraction  The biggest likelihood of the background distribution will be divided by this value to determine the pseudocounts of the histogram. Bigger values boost the sensitivity for HET calls but also increase the chance of missclassifying HOMDEL or HOMREF as HET calls. In range [50..inf]. Default: 500.
 -o, --out                   Output file name. Default: popdel.vcf.
 -r, --region-of-interest    Genomic region 'chr:start-end' (closed interval, 1-based index). Calling is limited to this region. Multiple regions can be defined by using the parameter -r multiple times.
 -R, --ROI-file              File listing one or more regions of interest, one region per line. See parameter -r.
 -n, --no-regenotyping       Outputs every potential variant window without re-genotyping.
 -p, --prior-probability     Prior probability of a deletion. In range [0.0..0.9999]. Default: 0.0001.
+-q, --del-ref-ratio         Probability to draw a DEL allele in a HET scenario. Used in binomial distribution. In range [0.1..0.9]. Default: 0.4.
 -t, --iterations            Maximum number of iterations in EM for length estimation. Default: 15.
 -u, --unsmoothed            Disable the smoothing of the insert size histogram.
 ```
@@ -291,8 +304,8 @@ chr22:25000000-26000000
 
 ## 11 - Version and License
 ```
-    Last update: 2019-05-14
-    PopDel version: 1.0.11
+    Last update: 2019-07-04
+    PopDel version: 1.1.0
     SeqAn version: 2.3.1 (modified)
     Author: Sebastian Roskosch (Sebastian.Roskosch[at]bihealth.de)
 ```

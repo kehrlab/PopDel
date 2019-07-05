@@ -167,7 +167,8 @@ inline void loadAndCalculateParameters(PopDelCallParameters & params)
                              params.contigNames,
                              params.contigLengths,
                              params.indexRegionSizes,
-                             params.smoothing);
+                             params.smoothing,
+                             params.pseudoCountFraction);
     std::ostringstream msg;
     msg << "Loaded insert size histograms for " << length(params.histograms) << " read groups.";
     printStatus(msg);

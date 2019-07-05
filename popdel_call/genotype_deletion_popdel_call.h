@@ -4,7 +4,6 @@
 #include <math.h>
 #include "parameter_parsing_popdel_call.h"
 #include "profile_structure_popdel_call.h"
-#include "active_reads_distribution_popdel_call.h"
 
 using namespace seqan;
 
@@ -182,7 +181,9 @@ inline Triple<long double> compute_data_likelihoods(String<Triple<long double> >
                                                     const String<unsigned> & sample,
                                                     unsigned deletion_length,
                                                     const String<int> & referenceShifts,
-                                                    const String<Histogram> & hists)
+                                                    const String<Histogram> & hists,
+                                                    const double & probDelBinom,
+                                                    const BinomTable & binomTable)
 {
     Triple<long double> logLikelihoods(0, 0, 0);       // log likelihoods for Hom_noDel, Het_del, Hom_del in this order.
     for (unsigned i = 0; i < length(sample); ++i)
@@ -197,23 +198,52 @@ inline Triple<long double> compute_data_likelihoods(String<Triple<long double> >
         const Histogram & hist = hists[rg];
         ChromosomeProfile::TActiveSet::const_iterator it(chromosomeProfiles.activeReads[rg].begin());
         ChromosomeProfile::TActiveSet::const_iterator itEnd(chromosomeProfiles.activeReads[rg].end());
+//         std::cout << "////////////////////////NEW ITERATION!//////////////////////////" << std::endl;
+//         std::cout << "=============================================================" << std::endl;
+        unsigned k = 0;
+        //unsigned n = 0;
         while (it != itEnd)
         {
-
+        //    ++n;
             int currentDeviation = chromosomeProfiles.getSingleDeviation(rg, it);
-            long double g0 = log(I(hist, currentDeviation - refShift));
-            long double g1 = log(I(hist, currentDeviation - refShift) +
-                                 I(hist, currentDeviation - deletion_length)) -
-                             log(2.0);
-            long double g2 = log(I(hist, currentDeviation - deletion_length));
+            long double refLikelihood = I(hist, currentDeviation - refShift);
+            long double delLikelihood = I(hist, currentDeviation - deletion_length);
+            if (refLikelihood < 2 * delLikelihood && delLikelihood < 2 * refLikelihood)
+            {
+                ++it;
+                continue;               // unclear support.
+            }
+//              std::cout << "====================================================" << std::endl;
+//              std::cout << "Pos:\t" << chromosomeProfiles.currentPos << std::endl;
+//              std::cout << "Dev:\t" << currentDeviation << std::endl;
+//              std::cout << "L(REF):\t" << refLikelihood << std::endl;
+//              std::cout << "L(DEL):\t" << delLikelihood << std::endl;
+            long double g0 = log(refLikelihood);
+            long double g1;
+            //long double g1 = log(refLikelihood + delLikelihood) - log(2.0); //testing
+
+            if (refLikelihood > delLikelihood)
+            {
+                g1 = log(refLikelihood);
+                ++k;
+            }
+            else
+            {
+                g1 = log(delLikelihood);
+            }
+            long double g2 = log(delLikelihood);
             currentRgWiseDataLikelihoods.i1 += g0;
             currentRgWiseDataLikelihoods.i2 += g1;
             currentRgWiseDataLikelihoods.i3 += g2;
             logLikelihoods.i1 += g0;
-            logLikelihoods.i2 += g1;
             logLikelihoods.i3 += g2;
+//             std::cout << "G0:\t" << g0 << " (" << currentRgWiseDataLikelihoods.i1 << ")" <<std::endl;
+//             std::cout << "G1:\t" << g1 << " (" << currentRgWiseDataLikelihoods.i2 + log(pBinom(n, k, binomTable, probDelBinom)) << ")" <<std::endl;
+//             std::cout << "G2:\t" << g2 << " (" << currentRgWiseDataLikelihoods.i3 << ")" <<std::endl;
             ++it;
         }
+        currentRgWiseDataLikelihoods.i2 += log(pBinom(chromosomeProfiles.activeReads[rg].size(), k, binomTable, probDelBinom));
+        logLikelihoods.i2 += currentRgWiseDataLikelihoods.i2;
         long double maxRgDl = std::max(std::max(currentRgWiseDataLikelihoods.i1, currentRgWiseDataLikelihoods.i2),
                                        currentRgWiseDataLikelihoods.i3);
         currentRgWiseDataLikelihoods.i1 = exp(currentRgWiseDataLikelihoods.i1 - maxRgDl);
@@ -221,6 +251,9 @@ inline Triple<long double> compute_data_likelihoods(String<Triple<long double> >
         currentRgWiseDataLikelihoods.i3 = exp(currentRgWiseDataLikelihoods.i3 - maxRgDl);
     }
     // Scale the likelihoods with the largest of the three genotypes.
+//     std::cout << "G0_final:\t" << logLikelihoods.i1 << std::endl;
+//     std::cout << "G1_final:\t" << logLikelihoods.i2 << std::endl;
+//     std::cout << "G2_final:\t" << logLikelihoods.i3 << std::endl;
     long double max_gt = std::max(std::max(logLikelihoods.i1, logLikelihoods.i2), logLikelihoods.i3);
     Triple<long double> res = Triple<long double>(exp(logLikelihoods.i1 - max_gt), //Apply exp to get rid of of the log
                                                   exp(logLikelihoods.i2 - max_gt),
@@ -250,7 +283,9 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
                                                     const String<unsigned> & sample,
                                                     unsigned deletion_length,
                                                     const String<int> & referenceShifts,
-                                                    const String<Histogram> & hists)
+                                                    const String<Histogram> & hists,
+                                                    const double & probDelBinom,
+                                                    const BinomTable & binomTable)
 {
     Triple<long double> logLikelihoods(0, 0, 0);       // log likelihoods for Hom_noDel, Het_del, Hom_del in this order.
     gtLogs = logLikelihoods;
@@ -268,30 +303,47 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
         delUpperBorder =  deletion_length + hist.upperQuantileDist;
         ChromosomeProfile::TActiveSet::const_iterator it(chromosomeProfiles.activeReads[rg].begin());
         ChromosomeProfile::TActiveSet::const_iterator itEnd(chromosomeProfiles.activeReads[rg].end());
+        unsigned k = 0;
+        long double rgWiseGT2Log = 0.0;
+        long double rgWise2Log = 0.0;
         while (it != itEnd)
         {
             int currentDeviation = chromosomeProfiles.getSingleDeviation(rg, it);
             assignDad(dad, currentDeviation, hist.upperQuantileDist, delLowerBorder, delUpperBorder);
-            double refLikelihood = I(hist, currentDeviation - refShift);
-            double delLikelihood = I(hist, currentDeviation - deletion_length);
+            long double refLikelihood = I(hist, currentDeviation - refShift);
+            long double delLikelihood = I(hist, currentDeviation - deletion_length);
             if (refLikelihood >= 2 * delLikelihood)
+            {
                 ++lad.i1;       // Supporting the reference
+                rgWiseGT2Log += log10(refLikelihood);
+                rgWise2Log += log(refLikelihood);
+            }
             else if (delLikelihood >= 2 * refLikelihood)
+            {
                 ++lad.i3;       // Supporting a deletion
+                rgWiseGT2Log += log10(delLikelihood);
+                rgWise2Log += log(delLikelihood);
+                ++k;
+            }
             else
+            {
                 ++lad.i2;       // Unclear support.
+                ++it;
+                continue;
+            }
             logLikelihoods.i1 += log(refLikelihood);
-            gtLogs.i1 += log10(I(hist, currentDeviation - refShift));
-            logLikelihoods.i2 += log(I(hist, currentDeviation - refShift) +
-                                     I(hist, currentDeviation - deletion_length)) -
-                                 log(2.0);
-            gtLogs.i2 += log10(I(hist, currentDeviation - refShift) +
-                               I(hist, currentDeviation - deletion_length)) -
-                         log10(2.0);
+            gtLogs.i1 += log10(refLikelihood);
             logLikelihoods.i3 += log(delLikelihood);
-            gtLogs.i3 += log10(I(hist, currentDeviation - deletion_length));
+            gtLogs.i3 += log10(delLikelihood);
             ++it;
         }
+        gtLogs.i2 += rgWiseGT2Log + log10(pBinom(chromosomeProfiles.activeReads[rg].size(),
+                                                 k, binomTable,
+                                                 probDelBinom));
+        logLikelihoods.i2 += rgWise2Log + log(pBinom(chromosomeProfiles.activeReads[rg].size(),
+                                                     k,
+                                                     binomTable,
+                                                     probDelBinom));
     }
     firstLast = chromosomeProfiles.getActiveReadsFirstLast(hists, sample);
     chromosomeProfiles.updateSupportFirstLast(suppFirstLast, hists, sample, delLowerBorder, delUpperBorder);
@@ -515,7 +567,9 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                                            rgs[i],
                                                            *it,
                                                            referenceShifts,
-                                                           params.histograms);
+                                                           params.histograms,
+                                                           params.probDelInBinom,
+                                                           params.binomTable);
         // Compute likelihood of genotypes given the allele frequency
         Triple<double> gtLikelihoods = compute_gt_likelihoods(freq);
         // Update the deletion length using the frequency estimate.
@@ -551,7 +605,9 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                                                rgs[i],
                                                                len,
                                                                referenceShifts,
-                                                               params.histograms);
+                                                               params.histograms,
+                                                               params.probDelInBinom,
+                                                               params.binomTable);
 
             freq = update_allele_frequency(data_likelihoods, gtLikelihoods);
             if (freq == 0)
@@ -574,7 +630,9 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                                                        rgs[i],
                                                                        prevLen,
                                                                        prevShifts,
-                                                                       params.histograms);
+                                                                       params.histograms,
+                                                                       params.probDelInBinom,
+                                                                       params.binomTable);
 
                     double prevLogLR = deletion_likelihood_ratio(data_likelihoods, prevGtLikelihoods);
                     // Keep better of both estimates.
@@ -611,7 +669,9 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                                            rgs[i],
                                                            len,
                                                            referenceShifts,
-                                                           params.histograms);
+                                                           params.histograms,
+                                                           params.probDelInBinom,
+                                                           params.binomTable);
 
         if (suppFirstLast.i1 == 0)
             continue;                   // We don't want calls that don't match their supporting reads.

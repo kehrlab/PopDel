@@ -18,9 +18,10 @@ void printReadGroupParams(const PopDelProfileParameters & params)
 {
     typedef PopDelProfileParameters::TReadGroups::const_iterator TReadGroupIter;
     TReadGroupIter itEnd = params.readGroups.end();
-    for (TReadGroupIter it = params.readGroups.begin(); it != itEnd; ++it)
+    if (params.mergeRG && params.readGroups.size() > 1)
     {
-        std::cout << "Read group \'" << it->first << "\':";
+        TReadGroupIter it = params.readGroups.begin();
+        std::cout << "All read groups merged into \'" << it->first << "\':";
         std::cout << "  SampledReadPairs=" << params.sampleSize[it->second];
         std::cout << "  Median=" << params.histograms[it->second].median;
         std::cout << "  Mean=" << params.histograms[it->second].mean;
@@ -28,6 +29,20 @@ void printReadGroupParams(const PopDelProfileParameters & params)
         std::cout << "  AvgCoverage=" << params.histograms[it->second].coverage;
         std::cout << "  ReadLength=" << params.histograms[it->second].readLength;
         std::cout << std::endl;
+    }
+    else
+    {
+        for (TReadGroupIter it = params.readGroups.begin(); it != itEnd; ++it)
+        {
+            std::cout << "Read group \'" << it->first << "\':";
+            std::cout << "  SampledReadPairs=" << params.sampleSize[it->second];
+            std::cout << "  Median=" << params.histograms[it->second].median;
+            std::cout << "  Mean=" << params.histograms[it->second].mean;
+            std::cout << "  StdDev=" << params.histograms[it->second].stddev;
+            std::cout << "  AvgCoverage=" << params.histograms[it->second].coverage;
+            std::cout << "  ReadLength=" << params.histograms[it->second].readLength;
+            std::cout << std::endl;
+        }
     }
 }
 // ---------------------------------------------------------------------------------------
@@ -47,13 +62,14 @@ void printWindowParameters(const PopDelProfileParameters & params)
 // ---------------------------------------------------------------------------------------
 // Read all records in the specified region of infile, check and add them to the set of insert size histograms.
 inline void addToInsertSizeHistograms(String<Histogram> & histograms,
-                                       const GenomicRegion & interval,
-                                       BamFileIn & infile,
-                                       const BamIndex<Bai> & bai,
-                                       String<unsigned> & sampleSize,
-                                       BamQualReq & qualReq,
-                                       const std::map<CharString, unsigned> & readGroups)
+                                      const GenomicRegion & interval,
+                                      BamFileIn & infile,
+                                      const BamIndex<Bai> & bai,
+                                      String<unsigned> & sampleSize,
+                                      BamQualReq & qualReq,
+                                      const std::map<CharString, unsigned> & readGroups)
 {
+    bool mergeRG = (length(histograms) == 1u && readGroups.size() > 1);
     bool alis;
     jumpToRegion(infile, alis, interval.rID, interval.beginPos, interval.endPos, bai);
     if (!alis)
@@ -61,14 +77,21 @@ inline void addToInsertSizeHistograms(String<Histogram> & histograms,
     BamAlignmentRecord record;
     while (!atEnd(infile))
     {
-        readRecord(record, infile);
+        try
+        {
+            readRecord(record, infile);
+        }
+        catch (...)
+        {
+            SEQAN_THROW(IOError("Could no read record in BAM-File."));
+        }
         if (record.rID == interval.rID && record.beginPos < interval.beginPos)      //Iterate till specified region.
             continue;
         if (record.rID != interval.rID || record.beginPos > interval.endPos)        //Break if region has been passed.
             break;
         if (!meetsRequirements(record, qualReq) || record.beginPos > record.pNext)  //Check requirements of record.
             continue;
-        unsigned rg = getReadGroup(record.tags, readGroups);
+        unsigned rg = getReadGroup(record.tags, readGroups, mergeRG);
         unsigned insertSize = std::min(std::abs(record.tLen), static_cast<__int32>(length(histograms[rg].values) - 1));
         histograms[rg].values[insertSize] += 1.0;
         ++sampleSize[rg];
@@ -104,16 +127,30 @@ inline TItvIter getInsertSizeHistograms(String<Histogram> & histograms,
 
     Histogram hist;
     resize(hist.values, 20000, 0.0);
-    resize(histograms, params.readGroups.size(), hist);         //Make space for one histogram per read group
+    if (params.mergeRG)
+    {
+        resize(histograms, 1, hist, Exact());
+        resize(params.sampleSize, 1, 0, Exact());
+    }
+    else
+    {
+        resize(histograms, params.readGroups.size(), hist, Exact());
+        resize(params.sampleSize, length(params.readGroups), 0, Exact());
+    }
     BamIndex<Bai> bai;
     loadBai(bai, params.bamfile);
     TItvIter itv = begin(intervals);
     TItvIter itvEnd = end(intervals);
-    resize(params.sampleSize, length(params.readGroups), 0, Exact());
+
     bool enough = false;
     while (itv != itvEnd && !enough)                               //Call _addToInsertSizeHistograms for each interval.
     {
-        addToInsertSizeHistograms(histograms, *itv, infile, bai, params.sampleSize, params.qualReq, params.readGroups);
+        addToInsertSizeHistograms(histograms,
+                                  *itv, infile,
+                                  bai,
+                                  params.sampleSize,
+                                  params.qualReq,
+                                  params.readGroups);
         enough = true;
         for (Iterator<String<unsigned> >::Type it = begin(params.sampleSize); it != end(params.sampleSize); ++it)
         {
@@ -152,7 +189,10 @@ inline TItvIter getInsertSizeHistograms(String<Histogram> & histograms,
     else
     {
         std::ostringstream msg;
-        msg << "Determined insert size histograms for all read groups using the interval(s): ";
+        if (params.mergeRG && params.readGroups.size() > 1)
+            msg << "Determined insert size histogram of merged read groups using the interval(s): ";
+        else
+            msg << "Determined insert size histograms for all read groups using the interval(s): ";
         bool p = false;
         for (TItvIter it = begin(intervals); it != itv; ++it)
         {
@@ -262,9 +302,19 @@ inline void checkCoverage(const PopDelProfileParameters & params,
         {
             p = true;
             std::ostringstream msg;
-            msg << "[WARNING] Coverage of read group\'" <<  it->first << "\' is below " << minCov
-                << " across the sampled intervals (see above).";
-            printStatus(msg);
+            if (params.mergeRG  && params.readGroups.size() > 1)
+            {
+                msg << "[WARNING] Coverage of merged read groups is below " << minCov
+                    << " across the sampled intervals (see above).";
+                printStatus(msg);
+                break;
+            }
+            else
+            {
+                msg << "[WARNING] Coverage of read group\'" <<  it->first << "\' is below " << minCov
+                    << " across the sampled intervals (see above).";
+                     printStatus(msg);
+            }
         }
     }
     if (p)
@@ -285,9 +335,11 @@ void calculateParameters(PopDelProfileParameters & params)
     open(infile, toCString(params.bamfile));
     BamHeader header;
     readHeader(header, infile);
-    getReadGroups(params.readGroups, header); // Get the read groups and chromosome names/lengths from bam file header.
+    getReadGroups(params.readGroups, header, params.mergeRG); // Get the read groups and chromosome names/lengths from bam file header.
     std::ostringstream msg;
     msg << "Found " << length(params.readGroups) << " read groups in input bam file \'" << params.bamfile << "\'.";
+    if (params.mergeRG && params.readGroups.size() > 1)
+        msg << " All read groups will be merged into read group \'" << params.readGroups.begin()->first << "\'.";
     printStatus(msg);
     if (length(params.rois) == 0)                                      // Estimate the genomic regions.
     {

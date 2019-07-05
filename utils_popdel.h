@@ -114,6 +114,59 @@ struct Call
     }
 };
 // =======================================================================================
+// Function setLRFilter()
+// =======================================================================================
+// Return the binomial coefficient "n choose k".
+inline unsigned nChooseK(unsigned n, unsigned k)
+{
+    if (k > n / 2)
+        k = n - k;
+    unsigned res = 1;
+    for (unsigned i = 1; i <= k; i++)
+    {
+        res *= (n - k + i);
+        res /= i;
+    }
+    return res;
+}
+// =======================================================================================
+// Class BinomTable
+// =======================================================================================
+// Table storing the first 100x100 values of the bernulli triangle (=binomial coefficients from 0 choose 0 to 99 choose 99.)
+struct BinomTable
+{
+    String<String<double, Array<100> >, Array<100> > a;
+
+    BinomTable()
+    {
+        resize(a, 100, NAN, Insist());
+        for (unsigned n = 0; n < length(a); ++n)
+            resize(a[n], n+1, NAN, Insist());
+        generatePascal();
+
+    }
+
+    // Return the value of stored in the table or  - if not present - calculate it on the fly.
+    inline double nCk(unsigned n, unsigned k) const
+    {
+        if (k >= 100 || n >= 100)
+            return nChooseK(n, k);  // No part of table: calculate on the fly.
+        return
+            a[n][k];
+    }
+
+    void generatePascal()
+    {
+        for (unsigned n = 0; n < 100; ++n)
+        {
+            for (unsigned k = 0; k <= n; ++k)
+            {
+                a[n][k] = nChooseK(n, k);
+            }
+        }
+    }
+};
+// =======================================================================================
 // Functions
 // =======================================================================================
 // =======================================================================================
@@ -688,7 +741,7 @@ void loadFilenames(String<CharString> & files)
 // Return the read-group as a CharString.
 inline CharString getReadGroup(const CharString & tags)
 {
-    BamTagsDict dict(tags);
+    BamTagsDict dict(tags);                                          // TODO: Catch if RG tag doen't exist. Error message.
     unsigned key = 0;
     findTagKey(key, dict, "RG");                                     //TODO faster access if position in dict is known
     CharString rg = "";
@@ -697,8 +750,13 @@ inline CharString getReadGroup(const CharString & tags)
 }
 // Extract the read-group encoded in tags
 // Return its rank in the header by extracting it from in the map of read groups.
-inline unsigned getReadGroup(const CharString & tags, const std::map<CharString, unsigned> & readGroups)
+inline unsigned getReadGroup(const CharString & tags,
+                             const std::map<CharString, unsigned> & readGroups,
+                             bool merge = false)
 {
+    if (merge)
+        return readGroups.begin()->second;
+
     CharString rg = getReadGroup(tags);
     SEQAN_ASSERT_NEQ(readGroups.count(rg), 0u);
     return readGroups.at(rg);
@@ -708,7 +766,7 @@ inline unsigned getReadGroup(const CharString & tags, const std::map<CharString,
 // =======================================================================================
 // Extract all read group IDs and their rank in the header and write them to map.
 // Return the number of read groups in the header.
-inline unsigned getReadGroups(std::map<CharString, unsigned> & readGroups, const BamHeader & header)
+inline unsigned getReadGroups(std::map<CharString, unsigned> & readGroups, const BamHeader & header, bool merge = false)
 {
     typedef Iterator<const BamHeader>::Type THeaderIter;
     readGroups.clear();
@@ -723,11 +781,11 @@ inline unsigned getReadGroups(std::map<CharString, unsigned> & readGroups, const
             CharString rg = "";
             getTagValue(rg, idx, *it);                          //... and get the read-group-ID stored in ID-tag
             readGroups[rg] = k;                                 //Write ID and rank of this read group in header to map
-            ++k;
+            if (!merge)
+                ++k;
         }
     }
-    SEQAN_ASSERT_EQ(readGroups.size(), k);
-    return k;
+    return readGroups.size();
 }
 // =======================================================================================
 // Functions for genomic interval loading and processing
@@ -915,7 +973,7 @@ inline void readIntervals(String<GenomicRegion> & intervals,
 // Function expandIntervals()
 // =======================================================================================
 // Expands the intervals by the deletionSize.
-inline void expandInterals(String<GenomicRegion> & intervals, const int & maxDeletionLength)
+inline void expandIntervals(String<GenomicRegion> & intervals, const int & maxDeletionLength)
 {
     Iterator<String<GenomicRegion>, Rooted >::Type it = begin(intervals, Rooted());
     while (!atEnd(it))
@@ -1199,4 +1257,11 @@ inline double phredsToFrequency(const String<Triple<unsigned> > & phredGLs)
     else
         return static_cast<double>(alleles) / n;
 }
+
+
+inline double pBinom(unsigned n, unsigned k, const BinomTable & tab, double p=0.4)
+{
+    return tab.nCk(n, k) * pow(p, k) * pow(1 - p, n - k);
+}
+
 #endif /* UTILS_POPDEL_H_ */

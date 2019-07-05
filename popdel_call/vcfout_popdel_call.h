@@ -36,7 +36,7 @@ VcfHeader buildVcfHeader(const String<CharString> & contigNames, const String<in
     }
     appendValue(header, VcfHeaderRecord("INFO", "<ID=AF,Number=A,Type=Float,Description=\"Allele Frequency\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=IMPRECISE,Number=0,Type=Flag,Description=\"Imprecise structural variation\">"));
-    appendValue(header, VcfHeaderRecord("INFO", "<ID=SVLEN,Number=1,Type=String,Description=\"Difference in length between REF and ALT alleles\">"));
+    appendValue(header, VcfHeaderRecord("INFO", "<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=LR,Number=1,Type=String,Description=\"Log-Likelihood ratio that the test is correct\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=YIELD,Number=1,Type=Float,Description=\"Fraction of genotyped samples\">"));

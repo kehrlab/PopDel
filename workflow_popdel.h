@@ -13,7 +13,6 @@
 #include "popdel_call/genotype_deletion_popdel_call.h"
 #include "popdel_call/load_profile_popdel_call.h"
 #include "popdel_call/vcfout_popdel_call.h"
-#include "popdel_call/active_reads_distribution_popdel_call.h"
 #include "popdel_view_parameter_parsing.h"
 
 using namespace seqan;
@@ -21,24 +20,6 @@ using namespace seqan;
 typedef Iterator<String<String<Call> >, Rooted>::Type TBufferIt;               // Iterator over the buffer
 typedef Iterator<String<bool> >::Type TWWCIt;
 
-// ==========================================================================
-// Function correctWindows()
-// ==========================================================================
-// Improve the amount of merged windows and the starting position, s.t. both are consistent with the deletion length.
-inline void correctWindows(SupportChangeMap & s, const unsigned & windowSize)
-{
-    for (Iterator<String<SupportStretch>>::Type it = begin(s.supportStretches); it < end(s.supportStretches); ++it)
-    {
-        unsigned numMergedWindows = std::ceil(static_cast<double>(it->delSize) / windowSize);
-        if (numMergedWindows > 1)
-            --numMergedWindows;
-        if (it->numWindows < numMergedWindows)
-            it->bestWindow -= (numMergedWindows - it->numWindows) * windowSize;
-        else
-            it->bestWindow += windowSize; // start one after bestWindow
-        it->numWindows = numMergedWindows;
-    }
-}
 // ==========================================================================
 // Function processSegment()
 // ==========================================================================
@@ -188,7 +169,8 @@ int popdel_profile(int argc, char const ** argv)
                params.maxDeletionSize,
                params.windowSize,
                params.windowShift,
-               params.histograms);
+               params.histograms,
+               params.mergeRG);
 
     // Open the output file and a compression stream.
     std::ofstream out(toCString(params.outfile), std::ios::out | std::ios::binary);
@@ -222,7 +204,8 @@ int popdel_profile(int argc, char const ** argv)
                        params.readGroups,
                        params.histograms,
                        cNames,
-                       cLengths);
+                       cLengths,
+                       params.mergeRG);
 
     bool bwiNext = true;
     while (bwiNext)

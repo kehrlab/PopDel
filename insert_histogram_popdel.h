@@ -19,8 +19,6 @@ typedef Iterator<String<double>, Rooted>::Type THistIter;
 struct Histogram
 {                          // Counts of insert sizes. Index 1 holds the counts of inserts of len. 1 (+offset) etc
     String<double> values; // First and last index are reserved for irregular insert sizes (unmapped pair, to big, etc.)
-    String<double> cumulativeDensity;      // Cummulative density distribution of insert size.
-    String<double> logValues;              // log of "values"
     double         min_prob;               // 1/10000 of the maximum count in "values"
     int            offset;                 // Difference of element index 0 in the histogram string from insert size 0
     double         mean;
@@ -34,8 +32,6 @@ struct Histogram
 
     Histogram() :
     values(""),
-    cumulativeDensity(""),
-    logValues(""),
     min_prob(0.0),
     offset(0),
     mean(0.0),
@@ -52,93 +48,6 @@ struct Histogram
     inline void clearStrings()
     {
         clear(values);
-        clear(cumulativeDensity);
-        clear(logValues);
-    }
-};
-struct BinnedHistogram
-{
-    String<double> values;
-    const Histogram * hist;
-    double         min_prob;
-    int            offset;
-    unsigned       binSize;
-    unsigned       maxInsertSize;
-
-    BinnedHistogram(): values(""),
-                       hist(nullptr),
-                       min_prob(0.0),
-                       offset(maxValue<int>()),
-                       binSize(0),
-                       maxInsertSize(0){}
-    // ---------------------------------------------------------------------------------------
-    // Function clear()
-    // ---------------------------------------------------------------------------------------
-    // Clears all member variables.
-    inline void clear()
-    {
-        seqan::clear(values);
-        hist = nullptr;
-        min_prob = 0;
-        offset = maxValue<int>();
-        binSize = 0;
-        maxInsertSize = 0;
-    }
-    // ---------------------------------------------------------------------------------------
-    // Function getReadLength()
-    // ---------------------------------------------------------------------------------------
-    // Return the read length of the original distribution.
-    inline unsigned getReadLength() const
-    {
-        return hist->readLength;
-    }
-    // ---------------------------------------------------------------------------------------
-    // Function getMedian()
-    // ---------------------------------------------------------------------------------------
-    // Return the median insert size of the original distribution.
-    inline unsigned getMedian() const
-    {
-        return hist->median;
-    }
-    // ---------------------------------------------------------------------------------------
-    // Function getStddev()
-    // ---------------------------------------------------------------------------------------
-    // Return the standard deviation of the original insert size distribution.
-    inline double getStddev() const
-    {
-        return hist->stddev;
-    }
-    // ---------------------------------------------------------------------------------------
-    // Function getMinProb()
-    // ---------------------------------------------------------------------------------------
-    // Return the minimum probability the binned insert size distribution.
-    inline double getMinProb() const
-    {
-        return min_prob;
-    }
-    // ---------------------------------------------------------------------------------------
-    // Function getOffset()
-    // ---------------------------------------------------------------------------------------
-    // Return the offset of the binned insert size distribution.
-    inline int getOffset() const
-    {
-        return offset;
-    }
-    // ---------------------------------------------------------------------------------------
-    // Function getMaxInsertSize()
-    // ---------------------------------------------------------------------------------------
-    // Return the maximum insert size of the binned insert size distribution.
-    inline unsigned getMaxInsertSize() const
-    {
-        return maxInsertSize;
-    }
-    // ---------------------------------------------------------------------------------------
-    // Function getBinSize()
-    // ---------------------------------------------------------------------------------------
-    // Return the bin size of the binned insert size distribution.
-    inline unsigned getBinSize() const
-    {
-        return binSize;
     }
 };
 inline unsigned getHistLeftBorder(const Histogram & hist)
@@ -210,7 +119,8 @@ inline void writeProfileHeader(TStream & stream,
                                const std::map<CharString, unsigned> & readGroups,
                                String<Histogram> & histograms,
                                const String<CharString> & contigNames,
-                               const String<int32_t> & contigLengths)
+                               const String<int32_t> & contigLengths,
+                               const bool mergeRG)
 {
     typedef typename std::map<CharString, unsigned>::const_iterator TIter;
 
@@ -218,9 +128,17 @@ inline void writeProfileHeader(TStream & stream,
 
     // Get the IDs of all read groups.
     String<CharString> rg;
-    resize(rg, length(readGroups));
-    for (TIter it = readGroups.begin(); it != readGroups.end(); ++it)
-        rg[it->second] = it->first;
+    if (mergeRG)
+    {
+        resize(rg, 1, Exact());
+        rg[0] = readGroups.begin()->first;
+    }
+    else
+    {
+        resize(rg, length(readGroups));
+        for (TIter it = readGroups.begin(); it != readGroups.end(); ++it)
+            rg[it->second] = it->first;
+    }
 
     // Write magic string.
     stream.write("POPDEL\1", 7);
@@ -235,7 +153,7 @@ inline void writeProfileHeader(TStream & stream,
         stream.write(reinterpret_cast<char *>(&pos), sizeof(uint64_t));
 
     // Write number of read groups.
-    uint32_t numReadGroups = length(readGroups);
+    uint32_t numReadGroups = mergeRG?1:readGroups.size();
     stream.write(reinterpret_cast<char *>(&numReadGroups), sizeof(uint32_t));
 
     // Write read group names and insert size histograms.
@@ -682,19 +600,6 @@ inline void calculateHistMetrics(Histogram & hist)
     }
 }
 // -----------------------------------------------------------------------------
-// Function _logHistogram()
-// -----------------------------------------------------------------------------
-//Calculate logarithm of counts stored in hist.values
-inline void logHistogram(Histogram & hist)
-{
-    typedef Iterator<String<double> >::Type TIter;
-    resize(hist.logValues, length(hist.values));
-    TIter logIt = begin(hist.logValues);
-    for (TIter it = begin(hist.values); it < end(hist.values); ++it, ++logIt)
-        *logIt = std::log(*it);
-}
-
-// -----------------------------------------------------------------------------
 // Function normalizeValue()
 // -----------------------------------------------------------------------------
 // Normalize a single histogram value given the insert size window size and read length.
@@ -735,53 +640,6 @@ inline void normalizeHistogram(Histogram & hist)
     normalizeValues(hist.values, hist);             // normalization for single window
 }
 // -----------------------------------------------------------------------------
-// Function deNormalizeValue()
-// -----------------------------------------------------------------------------
-// Undo the effect of the normalization on value.
-inline void deNormalizeValue(double & value,
-                             const unsigned  & insertSize,
-                             const Histogram & hist)
-{
-    if (value <= hist.min_prob)
-    {
-        value *= 0.001;
-        return;
-    }
-    int innerDistance =  insertSize - 2 * hist.readLength;
-    if (innerDistance < 1)
-        innerDistance = 1;
-    value *= static_cast<double>(hist.windowSize) / (hist.windowSize + innerDistance - 1);
-}
-// Overload for a pair of values.
-inline void deNormalizeValue(Pair<double> & values,
-                             const unsigned & insertSize,
-                             const Histogram & hist,
-                             const unsigned & deletionLength)
-{
-    int correctedInsertSize = static_cast<int>(insertSize) - deletionLength;
-    if (correctedInsertSize < 1)
-        correctedInsertSize = 1;
-    deNormalizeValue(values.i1, correctedInsertSize, hist);
-    deNormalizeValue(values.i2, insertSize, hist);
-}
-// -----------------------------------------------------------------------------
-// Function calculateCumulativeDist()
-// -----------------------------------------------------------------------------
-void calculateCumulativeDist(String<double> & cumulativeDensity, const String<double> & density)
-{
-    resize(cumulativeDensity, length(density));
-    Iterator<const String<double> >::Type it = begin(density);                       // +1 to exclude first bin
-    Iterator<const String<double> >::Type itEnd = end(density);                      // -1 to exclude last bin
-    Iterator<String<double>, Rooted>::Type itC = begin(cumulativeDensity, Rooted());
-    std::partial_sum(it, itEnd, itC);
-    double max = back(cumulativeDensity);
-    while (!atEnd(itC))
-    {       // Not necessary in theory, but needed for correcting the loss of precision when summing of the doubles.
-        *itC /= max;
-        ++itC;
-    }
-}
-// -----------------------------------------------------------------------------
 // Function smoothHistogram()
 // -----------------------------------------------------------------------------
 // Smooth the counts in hist by replacing each value with the weighted average of the bases (distance dependend)
@@ -809,7 +667,7 @@ inline void smoothHistogram(Histogram & hist)                      // TODO: Add 
 // -----------------------------------------------------------------------------
 // Function setMinimumProbability()
 // -----------------------------------------------------------------------------
-// Set minProb to 1/500 of the biggest count in values.
+// Set minProb to a fraction of the biggest count in values.
 // Replace any number in values with minProb if the original value is smaller.
 inline void setMinimumProbability(String<double> & values, const double & minProb)
 {
@@ -818,9 +676,9 @@ inline void setMinimumProbability(String<double> & values, const double & minPro
         if (*it < minProb)
             *it = minProb;
 }
-// Set hist.min_prob to 1/500 of the biggest count in hist.values.
+// Set hist.min_prob to a fraction of the biggest count in hist.values.
 // Replace any number in hist.values with hist.min_prob if the original value is smaller.
-inline void setMinimumProbability(Histogram & hist)
+inline void setMinimumProbability(Histogram & hist, const unsigned & pseudoCountFraction)
 {
     typedef Iterator<String<double> >::Type TdoubleStringIter;
     double maxValue = 0;
@@ -829,249 +687,12 @@ inline void setMinimumProbability(Histogram & hist)
         if (*it > maxValue)
             maxValue = *it;
     }
-    hist.min_prob = maxValue / 500.0;               //Set min_prob
+    hist.min_prob = maxValue / pseudoCountFraction;          //Set min_prob
     for (TdoubleStringIter it = begin(hist.values); it < end(hist.values); ++it) // Replace any value below min_prob.
     {
         if (*it < hist.min_prob)
             *it = hist.min_prob;
     }
-}
-// -----------------------------------------------------------------------------
-// Function configureBins()
-// -----------------------------------------------------------------------------
-// Function for configuring the binned histograms of all read groups of one sample, s.t. they remain comparable.
-inline void configureBins(String<BinnedHistogram *> & binnedSampleHists,
-                          const String<const Histogram *> & sampleHists,
-                          const unsigned & binSize)
-{
-    SEQAN_ASSERT_EQ(length(sampleHists), length(binnedSampleHists));
-    unsigned maxEnd = 0;
-    double min_prob = maxValue<double>();
-    int offset = maxValue<int>();
-    Iterator<const String<const Histogram *>, Standard >::Type histIt = begin(sampleHists, Standard());
-    Iterator<const String<const Histogram *>, Standard >::Type histItEnd = end(sampleHists, Standard());
-    while (histIt != histItEnd)
-    {
-        unsigned currentHistEnd = (*histIt)->offset + length((*histIt)->values);
-        if (currentHistEnd > maxEnd)
-            maxEnd = currentHistEnd;
-        if ((*histIt)->offset < offset)
-            offset = (*histIt)->offset;
-        if ((*histIt)->min_prob < min_prob)
-            min_prob = (*histIt)->min_prob;
-        ++histIt;
-    }
-    histIt = begin(sampleHists, Standard());
-    SEQAN_ASSERT_GT(maxEnd, 2u);
-    unsigned binnedHistSize = std::ceil((static_cast<double>(maxEnd - 2 - offset)) / binSize);
-    Iterator<String<BinnedHistogram *>, Standard >::Type binHistIt = begin(binnedSampleHists, Standard());
-    Iterator<String<BinnedHistogram *>, Standard >::Type binHistItEnd = end(binnedSampleHists, Standard());
-    while(binHistIt != binHistItEnd)
-    {
-        BinnedHistogram & currentBinnedHist = **binHistIt;
-        resize(currentBinnedHist.values, binnedHistSize, 0);
-        SEQAN_ASSERT_GT(offset, 0);
-        currentBinnedHist.offset = offset;
-        currentBinnedHist.min_prob = min_prob;
-        currentBinnedHist.binSize = binSize;
-        currentBinnedHist.hist = *histIt;
-        currentBinnedHist.maxInsertSize = offset + binnedHistSize * binSize - 1;
-        ++binHistIt;
-        ++histIt;
-    }
-}
-// Overload for applying function on all samples.
-inline void configureBins(String<String<BinnedHistogram *> > & allBinnedSampleHists,
-                          const String<String<const Histogram *> > & allSampleHists,
-                          const unsigned & binSize)
-{
-    SEQAN_ASSERT_EQ(length(allBinnedSampleHists), length(allSampleHists));
-    Iterator<String<String<BinnedHistogram *> > >::Type binnedHistIt = begin(allBinnedSampleHists);
-    Iterator<String<String<BinnedHistogram *> > >::Type binnedHistItEnd = end(allBinnedSampleHists);
-    Iterator<const String<String<const Histogram *> > >::Type histIt = begin(allSampleHists);
-    while (binnedHistIt != binnedHistItEnd)             // For each sample
-    {
-        configureBins(*binnedHistIt, *histIt, binSize);
-        ++histIt;
-        ++binnedHistIt;
-    }
-}
-// -----------------------------------------------------------------------------
-// Function binHist()
-// -----------------------------------------------------------------------------
-// Take one histogram and create a binned version of it. The binnedHist object has to be configured by configureBins
-// before.
-inline void binHist(BinnedHistogram & binnedHist, const Histogram & hist)
-{
-    SEQAN_ASSERT_GT(binnedHist.binSize, 0u);
-    SEQAN_ASSERT_GT(length(binnedHist.values), 0u);
-    unsigned currentInsertSize =  hist.offset;
-    unsigned binIndex = 0;
-    unsigned binEnd = binnedHist.offset + binnedHist.binSize;      // One index behind the bin's last element
-    Iterator<const String<double>, Rooted>::Type valueIt = begin(hist.values, Rooted()) + 1;
-    Iterator<const String<double>, Rooted>::Type valueItEnd = end(hist.values, Rooted()) - 1;
-    while (valueIt != valueItEnd)
-    {
-        if (currentInsertSize >= binEnd)
-        {
-            ++binIndex;
-            binEnd += binnedHist.binSize;
-        }
-        else
-        {
-            binnedHist.values[binIndex] += *valueIt;
-            ++valueIt;
-            ++currentInsertSize;
-        }
-    }
-}
-struct DeNormalize
-{};
-//Overload for als denormalizing the extracted values before adding them to the binned histogram.
-inline void binHist(BinnedHistogram & binnedHist, const Histogram & hist, const DeNormalize & deNormTag)
-{
-    (void) deNormTag;
-    SEQAN_ASSERT_GT(binnedHist.binSize, 0u);
-    SEQAN_ASSERT_GT(length(binnedHist.values), 0u);
-    unsigned currentInsertSize =  hist.offset;
-    unsigned binIndex = 0;
-    unsigned binEnd = binnedHist.offset + binnedHist.binSize;      // One index behind the bin's last element
-    Iterator<const String<double>, Rooted>::Type valueIt = begin(hist.values, Rooted()) + 1;
-    Iterator<const String<double>, Rooted>::Type valueItEnd = end(hist.values, Rooted()) - 1;
-    while (valueIt != valueItEnd)
-    {
-        if (currentInsertSize >= binEnd)
-        {
-            ++binIndex;
-            binEnd += binnedHist.binSize;
-        }
-        else
-        {
-            double value = *valueIt;
-            deNormalizeValue(value, currentInsertSize, hist);
-            binnedHist.values[binIndex] += value;
-            ++valueIt;
-            ++currentInsertSize;
-        }
-    }
-}
-// -----------------------------------------------------------------------------
-// Function createSampleHistString()
-// -----------------------------------------------------------------------------
-// Creates a string containing pointers to all histograms of the sample's read groups.
-inline void createSampleHistString(String<const Histogram*> & sampleHists,
-                                   const String<Histogram> & hists,
-                                   const String<String<unsigned> > & rgs,
-                                   unsigned s) // index of the sample in rgs string
-{
-        resize(sampleHists, length(rgs[s]), Exact());
-        for (unsigned i = 0; i < length(rgs[s]); ++i)
-        {
-            unsigned rg = rgs[s][i];
-            sampleHists[i] = &(hists[rg]);
-        }
-}
-// -----------------------------------------------------------------------------
-// Function createSampleBinnedHistString()
-// -----------------------------------------------------------------------------
-// Creates a string containing pointers to all BinnedHistograms of the sample's read groups.
-inline void createSampleBinnedHistString(String<BinnedHistogram*> & sampleBinnedHists,
-                                         String<BinnedHistogram> & binnedHists,
-                                         const String<String<unsigned> > & rgs,
-                                         unsigned s) // index of the sample in rgs string
-{
-    resize(sampleBinnedHists, length(rgs[s]), Exact());
-    for (unsigned i = 0; i < length(rgs[s]); ++i)
-    {
-        unsigned rg = rgs[s][i];
-        sampleBinnedHists[i] = &(binnedHists[rg]);
-    }
-}
-// -----------------------------------------------------------------------------
-// Function createSampleHistStrings()
-// -----------------------------------------------------------------------------
-// Call createSampleHistString for all samples and creates a String for each sample.
-inline void createSampleHistStrings(String<String<const Histogram*> > & allSampleHists,
-                                   const String<Histogram> & hists,
-                                   const String<String<unsigned> > & rgs)
-{
-    unsigned sampleNum = length(rgs);
-    resize(allSampleHists, sampleNum, Exact());
-    for (unsigned s = 0; s < sampleNum; ++s)
-    {
-        createSampleHistString(allSampleHists[s], hists, rgs, s);
-    }
-}
-// -----------------------------------------------------------------------------
-// Function createSampleBinnedHistStrings()
-// -----------------------------------------------------------------------------
-// Call createSampleBinnedHistString for all samples and creates a String for each sample.
-inline void createSampleBinnedHistStrings(String<String<BinnedHistogram*> > & allSampleBinnedHists,
-                                          String<BinnedHistogram> & binnedHists,
-                                          const String<String<unsigned> > & rgs)
-{
-    unsigned sampleNum = length(rgs);
-    resize(allSampleBinnedHists, sampleNum, Exact());
-    for (unsigned s = 0; s < sampleNum; ++s)
-    {
-        createSampleBinnedHistString(allSampleBinnedHists[s], binnedHists, rgs, s);
-    }
-}
-// -----------------------------------------------------------------------------
-// Function binAllHists()
-// -----------------------------------------------------------------------------
-inline void binAllHists(String<BinnedHistogram> & allBinnedHists,
-                        const String<Histogram> & hists,
-                        const String<String<unsigned> > & rgs,
-                        unsigned binSize = 10)
-{
-    String<String<const Histogram *> > allSampleHists;
-    String<String<BinnedHistogram *> > allSampleBinnedHists;
-    resize(allBinnedHists, length(hists));
-    createSampleHistStrings(allSampleHists, hists, rgs);
-    createSampleBinnedHistStrings(allSampleBinnedHists, allBinnedHists, rgs);
-    configureBins(allSampleBinnedHists, allSampleHists, binSize);
-    for (unsigned i = 0; i < length(hists); ++i)
-        binHist(allBinnedHists[i], hists[i], DeNormalize());
-}
-// -----------------------------------------------------------------------------
-// Function insertSizeToBinIdx()
-// -----------------------------------------------------------------------------
-// Take an insertSize and return the index of the corresponding bin. 
-// This function does NOT check if the index actually exists.
-inline unsigned insertSizeToBinIdx(const BinnedHistogram & binnedHist, const int & insertSize)
-{
-    SEQAN_ASSERT_GEQ(insertSize, binnedHist.offset);
-    return (insertSize - binnedHist.offset) / binnedHist.binSize;
-}
-// -----------------------------------------------------------------------------
-// Function insertSizesToBinCounts()
-// -----------------------------------------------------------------------------
-// Take the insertSizes and fill the vector of binCounts, adding the counts to the existing ones.
-inline void insertSizesToBinCounts(String<unsigned> & binCounts,                      // Needs the right size!
-                                   const BinnedHistogram & binnedHist,
-                                   Iterator<const String<int> >::Type first,
-                                   Iterator<const String<int> >::Type last)
-{
-    while (first != last)
-    {
-        ++binCounts[insertSizeToBinIdx(binnedHist, *first)];
-        ++first;
-    }
-}
-// -----------------------------------------------------------------------------
-// Function insertSizesToBinValue()
-// -----------------------------------------------------------------------------
-// Return the value stored for the insert size in the binnedHistogram.
-// Return minPro if the insertSize lies outside of the binned histogram.
-inline double insertSizeToBinValue(const BinnedHistogram & binnedHist, const int & insertSize)
-{
-    if (insertSize < binnedHist.offset)
-        return binnedHist.min_prob;
-    else if (insertSize > static_cast<int>(binnedHist.maxInsertSize))
-        return binnedHist.min_prob;
-    else
-        return binnedHist.values[insertSizeToBinIdx(binnedHist, insertSize)];
 }
 
 // -----------------------------------------------------------------------------
@@ -1240,7 +861,8 @@ inline int readHistogramLine(Histogram & hist,
 // Prepare the histogram and calculates its metrics.
 inline void processHistogram(Histogram & hist,
                              const unsigned & windowSize,
-                             const bool & smoothing)
+                             const bool & smoothing,
+                             const unsigned & pseudoCountFraction)
 {
     hist.windowSize = windowSize;
     if (smoothing)
@@ -1248,9 +870,7 @@ inline void processHistogram(Histogram & hist,
     calculateQuantiles(hist);
     densityScale(hist.values);
     normalizeHistogram(hist);
-    setMinimumProbability(hist);
-    calculateCumulativeDist(hist.cumulativeDensity, hist.values);
-    logHistogram(hist);
+    setMinimumProbability(hist, pseudoCountFraction);
 }
 // -----------------------------------------------------------------------------
 // Function loadInsertSizeHistograms()
@@ -1264,7 +884,8 @@ inline void loadInsertSizeHistograms(String<Histogram> & histograms,           /
                                      String<String<CharString> > & contigNames,
                                      String<String<int32_t> > & contigLengths,
                                      String<unsigned> & indexRegionSizes,
-                                     bool smoothing)
+                                     bool smoothing,
+                                     const unsigned & pseudoCountFraction)
 {
     std::ifstream infile = tryOpenHistogram(filename);
     String<CharString> sampleReadGroups;
@@ -1286,7 +907,7 @@ inline void loadInsertSizeHistograms(String<Histogram> & histograms,           /
         if (checkUniqueRG(readGroups, rg, sampleReadGroups[i], filename))
         {
             appendValue(rgs, rg - 1);
-            processHistogram(sampleHistograms[i], 256, smoothing);
+            processHistogram(sampleHistograms[i], 256, smoothing, pseudoCountFraction);
             appendValue(histograms, sampleHistograms[i]);
         }
     }
@@ -1302,7 +923,8 @@ inline void loadInsertSizeHistograms(String<Histogram> & histograms,
                                      String<String<CharString> > & contigNames,
                                      String<String<int32_t> > & contigLengths,
                                      String<unsigned> & indexRegionSizes,
-                                     bool smoothing)
+                                     bool smoothing,
+                                     const unsigned & pseudoCountFraction)
 {
     resize(rgs, length(filenames), Exact());
     unsigned sampleNum = 0;
@@ -1315,7 +937,8 @@ inline void loadInsertSizeHistograms(String<Histogram> & histograms,
                                  contigNames,
                                  contigLengths,
                                  indexRegionSizes,
-                                 smoothing);
+                                 smoothing,
+                                 pseudoCountFraction);
         std::ostringstream msg;
         msg << "Loaded histogram from file \'" << filenames[i] << "\'.";
         printStatus(msg);
@@ -1347,17 +970,5 @@ inline double insertSizeToHistValue(const Histogram & hist, int InsertSize)
     if (i <= 0 || i + 1 >= static_cast<int>(length(hist.values)))       // Exlclude first and last index.
         return (hist.min_prob);
     return hist.values[i];
-}
-// -----------------------------------------------------------------------------
-// Function logI()
-// -----------------------------------------------------------------------------
-// Return the value stored in hist.logValues[v] if v lies between min and max insert size in the histogram.
-// Return hist.min_prob (default: 1/10000 of the max value in hist.values) otherwise.
-inline double logI(const Histogram & hist, int value)
-{
-    int v = value + static_cast<int>(hist.median) - hist.offset;
-    if (v <= 0 || v + 1 >= static_cast<int>(length(hist.logValues)))    // Exlclude first and last index.
-        return log(hist.min_prob);
-    return hist.logValues[v];
 }
 #endif /* INSERT_HISTOGRAM_POPDEL_H_ */

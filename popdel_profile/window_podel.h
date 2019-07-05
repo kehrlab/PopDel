@@ -162,14 +162,14 @@ inline void writeWindow(zlib_stream::zip_ostream & stream,
 
     SEQAN_ASSERT_EQ(length(window.insertSizes), length(histograms));
 
-    for (unsigned i = 0; i < length(window.insertSizes); ++i)
+    for (unsigned rg = 0; rg < length(window.insertSizes); ++rg)
     {
         // Write number of read pairs for this read group.
-        uint32_t numInsertSizes = length(window.insertSizes[i]);
+        uint32_t numInsertSizes = length(window.insertSizes[rg]);
         stream.write(reinterpret_cast<char *>(&numInsertSizes), sizeof(uint32_t));
 
-        TValueIter it = begin(window.insertSizes[i]);
-        TValueIter itEnd = end(window.insertSizes[i]);
+        TValueIter it = begin(window.insertSizes[rg]);
+        TValueIter itEnd = end(window.insertSizes[rg]);
 
         while (it != itEnd)                                                         // Write the read pairs.
         {
@@ -178,7 +178,7 @@ inline void writeWindow(zlib_stream::zip_ostream & stream,
                 SEQAN_THROW(ParseError("Too big offset in Window!"));
             char posOffset = (*it).i1 - window.beginPos;
             stream.write(reinterpret_cast<char *>(&posOffset), sizeof(char));
-            int16_t insertSizeDeviation = (*it).i2 - _round(histograms[i].median);
+            int16_t insertSizeDeviation = (*it).i2 - _round(histograms[rg].median);
             stream.write(reinterpret_cast<char *>(&insertSizeDeviation), sizeof(int16_t));
             ++it;
         }

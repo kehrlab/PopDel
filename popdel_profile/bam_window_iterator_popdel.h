@@ -33,6 +33,7 @@ struct BamWindowIterator
     String<GenomicRegion> intervals;                       // Intervals to work on.
     Iterator<String<GenomicRegion> >::Type currentReadingInterval; //
     Iterator<String<GenomicRegion> >::Type currentWindowInterval;  //
+    bool mergeRG;
 };
 // ---------------------------------------------------------------------------------------
 // Function posToWindow()
@@ -80,7 +81,7 @@ inline int processRecord(BamWindowIterator & bwi)
             {
                 insertBeginPos -= bwi.nextRecord.cigar[0].count;            // ...adjust its starting position.
             }
-            if (bwi.nextRecord.tLen <= bwi.maxInsertSizes[getReadGroup(bwi.nextRecord.tags, bwi.readGroups)])
+            if (bwi.nextRecord.tLen <= bwi.maxInsertSizes[getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG)])
             {
                 bwi.goodFwdReads[bwi.nextRecord.qName] = Pair<__int32>(innerBeginPos, insertBeginPos);
             }
@@ -102,6 +103,18 @@ inline int processRecord(BamWindowIterator & bwi)
     }
     return true;
 }
+
+inline void tryReadRecod(BamAlignmentRecord & record, BamFileIn & infile)
+{
+            try
+            {
+                readRecord(record, infile);
+            }
+            catch (Exception const & e)
+            {
+                SEQAN_THROW(IOError("Could no read record in BAM-File."));
+            }
+}
 // ---------------------------------------------------------------------------------------
 // Function goToInterval()
 // ---------------------------------------------------------------------------------------
@@ -112,7 +125,9 @@ inline void goToInterval(BamWindowIterator & bwi)
     bool hasAlignments;
     jumpToRegion(bwi.infile, hasAlignments, itv.rID, itv.beginPos + 1, itv.endPos, bwi.bai);
     do
-        readRecord(bwi.nextRecord, bwi.infile);
+    {
+        tryReadRecod(bwi.nextRecord, bwi.infile);
+    }
     while (bwi.nextRecord.rID == itv.rID && bwi.nextRecord.beginPos < itv.beginPos);
 }
 // ---------------------------------------------------------------------------------------
@@ -125,7 +140,7 @@ inline bool goToNextReverseRecord(BamWindowIterator & bwi)
 {
     while (!atEnd(bwi.infile))
     {
-        readRecord(bwi.nextRecord, bwi.infile);
+        tryReadRecod(bwi.nextRecord, bwi.infile);
         while (bwi.nextRecord.rID > (*bwi.currentReadingInterval).rID) // Is record still in current interval?
         {
             ++bwi.currentReadingInterval;
@@ -217,7 +232,7 @@ inline void addRecordToWindows(BamWindowIterator & bwi)
         else
             numWindows = wEnd - it + itEnd - begin(bwi.activeWindows);
     }*/
-    unsigned rg = getReadGroup(bwi.nextRecord.tags, bwi.readGroups);
+    unsigned rg = getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG);
     addRecord(*it, bwi.nextRecordsInnerBegin, insertSize, rg, length(bwi.readGroups));
 }
 // ---------------------------------------------------------------------------------------
@@ -332,12 +347,21 @@ void initialize(BamWindowIterator & bwi,
                 int maxDeletionSize,
                 int windowSize,
                 int windowShift,
-                const String<Histogram> & hists)
+                const String<Histogram> & hists,
+                const bool mergeRG)
 {
     // Set the parameters.
+    bwi.mergeRG = mergeRG;
     bwi.windowSize = windowSize;
     bwi.windowShift = windowShift;
-    bwi.readGroups = readGroups;
+    if (mergeRG)
+    {
+        bwi.readGroups[readGroups.begin()->first] = readGroups.begin()->second;
+    }
+    else
+    {
+        bwi.readGroups = readGroups;
+    }
     bwi.maxDeletionSize = maxDeletionSize;
     calculateMaxInsertSizes(bwi, hists);
     bwi.intervals = intervals;

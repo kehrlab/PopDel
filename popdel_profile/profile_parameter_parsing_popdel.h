@@ -30,6 +30,7 @@ struct PopDelProfileParameters
     String<GenomicRegion> rois;                           // Genomic intervals to iterate with the window iterator.
     BamQualReq qualReq;                                   // Quality requirements of the reads.
     unsigned indexRegionSize;                             // Size of regions for which file offsets are stored in profile index.
+    bool mergeRG;
 
     PopDelProfileParameters() :
     outfile("*BAM-FILE*.profile"),
@@ -38,7 +39,8 @@ struct PopDelProfileParameters
     windowSize(256),
     windowShift(0),
     minSampling(50000),
-    indexRegionSize(10000)
+    indexRegionSize(10000),
+    mergeRG(false)
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -98,6 +100,7 @@ void setupParser(ArgumentParser & parser, const PopDelProfileParameters & params
     addSection(parser, "PopDel profile options");
     addOption(parser, ArgParseOption("d", "max-deletion-size", "Maximum size of deletions.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("i", "intervals",         "File with genomic intervals for parameter estimation instead of default intervals (see README). One closed interval per line, formatted as \'CHROM:START-END\', 1-based coordinates.", ArgParseArgument::INPUT_FILE, "FILE"));
+    addOption(parser, ArgParseOption("mrg","merge-read-groups","Merge all read groups of the sample. Only advised if they share the same properties!"));
     addOption(parser, ArgParseOption("n", "min-read-num",      "Minimum number of read pairs for parameter estimation (per read group)", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("o", "out",               "Output file name.", ArgParseArgument::OUTPUT_FILE, "FILE"));
     setDefaultValue(parser, "d", params.maxDeletionSize);
@@ -118,7 +121,7 @@ void getArgumentValues(PopDelProfileParameters & params, ArgumentParser & parser
     {
         arguments.erase(arguments.begin());
         parseIntervals(params.rois, arguments, params.bamfile);
-  //      expandInterals(params.intervals, params.maxDeletionSize);
+//        expandIntervals(params.intervals, params.maxDeletionSize);
         mergeOverlappingIntervals(params.rois, params.maxDeletionSize);    //Merge ROIs from command line.
     }
 }
@@ -138,6 +141,7 @@ void getParameterValues(PopDelProfileParameters & params, ArgumentParser & parse
     getOptionValue(params.qualReq.minUnclippedLength, parser, "min-unclipped");
     getOptionValue(params.qualReq.minRelAlignScore,   parser, "min-align-score");
     getOptionValue(params.indexRegionSize,            parser, "index-region-size");
+    params.mergeRG = isSet(                           parser, "merge-read-groups");
 }
 
 #endif /* PROFILE_PARAMETER_PARSING_POPDEL_H_ */
