@@ -360,6 +360,68 @@ inline void setFreqFromGTs(Call & call)
     call.frequency = static_cast<double>(alleleCount) / (length(call.gtLikelihoods) * 2);
 }
 // =======================================================================================
+// Function addToLADlist()
+// =======================================================================================
+// Add the LAD of sample s to the target LAD-list.
+inline void addToLADlist(String<Triple<String<unsigned> > > & target,
+                         const String<Triple<unsigned> > & source,
+                         const unsigned s)
+{
+    SEQAN_ASSERT_EQ(length(target), length(source));
+    SEQAN_ASSERT_LT(s, length(target));
+    appendValue(target[s].i1, source[s].i1);
+    appendValue(target[s].i2, source[s].i2);
+    appendValue(target[s].i3, source[s].i3);
+}
+// =======================================================================================
+// Function addToDADlist()
+// =======================================================================================
+// Add the LAD of sample s to the target DAD-list.
+inline void addToDADlist(String<String<String<unsigned>, Array<5> > > & target,
+                         const String<Dad> & source,
+                         const unsigned s)
+{
+    SEQAN_ASSERT_EQ(length(target), length(source));
+    SEQAN_ASSERT_LT(s, length(target));
+    appendValue(target[s][0], source[s].ref);
+    appendValue(target[s][1], source[s].both);
+    appendValue(target[s][2], source[s].between);
+    appendValue(target[s][3], source[s].alt);
+    appendValue(target[s][4], source[s].right);
+}
+// =======================================================================================
+// Function getMedianLAD()
+// =======================================================================================
+// Return the median LAD and clear the input list of LADs.
+inline Triple<unsigned> getMedianLAD(Triple<String<unsigned> > & lads)
+{
+    unsigned m = std::round(static_cast<double>(length(lads.i1)) / 2);
+    std::sort(begin(lads.i1), end(lads.i1));
+    std::sort(begin(lads.i2), end(lads.i2));
+    std::sort(begin(lads.i3), end(lads.i3));
+    Triple<unsigned> res = Triple<unsigned>(lads.i1[m], lads.i2[m], lads.i3[m]);
+    clear(lads.i1);
+    clear(lads.i2);
+    clear(lads.i3);
+    return res;
+}
+// =======================================================================================
+// Function getMedianDAD()
+// =======================================================================================
+// Return the median DAD and clear the input list of DADs.
+inline Dad getMedianDAD(String<String<unsigned>, Array<5> > & dads)
+{
+    unsigned m = std::round(static_cast<double>(length(dads[0])) / 2);
+    for (unsigned i = 0; i < 5u; ++i)
+        std::sort(begin(dads[i]), end(dads[i]));
+
+    Dad res = Dad(dads[0][m], dads[1][m], dads[2][m], dads[3][m], dads[4][m]);
+    for (unsigned i = 0; i < 5u; ++i)
+        clear(dads[i]);
+
+    return res;
+}
+// =======================================================================================
 // Function unifyCalls()
 // =======================================================================================
 // Unifies duplicate calls in c.
@@ -391,6 +453,10 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
     resize(genotypes, length(currentIt->gtLikelihoods), Triple<unsigned>(0, 0, 0));
     String<unsigned> startPositions;
     String<unsigned> sizeEstimates;
+    String<Triple<String<unsigned> > > lads;
+    resize(lads, length(currentIt->lads));
+    String<String<String<unsigned>, Array<5> > > dads;
+    resize(dads, length(currentIt->dads));
     append(startPositions, currentIt->position);
     append(sizeEstimates, currentIt->deletionLength);
     unsigned callCount = 1;
@@ -403,13 +469,15 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
     {
         if (similar(*currentIt, *it, stddev))
         {
-            // Count genotypes for all samples across all windows and take their means.
+            // Count genotypes for all samples across all windows and take their means. // Test if median is better
             ++winCount;
-            for (unsigned i = 0; i < length(genotypes); ++i)
+            for (unsigned s = 0; s < length(genotypes); ++s)
             {
-                genotypes[i].i1 += it->gtLikelihoods[i].i1;
-                genotypes[i].i2 += it->gtLikelihoods[i].i2;
-                genotypes[i].i3 += it->gtLikelihoods[i].i3;
+                genotypes[s].i1 += it->gtLikelihoods[s].i1;
+                genotypes[s].i2 += it->gtLikelihoods[s].i2;
+                genotypes[s].i3 += it->gtLikelihoods[s].i3;
+                addToLADlist(lads, it->lads, s);
+                addToDADlist(dads, it->dads, s);
             }
             if (checkAllPass(*it))
             {
@@ -422,12 +490,15 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
             markInvalidCall(*it);
             if (it == last)
             {
-                for (unsigned i = 0; i < length(genotypes); ++i)
+                for (unsigned s = 0; s < length(genotypes); ++s)
                 {
-                    unsigned minGt = std::min(std::min(genotypes[i].i1, genotypes[i].i2), genotypes[i].i3);
-                    currentIt->gtLikelihoods[i].i1 = std::round(static_cast<double> (genotypes[i].i1 - minGt) / winCount);
-                    currentIt->gtLikelihoods[i].i2 = std::round(static_cast<double> (genotypes[i].i2 - minGt) / winCount);
-                    currentIt->gtLikelihoods[i].i3 = std::round(static_cast<double> (genotypes[i].i3 - minGt) / winCount);
+                    unsigned minGt = std::min(std::min(genotypes[s].i1, genotypes[s].i2), genotypes[s].i3);
+                    currentIt->gtLikelihoods[s].i1 = std::round(static_cast<double> (genotypes[s].i1 - minGt) / winCount);
+                    currentIt->gtLikelihoods[s].i2 = std::round(static_cast<double> (genotypes[s].i2 - minGt) / winCount);
+                    currentIt->gtLikelihoods[s].i3 = std::round(static_cast<double> (genotypes[s].i3 - minGt) / winCount);
+                    currentIt->lads[s] = getMedianLAD(lads[s]);
+                    currentIt->dads[s] = getMedianDAD(dads[s]);
+
                 }
                 setFreqFromGTs(*currentIt);
                 currentIt->likelihoodRatio = lr / winCount;
@@ -443,15 +514,17 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
         }
         else if (winCount != 1)
         {
-            for (unsigned i = 0; i < length(genotypes); ++i)
+            for (unsigned s = 0; s < length(genotypes); ++s)
             {
-                double minGt = std::min(std::min(genotypes[i].i1, genotypes[i].i2), genotypes[i].i3);
-                currentIt->gtLikelihoods[i].i1 = std::round(static_cast<double> (genotypes[i].i1 - minGt) / winCount);
-                currentIt->gtLikelihoods[i].i2 = std::round(static_cast<double> (genotypes[i].i2 - minGt) / winCount);
-                currentIt->gtLikelihoods[i].i3 = std::round(static_cast<double> (genotypes[i].i3 - minGt) / winCount);
-                genotypes[i].i1 = 0;
-                genotypes[i].i2 = 0;
-                genotypes[i].i3 = 0;
+                double minGt = std::min(std::min(genotypes[s].i1, genotypes[s].i2), genotypes[s].i3);
+                currentIt->gtLikelihoods[s].i1 = std::round(static_cast<double> (genotypes[s].i1 - minGt) / winCount);
+                currentIt->gtLikelihoods[s].i2 = std::round(static_cast<double> (genotypes[s].i2 - minGt) / winCount);
+                currentIt->gtLikelihoods[s].i3 = std::round(static_cast<double> (genotypes[s].i3 - minGt) / winCount);
+                genotypes[s].i1 = 0;
+                genotypes[s].i2 = 0;
+                genotypes[s].i3 = 0;
+                currentIt->lads[s] = getMedianLAD(lads[s]);
+                currentIt->dads[s] = getMedianDAD(dads[s]);
             }
             setFreqFromGTs(*currentIt);
             currentIt->likelihoodRatio = lr / winCount;
