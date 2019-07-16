@@ -7,7 +7,7 @@ PopDel - Fast structural deletion calling on population-scale short read paired-
 
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/popdel/README.html) [![GitHub license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/kehrlab/PopDel/master/LICENSE) [![GitHub Releases](https://img.shields.io/github/release/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/releases) [![GitHub Issues](https://img.shields.io/github/issues/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/issues)
 
-PopDel is lightweight tool for calling and genotyping structural deletions in short read paired-end data. Its main feature is the efficient processing
+PopDel is lightweight tool for calling and genotyping medium-size deletions in short read paired-end data. Its main feature is the efficient processing
 of many samples in a single joint-calling process. Cohorts of 10,000  or more BAM-filese are no problem for PopDel. It works by first creating a small
 insert-size profile of every BAM file. Then, in the calling step, all profiles are jointly processed to generate the deletion calls in a likelihood based approach and genotype every sample. The results are presented in standard VCF-4.2 format.
 
