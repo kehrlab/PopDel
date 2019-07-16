@@ -1,7 +1,7 @@
 
 PopDel - Population-wide Deletion Calling
 =========================================
-PopDel - Fast structural deletion calling on population-scale short read paired-end data.
+PopDel - Fast calling of medium-size deletions on population-scale short read paired-end data.
 
 
 
