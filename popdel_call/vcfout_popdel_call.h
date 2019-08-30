@@ -38,6 +38,8 @@ VcfHeader buildVcfHeader(const String<CharString> & contigNames, const String<in
     appendValue(header, VcfHeaderRecord("INFO", "<ID=IMPRECISE,Number=0,Type=Flag,Description=\"Imprecise structural variation\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=SVLEN,Number=1,Type=Integer,Description=\"Difference in length between REF and ALT alleles\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=SVTYPE,Number=1,Type=String,Description=\"Type of structural variant\">"));
+    appendValue(header, VcfHeaderRecord("INFO", "<ID=END,Number=1,Type=Integer,Description=\"End position of the structural variant\">"));
+    appendValue(header, VcfHeaderRecord("INFO", "<ID=SVMETHOD,Number=1,Type=String,Description=\"Approach used to detect the structural variant\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=LR,Number=1,Type=String,Description=\"Log-Likelihood ratio that the test is correct\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=YIELD,Number=1,Type=Float,Description=\"Fraction of genotyped samples\">"));
     appendValue(header, VcfHeaderRecord("INFO", "<ID=SWIN,Number=1,Type=Integer,Description=\"Number of significant windows merged into this variant\">"));
@@ -167,6 +169,10 @@ inline String<char> setFilterString(const Call & call)
         return filter;
     }
 }
+inline unsigned getEnd(const unsigned pos, const unsigned len)
+{
+    return pos + len;
+}
 inline VcfRecord buildRecord(const QuantileMap& quantileMap, const Call& call, int32_t rID)
 {
     VcfRecord record;
@@ -181,9 +187,11 @@ inline VcfRecord buildRecord(const QuantileMap& quantileMap, const Call& call, i
     std::ostringstream info;
     info << "IMPRECISE;"
          << "SVLEN=" << - static_cast<int>(call.deletionLength) << ";"
+         << "END="<< getEnd(call.position, call.deletionLength) << ";"
          << "SVTYPE=DEL;"
          << "AF=" << call.frequency << ";"
          << "LR=" << call.likelihoodRatio << ";"
+         << "SVMETHOD=PopDelv" << VERSION << ";"
          << "YIELD=" << getYield(call) << ";"
          << "SWIN=" << call.significantWindows;
     record.info =  info.str();
