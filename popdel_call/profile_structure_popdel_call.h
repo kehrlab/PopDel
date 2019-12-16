@@ -1547,14 +1547,11 @@ struct ChromosomeProfile
         return Pair<unsigned>(currentMin, currentMax);
     }
     // =======================================================================================
-    // Function updateSupportFirstLast()
+    // Function addSupportFirstLast()
     // =======================================================================================
-    // Similar to getActiveReadsFirstLast(), but returns the values only for reads between lower and upper (inlcusive).
+    // Similar to getActiveReadsFirstLast(), but appends the values only for reads between lower and upper (inlcusive).
     // Checks for the lowest first and the highest last window.
-    // Does not return the value, but updates the given pair.
-    // TODO: This method might be sensitive to samples with bad mappings. Make it more robust by not simply taking
-    //   the min but some kind of weighted value or a mayority vote.
-    inline void updateSupportFirstLast(Pair<unsigned> & suppFirstLast,
+    inline void addSupportFirstLast(Pair<String <unsigned> > & suppFirstLasts,
                                        const String<Histogram> & hists,
                                        const TReadGroupIndices & rgs,
                                        const int & lower,
@@ -1579,10 +1576,8 @@ struct ChromosomeProfile
                     int insertSize = std::max(0, deviation + currentMedian - currentDoubleReadLength);
                     const unsigned firstWin = startProfiles[*cReadGroupsIt].getFirstWinAt(*where);
                     const unsigned lastWin = ((firstWin + insertSize) / 30) * 30; // TODO: As parameter?
-                    if (firstWin > suppFirstLast.i1)
-                        suppFirstLast.i1 = firstWin;
-                    if (lastWin < suppFirstLast.i2)
-                        suppFirstLast.i2 = lastWin;
+                    appendValue(suppFirstLasts.i1, firstWin);
+                    appendValue(suppFirstLasts.i2, lastWin);
                 }
             }
         }

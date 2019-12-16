@@ -31,6 +31,7 @@ struct PopDelProfileParameters
     BamQualReq qualReq;                                   // Quality requirements of the reads.
     unsigned indexRegionSize;                             // Size of regions for which file offsets are stored in profile index.
     bool mergeRG;
+    CharString referenceVersion;
 
     PopDelProfileParameters() :
     outfile("*BAM-FILE*.profile"),
@@ -40,7 +41,8 @@ struct PopDelProfileParameters
     windowShift(0),
     minSampling(50000),
     indexRegionSize(10000),
-    mergeRG(false)
+    mergeRG(false),
+    referenceVersion("GRCh38")
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -98,6 +100,7 @@ void setupParser(ArgumentParser & parser, const PopDelProfileParameters & params
     // Add visible options.
     addOption(parser, ArgParseOption("H", "fullHelp",          "Displays full list of options."));
     addSection(parser, "PopDel profile options");
+    addOption(parser, ArgParseOption("r", "reference",         "Reference genome version used for the mapping. Not used when using custom sampling intervals (option '-i'). One of 'GRCh37', 'GRCh38', 'hg19', 'hg38' (case-insensitive).", ArgParseArgument::STRING, "REF"));
     addOption(parser, ArgParseOption("d", "max-deletion-size", "Maximum size of deletions.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("i", "intervals",         "File with genomic intervals for parameter estimation instead of default intervals (see README). One closed interval per line, formatted as \'CHROM:START-END\', 1-based coordinates.", ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("mrg","merge-read-groups","Merge all read groups of the sample. Only advised if they share the same properties!"));
@@ -106,6 +109,7 @@ void setupParser(ArgumentParser & parser, const PopDelProfileParameters & params
     setDefaultValue(parser, "d", params.maxDeletionSize);
     setDefaultValue(parser, "n", params.minSampling);
     setDefaultValue(parser, "o", params.outfile);
+    setDefaultValue(parser, "r", "GRCh38");
     addHiddenOptions(parser, params);                            // Add options that are visible only in the full help.
 }
 // ---------------------------------------------------------------------------------------
@@ -126,10 +130,36 @@ void getArgumentValues(PopDelProfileParameters & params, ArgumentParser & parser
     }
 }
 // ---------------------------------------------------------------------------------------
+// Function parseReferenceGenome()
+// ---------------------------------------------------------------------------------------
+// Parse the version of the reference genome. Ignore case.
+inline void parseReferenceGenome(CharString & refVersion, const ArgumentParser & parser)
+{
+    String<char> ref;
+    if(!getOptionValue(ref, parser, "reference"))
+        return;     // Option not set -> Assume GRCh38.
+
+    if (isSet(parser, "intervals"))
+    {
+        printStatus("WARNING: Custom sampling intervals have been defined (option '-i') and a reference"
+                    " genome has been specified (option '-r'). Option '-r' will be ignored.");
+        return;
+    }
+    refVersion = ref;
+    toLower(refVersion);
+    if (refVersion != "grch38" && refVersion != "hg38" && refVersion != "grch37" && refVersion != "hg19")
+    {
+        std::ostringstream msg;
+        msg << "[PopDel] If defined, reference genome version (-r, --reference) must be one of 'GRCh37', 'GRCh38',"
+               " 'hg19', 'hg38' (case-insensitive). Got '" << ref << "' instead. Terminating.";
+        SEQAN_THROW(ParseError(toCString(msg.str())));
+    }
+}
+// ---------------------------------------------------------------------------------------
 // Function getParameterValues()
 // ---------------------------------------------------------------------------------------
 // Get all parameter values from the parser.
-void getParameterValues(PopDelProfileParameters & params, ArgumentParser & parser)
+void getParameterValues(PopDelProfileParameters & params, const ArgumentParser & parser)
 {
     getOptionValue(params.maxDeletionSize,            parser, "max-deletion-size");
     getOptionValue(params.minSampling,                parser, "min-read-num");
@@ -141,6 +171,7 @@ void getParameterValues(PopDelProfileParameters & params, ArgumentParser & parse
     getOptionValue(params.qualReq.minUnclippedLength, parser, "min-unclipped");
     getOptionValue(params.qualReq.minRelAlignScore,   parser, "min-align-score");
     getOptionValue(params.indexRegionSize,            parser, "index-region-size");
+    parseReferenceGenome(params.referenceVersion,     parser);
     params.mergeRG = isSet(                           parser, "merge-read-groups");
 }
 

@@ -278,7 +278,7 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
                                                     Triple<unsigned> & lad,
                                                     Dad & dad,
                                                     Pair<unsigned> & firstLast,
-                                                    Pair<unsigned> & suppFirstLast,
+                                                    Pair<String <unsigned> > & suppFirstLasts,
                                                     const ChromosomeProfile & chromosomeProfiles,
                                                     const String<unsigned> & sample,
                                                     unsigned deletion_length,
@@ -346,7 +346,7 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
                                                      probDelBinom));
     }
     firstLast = chromosomeProfiles.getActiveReadsFirstLast(hists, sample);
-    chromosomeProfiles.updateSupportFirstLast(suppFirstLast, hists, sample, delLowerBorder, delUpperBorder);
+    chromosomeProfiles.addSupportFirstLast(suppFirstLasts, hists, sample, delLowerBorder, delUpperBorder);
     // Scale the likelihoods with the largest of the three genotypes.
     if (sum(gtLogs) == 0.0)
         return Triple<long double>(1, 0.0000000001, 0.0000000001);
@@ -520,6 +520,27 @@ inline double deletion_likelihood_ratio(const String<Triple<long double> > & dat
     return del - no_del;
 }
 // -----------------------------------------------------------------------------
+// Function getSuppFirstLast()
+// -----------------------------------------------------------------------------
+// Return a pair consisting of supporting first read position and the supporting last position at
+// percentile p and 1-p respectively.
+inline Pair<unsigned> getSuppFirstLast(Pair<String<unsigned> > & suppFirstLasts, double p = 0.8)
+{
+    SEQAN_ASSERT_EQ(length(suppFirstLasts.i1), length(suppFirstLasts.i2));
+    if (length(suppFirstLasts.i1) == 0u)
+    {
+        return(Pair<unsigned>(0, 0));
+    }
+    else
+    {
+        unsigned l = std::round(static_cast<double>(length(suppFirstLasts.i1)-1) * p);
+        unsigned r = std::round(static_cast<double>(length(suppFirstLasts.i2)-1) * (1 - p));
+        std::sort(begin(suppFirstLasts.i1), end(suppFirstLasts.i1));
+        std::sort(begin(suppFirstLasts.i2), end(suppFirstLasts.i2));
+        return Pair<unsigned>((suppFirstLasts.i1)[l], (suppFirstLasts.i2)[r]);
+    }
+}
+// -----------------------------------------------------------------------------
 // Function genotype_deletion_window()
 // -----------------------------------------------------------------------------
 // Perform the estimation of the deletion length, allele frequency and likelihood calculations for all samples
@@ -658,13 +679,13 @@ inline bool genotype_deletion_window(String<Call> & calls,
         resize (dads, length(rgs));
         String<Pair<unsigned> > firstLasts; // Lowest firstWin and highest lastWin for each sample.
         resize (firstLasts, length(rgs));
-        Pair<unsigned> suppFirstLast(0, maxValue<unsigned>());
+        Pair<String<unsigned> > suppFirstLasts;
         for (unsigned i = 0; i < length(rgs); ++i)
             data_likelihoods[i] = compute_data_likelihoods(gtLogs[i],
                                                            lads[i],
                                                            dads[i],
                                                            firstLasts[i],
-                                                           suppFirstLast,
+                                                           suppFirstLasts,
                                                            chromosomeProfiles,
                                                            rgs[i],
                                                            len,
@@ -672,8 +693,8 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                                            params.histograms,
                                                            params.probDelInBinom,
                                                            params.binomTable);
-
-        if (suppFirstLast.i1 == 0)
+        Pair<unsigned> suppFirstLast = getSuppFirstLast(suppFirstLasts);
+        if (suppFirstLast == Pair<unsigned> (0, 0))
             continue;                   // We don't want calls that don't match their supporting reads.
 
         double logLR = deletion_likelihood_ratio(data_likelihoods, gtLikelihoods);
@@ -710,6 +731,8 @@ inline bool genotype_deletion_window(String<Call> & calls,
             setNoDataSamples(currentCall, lowCoverageSamples);
             if (!checkSampleNumber(lowCoverageSamples, params.minSampleFraction))
                 setSampleFilter(currentCall);
+//             if (chromosomeProfiles.currentPos + 30 < currentCall.position || chromosomeProfiles.currentPos > currentCall.endPosition)
+//                 currentCall.isOutside = true;
         }
     }
     return ret;

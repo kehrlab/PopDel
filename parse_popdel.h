@@ -116,7 +116,7 @@ void printHelp(char const * name)
     std::cerr << "\033[1mVERSION\033[0m" << std::endl;
     std::cerr << "    " << "PopDel" << " version: " << VERSION << std::endl;
     std::cerr << "    Last update " << DATE << std::endl;
-    std::cerr << "    Contact: Sebastian Roskosch (Sebastian.Roskosch[at]bihealth.de)" << std::endl;
+    std::cerr << "    Contact: Sebastian Niehus (Sebastian.Niehus[at]bihealth.de)" << std::endl;
     std::cerr << std::endl;
     std::cerr << "Try `" << name << " COMMAND --help' for more information on each command." << std::endl;
     std::cerr << std::endl;

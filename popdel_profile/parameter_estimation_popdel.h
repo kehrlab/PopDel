@@ -351,7 +351,7 @@ void calculateParameters(PopDelProfileParameters & params)
     }
       // Read list of intervals to use for parameter calculation.
     String<GenomicRegion> intervals;
-    readIntervals(intervals, params.intervalFile, header, params.rois);
+    readIntervals(intervals, params.intervalFile, header, params.rois, params.referenceVersion);
     mergeOverlappingIntervals(intervals);                                // Handle the regular intervals for sampling
     setRIDs(intervals, infile);
     TItvIter itvEnd = getInsertSizeHistograms(params.histograms, infile, intervals, params);// Calculate insert size hist for each RG...

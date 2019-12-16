@@ -70,6 +70,7 @@ struct Call
     unsigned significantWindows;   // Number of significant windows that where merged into this variant.
     String<Triple<unsigned> > gtLikelihoods; // PHRED-scaled GT likelihhods of each sample. Order: HomRef, Het, HomDel.
     unsigned char filter;           // 8 Bits indicating the failed filters. 1 at the position indicates failed filter.
+    bool isOutside;            // True if the window the call is bases on lies outside of the deletion area.
                                     // (right to left) 1.: LR ratio test failed, 2.: High coverage, 3.:Sample Number
     Call() :
     initialLength(0),
@@ -80,7 +81,8 @@ struct Call
     position(0),
     endPosition(0),
     significantWindows(0),
-    filter(0){}
+    filter(0),
+    isOutside(false){}
 
     Call(__uint32 initLen,
          __uint32 itNum,
@@ -96,7 +98,8 @@ struct Call
     frequency(f),
     position(pos),
     endPosition(endPos),
-    significantWindows(0){}
+    significantWindows(0),
+    isOutside(false){}
 
     void reset(void)
     {
@@ -111,6 +114,7 @@ struct Call
         endPosition = 0;
         significantWindows = 0;
         filter = 0;
+        isOutside = false;
     }
 };
 // =======================================================================================
@@ -252,7 +256,7 @@ inline bool checkRelWinCovPass(const Call & call)
 // =======================================================================================
 // Function checkAllPass()
 // =======================================================================================
-// Return true if the high coverage filter has been passed, false otherwise.
+// Return true if all filters have been passed, false otherwise.
 inline bool checkAllPass(const Call & call)
 {
     return checkCoveragePass(call) &&
@@ -278,7 +282,7 @@ inline void markInvalidCall(Call & call)
 // Function checkDelSizeSimilar()
 // =======================================================================================
 // Return true if the two delSizes a and b are within f percent of each other or within +-2 sddev.
-inline bool checkDelSizeSimilar(const unsigned & a, const unsigned & b, const double & stddev, const double f = 0.8)
+inline bool checkDelSizeSimilar(const unsigned & a, const unsigned & b, const double & stddev, const double f = 0.5)
 {
     unsigned l;
     unsigned r;
@@ -295,27 +299,69 @@ inline bool checkDelSizeSimilar(const unsigned & a, const unsigned & b, const do
     if (l + 2 * stddev >= r)
         return true;
     else
+    {
         return l >= f * r;
+    }
+}
+inline bool isInDelRange(const Call & a, const Call & b, const double & stddev, const double f = 4)
+{
+    SEQAN_ASSERT_GEQ(b.position, a.position);
+    return (b.position - a.position < (std::min(a.deletionLength, b.deletionLength) + f * stddev));
+}
+// =======================================================================================
+// Function checkAndExtend()
+// =======================================================================================
+// Return true if the range given by endPos - beginPos of one of the calls needs extension to fit the the estimated del.
+// Return false otherwise.
+// If true is returned, the endPosition of a is updated to match the endPosition of b.
+inline bool checkAndExtend(Call & a, Call & b, const double & stddev)
+{
+    unsigned aSpan = a.endPosition - a.position;
+    unsigned bSpan = b.endPosition - b.position;
+    if ((aSpan < a.deletionLength || bSpan < b.deletionLength) && isInDelRange(a, b, stddev))
+    {
+        a.endPosition = b.endPosition;
+        return true;
+    }
+    else return false;
 }
 // =======================================================================================
 // Function checkEnoughOverlap()
 // =======================================================================================
 // Return true if the calls a and b overlap for at least for f-percent of the smaller variant's number of windows.
-inline bool checkEnoughOverlap(const Call & a, const Call & b, const double f = 0.5)
-{   //TODO: Consider making this more generous for smaller deletions
-    unsigned minLen = std::min(a.deletionLength, b.deletionLength);
+inline bool checkEnoughOverlap(const Call & a, const Call & b, const double & stddev, const double f = 0.25)
+{
+    unsigned aSpan = a.endPosition - a.position;
+    unsigned bSpan = b.endPosition - b.position;
+    unsigned minLen = std::min(aSpan, bSpan);
     unsigned left = std::max(a.position, b.position);
-    unsigned right = std::min(a.position + a.deletionLength, b.position + b.deletionLength);
+    unsigned right = std::min(a.position + aSpan, b.position + bSpan);
     int overlap = (right - left);
-    return overlap >= f * minLen;
+    if (overlap >= f * minLen)
+        return true;
+    else if (overlap + 2 * stddev >= minLen)
+        return true;
+    else
+        return false;
 }
 // =======================================================================================
 // Function areSimilar()
 // =======================================================================================
-// Return true, if the two given SupportStretch are similar enough to be considered equal.
-inline bool similar(const Call & a, const Call & b, const double & stddev)
+// Return true, if the two given SupportStretch are similar enough to be merged.
+// If checkAndExtedIs true, the endPosition of a is updated to match the endPosition of b.
+inline bool similar(Call & a, Call & b, const double & stddev)
 {
-    return checkDelSizeSimilar(a.deletionLength, b.deletionLength, stddev) && checkEnoughOverlap(a, b);
+    if (checkDelSizeSimilar(a.deletionLength, b.deletionLength, stddev))
+    {
+        if (checkEnoughOverlap(a, b, stddev))
+            return true;
+        else
+            return checkAndExtend(a, b, stddev);
+    }
+    else
+    {
+        return false;
+    }
 }
 // =======================================================================================
 // Function lowerCall()
@@ -430,7 +476,6 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
 {
     if (length(calls) <= 1u)
         return false;
-
     std::sort(begin(calls), end(calls), lowerCall);
     Iterator<String<Call> >::Type currentIt = begin(calls, Standard());
     const Iterator<String<Call>, Standard >::Type last = end(calls) - 1;
@@ -457,6 +502,10 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
     resize(lads, length(currentIt->lads));
     String<String<String<unsigned>, Array<5> > > dads;
     resize(dads, length(currentIt->dads));
+    for (Iterator<String<String<String<unsigned>, Array<5> > > >::Type it = begin(dads); it != end(dads); ++it)
+    {
+        resize(*it, 5, Exact());
+    }
     append(startPositions, currentIt->position);
     append(sizeEstimates, currentIt->deletionLength);
     unsigned callCount = 1;
@@ -493,9 +542,26 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
                 for (unsigned s = 0; s < length(genotypes); ++s)
                 {
                     unsigned minGt = std::min(std::min(genotypes[s].i1, genotypes[s].i2), genotypes[s].i3);
-                    currentIt->gtLikelihoods[s].i1 = std::round(static_cast<double> (genotypes[s].i1 - minGt) / winCount);
-                    currentIt->gtLikelihoods[s].i2 = std::round(static_cast<double> (genotypes[s].i2 - minGt) / winCount);
-                    currentIt->gtLikelihoods[s].i3 = std::round(static_cast<double> (genotypes[s].i3 - minGt) / winCount);
+                    double ref = static_cast<double> (genotypes[s].i1 - minGt) / winCount;
+                    double het = static_cast<double> (genotypes[s].i2 - minGt) / winCount;
+                    double hom = static_cast<double> (genotypes[s].i3 - minGt) / winCount;
+                    currentIt->gtLikelihoods[s].i1 = std::round(ref);
+                    currentIt->gtLikelihoods[s].i2 = std::round(het);
+                    currentIt->gtLikelihoods[s].i3 = std::round(hom);
+                    if (currentIt->gtLikelihoods[s].i2 == currentIt->gtLikelihoods[s].i3)   // A bit hacky... TODO: Implement better solution.
+                    {
+                        if (het > hom)
+                            ++(currentIt->gtLikelihoods[s].i2);
+                        else
+                            ++(currentIt->gtLikelihoods[s].i3);
+                    }
+                    else if (currentIt->gtLikelihoods[s].i1 == currentIt->gtLikelihoods[s].i2)
+                    {
+                        if (ref > het)
+                            ++(currentIt->gtLikelihoods[s].i1);
+                        else
+                            ++(currentIt->gtLikelihoods[s].i2);
+                    }
                     currentIt->lads[s] = getMedianLAD(lads[s]);
                     currentIt->dads[s] = getMedianDAD(dads[s]);
 
@@ -957,34 +1023,85 @@ inline Iterator<const String<GenomicRegion> >::Type findInterval(const String<Ge
 // Function createRegularIntervals()
 // ---------------------------------------------------------------------------------------
 // Return a string of the default sampling regions for profiling.
-void createRegularIntervals(String<GenomicRegion> & intervals, const String<GenomicRegion> & rois)
+void createRegularIntervals(String<GenomicRegion> & intervals,
+                            const String<GenomicRegion> & rois,
+                            const CharString & referenceVersion)
 {
     String<GenomicRegion> tmpIntervals;
-
     resize(tmpIntervals, 22, Exact());
-    parse(tmpIntervals[0], "chr1:35000000-36000000");
-    parse(tmpIntervals[1], "chr2:174000000-175000000");
-    parse(tmpIntervals[2], "chr3:36500000-37500000");
-    parse(tmpIntervals[3], "chr4:88000000-89000000");
-    parse(tmpIntervals[4], "chr5:38000000-39000000");
-    parse(tmpIntervals[5], "chr6:38000000-39000000");
-    parse(tmpIntervals[6], "chr7:38000000-39000000");
-    parse(tmpIntervals[7], "chr8:19000000-20000000");
-    parse(tmpIntervals[8], "chr9:19000000-20000000");
-    parse(tmpIntervals[9], "chr10:19000000-20000000");
-    parse(tmpIntervals[10], "chr11:19000000-20000000");
-    parse(tmpIntervals[11], "chr12:19000000-20000000");
-    parse(tmpIntervals[12], "chr13:25000000-26000000");
-    parse(tmpIntervals[13], "chr14:25000000-26000000");
-    parse(tmpIntervals[14], "chr15:25000000-26000000");
-    parse(tmpIntervals[15], "chr16:25000000-26000000");
-    parse(tmpIntervals[16], "chr17:31000000-32000000");
-    parse(tmpIntervals[17], "chr18:31000000-32000000");
-    parse(tmpIntervals[18], "chr19:31000000-32000000");
-    parse(tmpIntervals[19], "chr20:33000000-34000000");
-    parse(tmpIntervals[20], "chr21:21000000-22000000");
-    parse(tmpIntervals[21], "chr22:25000000-26000000");
+    std::ostringstream msg;
+    CharString r = referenceVersion;
+    toLower(r);
+    std::string prefix = "";
+    bool oldBuild = true;
 
+    if (r == "grch38" || r == "hg38")
+    {
+        prefix = "chr";
+        oldBuild = false;
+    }
+    else if ( r == "hg19")
+    {
+        prefix = "chr";
+    }
+    else if  (r == "grch37")
+    {
+        prefix = "";
+    }
+
+    if (!oldBuild)
+    {
+        msg << "Using default sampling intervals for GRCh38/hg38.";
+        parse(tmpIntervals[0], prefix + "1:35000000-36000000");
+        parse(tmpIntervals[1], prefix + "2:174000000-175000000");
+        parse(tmpIntervals[2], prefix + "3:36500000-37500000");
+        parse(tmpIntervals[3], prefix + "4:88000000-89000000");
+        parse(tmpIntervals[4], prefix + "5:38000000-39000000");
+        parse(tmpIntervals[5], prefix + "6:38000000-39000000");
+        parse(tmpIntervals[6], prefix + "7:38000000-39000000");
+        parse(tmpIntervals[7], prefix + "8:19000000-20000000");
+        parse(tmpIntervals[8], prefix + "9:19000000-20000000");
+        parse(tmpIntervals[9], prefix + "10:19000000-20000000");
+        parse(tmpIntervals[10], prefix + "11:19000000-20000000");
+        parse(tmpIntervals[11], prefix + "12:19000000-20000000");
+        parse(tmpIntervals[12], prefix + "13:25000000-26000000");
+        parse(tmpIntervals[13], prefix + "14:25000000-26000000");
+        parse(tmpIntervals[14], prefix + "15:25000000-26000000");
+        parse(tmpIntervals[15], prefix + "16:25000000-26000000");
+        parse(tmpIntervals[16], prefix + "17:31000000-32000000");
+        parse(tmpIntervals[17], prefix + "18:31000000-32000000");
+        parse(tmpIntervals[18], prefix + "19:31000000-32000000");
+        parse(tmpIntervals[19], prefix + "20:33000000-34000000");
+        parse(tmpIntervals[20], prefix + "21:21000000-22000000");
+        parse(tmpIntervals[21], prefix + "22:25000000-26000000");
+    }
+    else
+    {
+        msg << "Using default sampling intervals for GRCh37/hg19.";
+        parse(tmpIntervals[0], prefix + "1:35000000-36000000");
+        parse(tmpIntervals[1], prefix + "2:174000000-175000000");
+        parse(tmpIntervals[2], prefix + "3:36500000-37500000");
+        parse(tmpIntervals[3], prefix + "4:88000000-89000000");
+        parse(tmpIntervals[4], prefix + "5:38000000-39000000");
+        parse(tmpIntervals[5], prefix + "6:38000000-39000000");
+        parse(tmpIntervals[6], prefix + "7:37000000-38000000");
+        parse(tmpIntervals[7], prefix + "8:19000000-20000000");
+        parse(tmpIntervals[8], prefix + "9:19000000-20000000");
+        parse(tmpIntervals[9], prefix + "10:19000000-20000000");
+        parse(tmpIntervals[10], prefix + "11:19000000-20000000");
+        parse(tmpIntervals[11], prefix + "12:19000000-20000000");
+        parse(tmpIntervals[12], prefix + "13:30000000-31000000");
+        parse(tmpIntervals[13], prefix + "14:26000000-27000000");
+        parse(tmpIntervals[14], prefix + "15:26000000-27000000");
+        parse(tmpIntervals[15], prefix + "16:25000000-26000000");
+        parse(tmpIntervals[16], prefix + "17:31000000-32000000");
+        parse(tmpIntervals[17], prefix + "18:31000000-32000000");
+        parse(tmpIntervals[18], prefix + "19:31000000-32000000");
+        parse(tmpIntervals[19], prefix + "20:33000000-34000000");
+        parse(tmpIntervals[20], prefix + "21:21000000-22000000");
+        parse(tmpIntervals[21], prefix + "22:34000000-35000000");
+    }
+    printStatus(msg);
     for (Iterator<const String<GenomicRegion> >::Type roiIt = begin(rois); roiIt != end(rois); ++roiIt)
     {
         Iterator<const String<GenomicRegion> >::Type itvIt = findInterval(tmpIntervals, *roiIt);
@@ -1001,7 +1118,8 @@ void createRegularIntervals(String<GenomicRegion> & intervals, const String<Geno
     {
         std::ostringstream msg;
         msg << "[PopDel] No contig name of any ROI matches any of the contig names of the default intervals for"
-               " the parameter estimation. Please check the contig names of the ROI's and/or use user-defined"
+               " the parameter estimation. If you are using hg19/GRCh37 please use the --hg19 option."
+               " Otherwise, please check the contig names of the ROI's and/or use user-defined"
                " sampling regions (option \'-i\')";
         SEQAN_THROW(ParseError(toCString(msg.str())));
     }
@@ -1013,7 +1131,8 @@ void createRegularIntervals(String<GenomicRegion> & intervals, const String<Geno
 inline void readIntervals(String<GenomicRegion> & intervals,
                           const CharString & filename,
                           const BamHeader & header,
-                          const String<GenomicRegion> & rois)
+                          const String<GenomicRegion> & rois,
+                          const CharString & referenceVersion)
 {
     if (filename != "")
     {
@@ -1039,7 +1158,7 @@ inline void readIntervals(String<GenomicRegion> & intervals,
     }
     else
     {
-        createRegularIntervals(intervals, rois);
+        createRegularIntervals(intervals, rois, referenceVersion);
     }
 }
 // =======================================================================================
