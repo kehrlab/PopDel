@@ -14,21 +14,21 @@ using namespace seqan;
 // Stores the firstWindow and the insert size deviation of a specific insert.
 struct ChromosomeProfileStartEntry
 {
-    __uint32 firstWindow;
+    __uint32 startPos;
     __int32  insertSizeDeviation;
 
     ChromosomeProfileStartEntry() :
-        firstWindow(0), insertSizeDeviation(0){}
+        startPos(0), insertSizeDeviation(0){}
 
     ChromosomeProfileStartEntry(__uint32 start, __int32 deviation) :
-        firstWindow(start), insertSizeDeviation(deviation){}
+        startPos(start), insertSizeDeviation(deviation){}
 };
 // =======================================================================================
 // Operator== overload
 // =======================================================================================
 bool operator==(const ChromosomeProfileStartEntry & l, const ChromosomeProfileStartEntry & r)
 {
-    return (l.firstWindow == r.firstWindow && l.insertSizeDeviation == r.insertSizeDeviation);
+    return (l.startPos == r.startPos && l.insertSizeDeviation == r.insertSizeDeviation);
 }
 bool operator==(const String<ChromosomeProfileStartEntry> & l, const String<ChromosomeProfileStartEntry> & r)
 {
@@ -321,10 +321,10 @@ struct CyclicStartEntryTable
     // =======================================================================================
     // Add the entry to the current writeSet and increase the insertionCount;
     // This function does not care if the currentSet is actually the correct writeSet!
-    inline void add(const unsigned & firstWin, const int & deviation)
+    inline void add(const unsigned & startPos, const int & deviation)
     {
         SEQAN_ASSERT_EQ(sets[writeSet].readable, false);    // Never insert into a readable subset.
-        appendValue(sets[writeSet].subset, ChromosomeProfileStartEntry(firstWin, deviation));
+        appendValue(sets[writeSet].subset, ChromosomeProfileStartEntry(startPos, deviation));
         ++insertionCount;
     }
     // =======================================================================================
@@ -380,11 +380,11 @@ struct CyclicStartEntryTable
             if (empty(sets[prevSetNum].subset) || sets[readSet].right < sets[prevSetNum].right)
                 return 0;
             else
-                return  back(sets[prevSetNum].subset).firstWindow;
+                return  back(sets[prevSetNum].subset).startPos;
         }
         else
         {
-            return (nextRead - 1)->firstWindow;
+            return (nextRead - 1)->startPos;
         }
     }
     // =======================================================================================
@@ -424,20 +424,20 @@ struct CyclicStartEntryTable
         return getEntryAt(id).insertSizeDeviation;
     }
     // =======================================================================================
-    // Function getFirstWin()
+    // Function getStartPos()
     // =======================================================================================
     // Return firstWindow of nextRead.
-    inline unsigned getFirstWin() const
+    inline unsigned getStartPos() const
     {
-        return nextRead->firstWindow;
+        return nextRead->startPos;
     }
     // =======================================================================================
-    // Function getFirstWinAt()
+    // Function getFirstPosAt()
     // =======================================================================================
-    // Return firstWindow of the elment with the given ID.
-    inline unsigned getFirstWinAt(unsigned id) const
+    // Return startPos of the elment with the given ID.
+    inline unsigned getStartPosAt(unsigned id) const
     {
-        return getEntryAt(id).firstWindow;
+        return getEntryAt(id).startPos;
     }
     // =======================================================================================
     // Function getEntryId()
@@ -786,8 +786,9 @@ struct CyclicEndEntryTable
     // Function add()
     // =======================================================================================
     // Add the entry to the correspondig subset.
-    inline void add(const unsigned & id, const unsigned & lastWin)
+    inline void add(const unsigned & id, const unsigned & endPos, const unsigned windowSize = 30)
     {
+        const unsigned lastWin = posToWin(endPos, windowSize);
         unsigned whichSet = writeSet;
         if (needsSwitch(lastWin))
         {
@@ -892,7 +893,8 @@ struct CyclicEndEntryTable
         }
         if (n == 0)
             return 0;
-        while(sets[cEndPosSet].at(i).lastWindow < pos)
+        unsigned win = posToWin(pos);
+        while(sets[cEndPosSet].at(i).lastWindow < win)
         {
             if (lookAhead)
                 ++dNextOffset;
@@ -1079,7 +1081,7 @@ struct ChromosomeProfile
     // Return 0 if the element has been added without a switch occuring in the startProfile.
     // Return 1 if the element has been added and a switch occured in the startProfile.
     // Return 2 if the element has not been added and a switch occured in the startProfile.
-    inline void add(unsigned readGroup, unsigned firstWindow, unsigned lastWindow, int deviation)
+    inline void add(unsigned readGroup, unsigned startPos, unsigned endPos, int deviation)
     {
         SEQAN_ASSERT_LEQ(readGroup, length(startProfiles));
         //The starting positions are already sorted by startingWindow.
@@ -1089,22 +1091,22 @@ struct ChromosomeProfile
         if (activeLoad[readGroup] >= maxLoad[readGroup])
         {
             // Don't add new reads, only look for closing reads.
-            unsigned closingReads = currentEndEntryTable.getEndCount(firstWindow);
+            unsigned closingReads = currentEndEntryTable.getEndCount(startPos);
             SEQAN_ASSERT_GEQ(activeLoad[readGroup], closingReads);
             activeLoad[readGroup] -= closingReads;
             if (activeLoad[readGroup] < maxLoad[readGroup]) // Maybe it dropped below the threshold now.
             {
-                currentStartEntryTable.add(firstWindow, deviation);
-                currentEndEntryTable.add(id, lastWindow);
+                currentStartEntryTable.add(startPos, deviation);
+                currentEndEntryTable.add(id, endPos);
                 ++activeLoad[readGroup];
             }
         }
         else
         {
-            currentStartEntryTable.add(firstWindow, deviation);
-            currentEndEntryTable.add(id, lastWindow);
+            currentStartEntryTable.add(startPos, deviation);
+            currentEndEntryTable.add(id, endPos);
             ++activeLoad[readGroup];
-            unsigned closingReads = currentEndEntryTable.getEndCount(firstWindow);
+            unsigned closingReads = currentEndEntryTable.getEndCount(startPos);
             SEQAN_ASSERT_GT(activeLoad[readGroup], closingReads);
             activeLoad[readGroup] -= closingReads;
         }
@@ -1123,7 +1125,7 @@ struct ChromosomeProfile
             currentStartEntryTable.nextRead = begin(currentStartEntryTable.sets[currentStartEntryTable.readSet].subset, Rooted());
             if (atEnd(startProfiles[rg]))                              // Skip read group, in case it is empty.
                 continue;
-            unsigned pos = startProfiles[rg].getFirstWin();
+            unsigned pos = startProfiles[rg].getStartPos();
             if (pos < currentPos)
             {
                 currentPos = pos;
@@ -1137,7 +1139,7 @@ struct ChromosomeProfile
             CyclicStartEntryTable& currentStartEntryTable = *currentProfileIt;
             if (!atEnd(currentStartEntryTable) && itA->empty())
             {
-                unsigned pos = currentStartEntryTable.getFirstWin();
+                unsigned pos = currentStartEntryTable.getStartPos();
                 if (pos != currentPos)      // Skip this read group, if its first window is != the global first window.
                 {
                     ++currentProfileIt;
@@ -1148,7 +1150,7 @@ struct ChromosomeProfile
                 (*itA).emplace(id);
                 ++id;
                 bool endOfSubSet = !currentStartEntryTable.goNext();
-                while(!endOfSubSet && currentStartEntryTable.getFirstWin() == pos)
+                while(!endOfSubSet && currentStartEntryTable.getStartPos() == pos)
                 {
                     (*itA).emplace(id);
                     ++id;
@@ -1169,9 +1171,9 @@ struct ChromosomeProfile
         CyclicStartEntryTable& currentStartEntryTable =  startProfiles[rg];
         SEQAN_ASSERT(!atEnd(currentStartEntryTable));
         TActiveSet& currentActiveSet = activeReads[rg];
-        unsigned currentWindow = currentStartEntryTable.getFirstWin();
+        unsigned currentWindow = currentStartEntryTable.getStartPos();
         bool noSwitchNecessary = true;
-        while (noSwitchNecessary && currentWindow == currentStartEntryTable.getFirstWin())
+        while (noSwitchNecessary && currentWindow == currentStartEntryTable.getStartPos())
         {
             currentActiveSet.emplace(currentStartEntryTable.getEntryId());
             noSwitchNecessary = currentStartEntryTable.goNext();
@@ -1194,7 +1196,7 @@ struct ChromosomeProfile
         }
         TActiveSet& currentActiveSet = activeReads[rg];
         unsigned currentWindow = currentEndEntryTable.getLastWin();
-        while(currentWindow == currentEndEntryTable.getLastWin())
+        while (currentWindow == currentEndEntryTable.getLastWin())
         {
             currentActiveSet.erase(currentEndEntryTable.getId());
             if (!currentEndEntryTable.goNext())
@@ -1226,14 +1228,14 @@ struct ChromosomeProfile
                 someSubsetStillGood = true;
             while (!atEnd(currentStartEntryTable))
             {
-                if (currentStartEntryTable.getFirstWin() <= currentPos)
+                if (currentStartEntryTable.getStartPos() <= currentPos)
                     nextStartWindow(rg);
                 else
                     break;
             }
             while (!atEnd(currentEndEntryTable))
             {
-                if (currentEndEntryTable.getLastWin() < currentPos) // < because the last window is still valid.
+                if (currentEndEntryTable.getLastWin() + shift < currentPos) // < because the last window is still valid.
                     nextEndWindow(rg);
                 else
                     break;
@@ -1264,7 +1266,7 @@ struct ChromosomeProfile
             currentActiveSet.erase(currentStartEntryTable.getEntryId());
             previousWindow = currentStartEntryTable.peekPreviousFirstWindow();
         }
-        while(goOn && (currentWindow == previousWindow) &&  (previousWindow > globalMinPos));
+        while (goOn && (currentWindow == previousWindow) &&  (previousWindow > globalMinPos));
         return true;
     }
     // =======================================================================================
@@ -1273,15 +1275,15 @@ struct ChromosomeProfile
     // Move back one window in the RG's string of end entries and add IDs to its active set.
     // Basically undos all changes made by one call of nextEndWindow.
     // Return false if the set has been switched, true otherwise.
-    inline bool previousEndWindow(const __uint32 & rg)
+    inline bool previousEndWindow(const TEntryIdType & rg)
     {
         CyclicEndEntryTable& currentEndEntryTable =  endProfiles[rg];
         TActiveSet& currentActiveSet = activeReads[rg];
         bool sameSet = currentEndEntryTable.goPrevious();
-        if(empty(container(currentEndEntryTable.nextRead)))
+        if (empty(container(currentEndEntryTable.nextRead)))
             return false;
-        unsigned currentWindow = currentEndEntryTable.getLastWin();
-        while(currentWindow == currentEndEntryTable.getLastWin())
+        const unsigned currentWindow = currentEndEntryTable.getLastWin();
+        while (currentWindow == currentEndEntryTable.getLastWin())
         {
             currentActiveSet.emplace(currentEndEntryTable.getId());
             unsigned prevWindow = currentEndEntryTable.peekPreviousLastWindow();
@@ -1304,7 +1306,7 @@ struct ChromosomeProfile
             return false;
         currentPos -= shift;
         bool shifted = false;
-        for (__uint32 rg = 0; rg < length(startProfiles); ++rg)
+        for (TEntryIdType rg = 0; rg < length(startProfiles); ++rg)
         {
             CyclicEndEntryTable& currentEndEntryTable =  endProfiles[rg];
             unsigned currentSetStart = currentEndEntryTable.sets[currentEndEntryTable.readSet].right -
@@ -1332,7 +1334,7 @@ struct ChromosomeProfile
             }
             else if (atBegin(currentStartEntryTable))
             {
-                if (currentStartEntryTable.getFirstWin() > currentPos)
+                if (currentStartEntryTable.getStartPos() > currentPos)
                     shifted &= previousStartWindow(rg);
             }
             else if (currentStartEntryTable.peekPreviousFirstWindow() > currentPos)
@@ -1358,7 +1360,7 @@ struct ChromosomeProfile
             return false;
         bool end = true;
         currentPos += shift * (numWindows - 1);
-        for (__uint32 rg = 0; rg < length(startProfiles); ++rg)
+        for (TEntryIdType rg = 0; rg < length(startProfiles); ++rg)
         {
             CyclicStartEntryTable& currentStartEntryTable =  startProfiles[rg];
             for (unsigned i = 1; i < numWindows; ++i)
@@ -1371,7 +1373,7 @@ struct ChromosomeProfile
                 if (!atEnd(currentStartEntryTable))
                 {
                     end = false;
-                    if (currentStartEntryTable.getFirstWin() <= currentPos)
+                    if (currentStartEntryTable.getStartPos() <= currentPos)
                     {
                         if (!nextStartWindow(rg))
                             continue;
@@ -1401,7 +1403,7 @@ struct ChromosomeProfile
         if (numWindows < 2)
             return false;
         bool end = true;
-        for (__uint32 rg = 0; rg < length(endProfiles); ++rg)
+        for (TEntryIdType rg = 0; rg < length(endProfiles); ++rg)
         {
             CyclicEndEntryTable& currentEndEntryTable =  endProfiles[rg];
             for (unsigned i = 1; i < numWindows; ++i)
@@ -1528,18 +1530,18 @@ struct ChromosomeProfile
             const Histogram & hist = hists[*cReadGroupsIt];
             int currentMedian = hist.median;
             int currentDoubleReadLength = 2 * hist.readLength;
-            for (TActiveSet::const_iterator where(activeReads[*cReadGroupsIt].begin());
-                 where != activeReads[*cReadGroupsIt].end();
-                 ++where)
+            for (TActiveSet::const_iterator readIt(activeReads[*cReadGroupsIt].begin());
+                 readIt != activeReads[*cReadGroupsIt].end();
+                 ++readIt)
             {
-                const unsigned firstWin = startProfiles[*cReadGroupsIt].getFirstWinAt(*where);
-                int insertSize = startProfiles[*cReadGroupsIt].getDeviationAt(*where) + currentMedian;
+                const unsigned firstStartPos = getSingleStartPos(*cReadGroupsIt, readIt);
+                int insertSize = startProfiles[*cReadGroupsIt].getDeviationAt(*readIt) + currentMedian;
                 insertSize = std::max(0, insertSize - currentDoubleReadLength);
-                const unsigned lastWin = ((firstWin + insertSize) / 30) * 30; // TODO: As parameter?
-                if (firstWin < currentMin)
-                    currentMin = firstWin;
-                if (lastWin > currentMax)
-                    currentMax = lastWin;
+                const unsigned lastEndPos = firstStartPos + insertSize;
+                if (firstStartPos < currentMin)
+                    currentMin = firstStartPos;
+                if (lastEndPos > currentMax)
+                    currentMax = lastEndPos;
             }
         }
         if (currentMin == maxValue<unsigned>())
@@ -1566,18 +1568,18 @@ struct ChromosomeProfile
             const Histogram & hist = hists[*cReadGroupsIt];
             int currentMedian = hist.median;
             int currentDoubleReadLength = 2 * hist.readLength;
-            for (TActiveSet::const_iterator where(activeReads[*cReadGroupsIt].begin());
-                 where != activeReads[*cReadGroupsIt].end();
-                 ++where)
+            for (TActiveSet::const_iterator readIt(activeReads[*cReadGroupsIt].begin());
+                 readIt != activeReads[*cReadGroupsIt].end();
+                 ++readIt)
             {
-                int deviation = startProfiles[*cReadGroupsIt].getDeviationAt(*where);
+                int deviation = startProfiles[*cReadGroupsIt].getDeviationAt(*readIt);
                 if (deviation >= lower && deviation <= upper)
                 {
                     int insertSize = std::max(0, deviation + currentMedian - currentDoubleReadLength);
-                    const unsigned firstWin = startProfiles[*cReadGroupsIt].getFirstWinAt(*where);
-                    const unsigned lastWin = ((firstWin + insertSize) / 30) * 30; // TODO: As parameter?
-                    appendValue(suppFirstLasts.i1, firstWin);
-                    appendValue(suppFirstLasts.i2, lastWin);
+                    const unsigned firstStartPos = getSingleStartPos(*cReadGroupsIt, readIt);
+                    const unsigned lastEndPos = firstStartPos + insertSize;
+                    appendValue(suppFirstLasts.i1, firstStartPos);
+                    appendValue(suppFirstLasts.i2, lastEndPos);
                 }
             }
         }
@@ -1607,7 +1609,7 @@ struct ChromosomeProfile
         while(it != itEnd)
         {
             const ChromosomeProfileStartEntry & currentEntry = startProfiles[rg][*it];
-            if (currentEntry.insertSizeDeviation >= minLen && currentEntry.firstWindow == currentWindow)
+            if (currentEntry.insertSizeDeviation >= minLen && currentEntry.startPos == currentWindow)
                 ++c;
             ++it;
         }
@@ -1667,6 +1669,25 @@ struct ChromosomeProfile
     {
         return startProfiles[rg].getDeviationAt(*actReadsIt);
     }
+    inline int getSingleDeviation(const TEntryIdType & rg) const
+    {
+        return startProfiles[rg].getDeviation();
+    }
+    // =======================================================================================
+    // Function getSingleFirstWin()
+    // =======================================================================================
+    inline unsigned getSingleStartPos(const TEntryIdType & rg,
+                                 const TActiveSet::const_iterator & actReadsIt) const
+    {
+        return startProfiles[rg].getStartPosAt(*actReadsIt);
+    }
+    // =======================================================================================
+    // Function getSingleStartPos()
+    // =======================================================================================
+    inline unsigned getSingleStartPos(const TEntryIdType & rg) const
+    {
+        return startProfiles[rg].getStartPos();
+    }
     // =======================================================================================
     // Function goToPosition()
     // =======================================================================================
@@ -1676,14 +1697,14 @@ struct ChromosomeProfile
     {
         if (currentPos > targetPos)
         {
-            while(currentPos > targetPos)
+            while (currentPos > targetPos)
             {
                 previousWindow(shift);
             }
         }
         else
         {
-            while(currentPos < targetPos)
+            while (currentPos < targetPos)
             {
                 nextWindow(shift);
             }

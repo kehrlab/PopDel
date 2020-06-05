@@ -184,7 +184,11 @@ inline void writeWindow(zlib_stream::zip_ostream & stream,
         }
     }
 }
-
+// Return the stating position of the window that contains the given position.
+inline unsigned posToWin(const unsigned & pos, const unsigned windowSize = 30u)
+{
+    return (pos / windowSize) * windowSize;
+}
 // =======================================================================================
 // Function readWindow()
 // =======================================================================================

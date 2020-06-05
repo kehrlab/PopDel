@@ -213,7 +213,7 @@ inline bool advanceRoiIterator(Iterator<String<GenomicRegion> >::Type & nextRoi,
 // ======================================================================================
 // Function adaptRegions()
 // ======================================================================================
-// Adapt the next ROI s.t. it matches the leftmost next window candidate or adapt the next candiate window to match 
+// Adapt the next ROI s.t. it matches the leftmost next window candidate or adapt the next candiate window to match
 // the ROI depending on what comes first.
 // Return false if the next ROI lies on another chromosome or if the next candidate window comes after the ROI.
 // Return true otherwise.
@@ -472,9 +472,7 @@ inline void addRgRecordsToProfile(ChromosomeProfile & profile,
             unsigned endPos = record.i1;
             if (innerDist > 0)
                 endPos += innerDist;
-            endPos = (endPos / 30) * 30;            // TODO: remove this line when we use better precision.
-            profile.add(rg[r], win.beginPos, endPos, static_cast<int16_t>(record.i2));
-            // TODO: later we can use win.i1 for more precise positions.
+            profile.add(rg[r], record.i1, endPos, static_cast<int16_t>(record.i2));
         }
     }
 }

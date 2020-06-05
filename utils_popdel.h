@@ -40,7 +40,7 @@ struct Dad
     Dad(unsigned re, unsigned bo, unsigned be, unsigned al, unsigned ri) :
     ref(re),
     both(bo),
-    between(be), 
+    between(be),
     alt(al),
     right(ri){}
 
@@ -65,6 +65,7 @@ struct Call
                                     //  0: Ref, 1: both, 2: between but none, 3: Del., 4: bigger than del. One per Sample.
     String<Pair<unsigned> > firstLast;// Pos of the lowest first and the highest last win of all active reads.
     double   frequency;             // Allele-frequency of the deletion across all samples.
+    unsigned windowPosition;        // Position of the window.
     unsigned position;              // Assumed start-position (window) of the variant.
     unsigned endPosition;           // Assumed end-position (window) of the variant.
     unsigned significantWindows;   // Number of significant windows that where merged into this variant.
@@ -78,6 +79,7 @@ struct Call
     deletionLength(0),
     likelihoodRatio(0.0),
     frequency(0.0),
+    windowPosition(0),
     position(0),
     endPosition(0),
     significantWindows(0),
@@ -89,6 +91,7 @@ struct Call
          __uint32 delLen,
          double llr,
          double f,
+         unsigned wPos,
          unsigned pos,
          unsigned endPos = 0) :
     initialLength(initLen),
@@ -96,6 +99,7 @@ struct Call
     deletionLength(delLen),
     likelihoodRatio(llr),
     frequency(f),
+    windowPosition(wPos),
     position(pos),
     endPosition(endPos),
     significantWindows(0),
@@ -110,64 +114,12 @@ struct Call
         clear(lads);
         clear(dads);
         frequency = 0;
+        windowPosition = 0;
         position = 0;
         endPosition = 0;
         significantWindows = 0;
         filter = 0;
         isOutside = false;
-    }
-};
-// =======================================================================================
-// Function setLRFilter()
-// =======================================================================================
-// Return the binomial coefficient "n choose k".
-inline unsigned nChooseK(unsigned n, unsigned k)
-{
-    if (k > n / 2)
-        k = n - k;
-    unsigned res = 1;
-    for (unsigned i = 1; i <= k; i++)
-    {
-        res *= (n - k + i);
-        res /= i;
-    }
-    return res;
-}
-// =======================================================================================
-// Class BinomTable
-// =======================================================================================
-// Table storing the first 100x100 values of the bernulli triangle (=binomial coefficients from 0 choose 0 to 99 choose 99.)
-struct BinomTable
-{
-    String<String<double, Array<100> >, Array<100> > a;
-
-    BinomTable()
-    {
-        resize(a, 100, NAN, Insist());
-        for (unsigned n = 0; n < length(a); ++n)
-            resize(a[n], n+1, NAN, Insist());
-        generatePascal();
-
-    }
-
-    // Return the value of stored in the table or  - if not present - calculate it on the fly.
-    inline double nCk(unsigned n, unsigned k) const
-    {
-        if (k >= 100 || n >= 100)
-            return nChooseK(n, k);  // No part of table: calculate on the fly.
-        return
-            a[n][k];
-    }
-
-    void generatePascal()
-    {
-        for (unsigned n = 0; n < 100; ++n)
-        {
-            for (unsigned k = 0; k <= n; ++k)
-            {
-                a[n][k] = nChooseK(n, k);
-            }
-        }
     }
 };
 // =======================================================================================
@@ -441,7 +393,7 @@ inline void addToDADlist(String<String<String<unsigned>, Array<5> > > & target,
 // Return the median LAD and clear the input list of LADs.
 inline Triple<unsigned> getMedianLAD(Triple<String<unsigned> > & lads)
 {
-    unsigned m = std::round(static_cast<double>(length(lads.i1)) / 2);
+    unsigned m = length(lads.i1) / 2;
     std::sort(begin(lads.i1), end(lads.i1));
     std::sort(begin(lads.i2), end(lads.i2));
     std::sort(begin(lads.i3), end(lads.i3));
@@ -457,7 +409,7 @@ inline Triple<unsigned> getMedianLAD(Triple<String<unsigned> > & lads)
 // Return the median DAD and clear the input list of DADs.
 inline Dad getMedianDAD(String<String<unsigned>, Array<5> > & dads)
 {
-    unsigned m = std::round(static_cast<double>(length(dads[0])) / 2);
+    unsigned m = length(dads[0]) / 2;
     for (unsigned i = 0; i < 5u; ++i)
         std::sort(begin(dads[i]), end(dads[i]));
 
@@ -468,6 +420,144 @@ inline Dad getMedianDAD(String<String<unsigned>, Array<5> > & dads)
     return res;
 }
 // =======================================================================================
+// Function skipFailedWindows()
+// =======================================================================================
+// Advance  currentIt as far as needed to skip over all calls that fail any filters.
+// Return false if all calls fail, true otherwise.
+inline bool skipFailedCalls(Iterator<String<Call> >::Type & currentIt,
+                            const Iterator<const String<Call> >::Type & last)
+{
+    while (!checkAllPass(*currentIt))        // Skip all windows that did not pass all filters.
+    {
+        if (currentIt == last)
+            return false;
+        else
+            ++currentIt;
+    }
+    return currentIt != last;
+}
+// =======================================================================================
+// Function setGenotypes()
+// =======================================================================================
+// Looks at the windows that are within the deletion length and estimates the genotype for each sample.
+// Also sets the LADs and DADs.
+// Resets "genotypes"
+// Return true on success, false if no genotype could be set (due to lack of windows)
+inline bool setGenotypes(const Iterator<String<Call>, Standard >::Type & start,
+                         const Iterator<const String<Call>, Standard >::Type end,
+                         String<Triple<String<unsigned> > > & lads,
+                         String<String<String<unsigned>, Array<5> > > & dads,
+                         String<Triple<unsigned> > & genotypes)
+{
+    unsigned genotypeWinCount = 0;
+    for (Iterator<String<Call>, Standard >::Type gtIt = start; gtIt < end; ++gtIt)
+    {
+        if (gtIt->windowPosition > start->position &&
+            gtIt->windowPosition - 30 < start->position + start->deletionLength)
+        {   // Only consider genotype likelihoods of windows within the deletion range
+            for (unsigned s = 0; s < length(genotypes); ++s)
+            {
+                genotypes[s].i1 += gtIt->gtLikelihoods[s].i1;
+                genotypes[s].i2 += gtIt->gtLikelihoods[s].i2;
+                genotypes[s].i3 += gtIt->gtLikelihoods[s].i3;
+                addToLADlist(lads, gtIt->lads, s);
+                addToDADlist(dads, gtIt->dads, s);
+            }
+            ++genotypeWinCount;
+        }
+    }
+    if (genotypeWinCount == 0)
+        return false;
+    // Now get the final genotype likelihoods
+    for (unsigned s = 0; s < length(genotypes); ++s)
+    {
+        double minGt = std::min(std::min(genotypes[s].i1, genotypes[s].i2), genotypes[s].i3);
+        double ref = static_cast<double>(genotypes[s].i1 - minGt) / genotypeWinCount;
+        double het = static_cast<double>(genotypes[s].i2 - minGt) / genotypeWinCount;
+        double hom = static_cast<double>(genotypes[s].i3 - minGt) / genotypeWinCount;
+        genotypes[s] = Triple<unsigned> (0, 0, 0);
+        start->gtLikelihoods[s].i1 = std::round(ref);
+        start->gtLikelihoods[s].i2 = std::round(het);
+        start->gtLikelihoods[s].i3 = std::round(hom);
+        start->lads[s] = getMedianLAD(lads[s]);
+        start->dads[s] = getMedianDAD(dads[s]);
+        // Avoid genotypes with nearly equal likelihoods. TODO: A bit hacky. Find better solution.
+        if (start->gtLikelihoods[s].i2 == start->gtLikelihoods[s].i3)
+        {
+            if (het > hom)
+                ++(start->gtLikelihoods[s].i2);
+            else
+                ++(start->gtLikelihoods[s].i3);
+        }
+        else if (start->gtLikelihoods[s].i1 == start->gtLikelihoods[s].i2)
+        {
+            if (ref > het)
+                ++(start->gtLikelihoods[s].i1);
+            else
+                ++(start->gtLikelihoods[s].i2);
+        }
+    }
+    return true;
+}
+// =======================================================================================
+// Function getStartPosition()
+// =======================================================================================
+// Return the median of the collected stat position estimates as the final start position.
+// startPositions is cleared during this process.
+inline unsigned getStartPosition(String<unsigned> & startPositions)
+{
+    std::sort(begin(startPositions), end(startPositions));
+    unsigned start = startPositions[length(startPositions) / 2];
+    clear(startPositions);
+    return start;
+}
+// =======================================================================================
+// Function getDeletionLength()
+// =======================================================================================
+// Return the median of the collected sizes estimates as the final value for the deletion length.
+// sizeEstimates is cleared during this process.
+inline unsigned getDeletionLength(String<unsigned> & sizeEstimates)
+{
+    std::sort(begin(sizeEstimates), end(sizeEstimates));
+    unsigned len = sizeEstimates[length(sizeEstimates) / 2];
+    clear(sizeEstimates);
+    return len;
+}
+inline void mergeWindowRange(const Iterator<String<Call>, Standard >::Type & start,
+                             const Iterator<String<Call>, Standard >::Type & last,
+                             String<Triple<String<unsigned> > > & lads,
+                             String<String<String<unsigned>, Array<5> > > & dads,
+                             String<Triple<unsigned> > & genotypes,
+                             String<unsigned> & startPositions,
+                             String<unsigned> & sizeEstimates,
+                             long double & lr,
+                             unsigned & callCount,
+                             unsigned & winCount,
+                             unsigned & significantWindows,
+                             const double & r)
+{
+    start->position = getStartPosition(startPositions);
+    start->deletionLength = getDeletionLength(sizeEstimates);
+    start->likelihoodRatio = lr / winCount;
+    if (setGenotypes(start, last, lads, dads, genotypes))
+    {
+        setFreqFromGTs(*start);
+
+        start->significantWindows = significantWindows;
+        if (30.0 * significantWindows / start->deletionLength < r)
+            setRelWinCovFilter(*start);
+
+        winCount = 1;
+        significantWindows = 1;
+        lr = 0.0;
+        ++callCount;
+    }
+    else
+    {
+        markInvalidCall(*start);
+    }
+}
+// =======================================================================================
 // Function unifyCalls()
 // =======================================================================================
 // Unifies duplicate calls in c.
@@ -476,23 +566,14 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
 {
     if (length(calls) <= 1u)
         return false;
+
     std::sort(begin(calls), end(calls), lowerCall);
     Iterator<String<Call> >::Type currentIt = begin(calls, Standard());
     const Iterator<String<Call>, Standard >::Type last = end(calls) - 1;
     if (!outputFailed)
-    {
-        while (!checkAllPass(*currentIt))        // Skip all windows that did not pass all filters.
-        {
-            if (currentIt == last)
-                return false;
-            else
-                ++currentIt;
-        }
-        if (currentIt == last)
-        {
+        if (!skipFailedCalls(currentIt, last))
             return false;
-        }
-    }
+
     const Iterator<String<Call> >::Type firstGoodWin = currentIt;
     String<Triple<unsigned> > genotypes;
     resize(genotypes, length(currentIt->gtLikelihoods), Triple<unsigned>(0, 0, 0));
@@ -503,9 +584,8 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
     String<String<String<unsigned>, Array<5> > > dads;
     resize(dads, length(currentIt->dads));
     for (Iterator<String<String<String<unsigned>, Array<5> > > >::Type it = begin(dads); it != end(dads); ++it)
-    {
         resize(*it, 5, Exact());
-    }
+
     append(startPositions, currentIt->position);
     append(sizeEstimates, currentIt->deletionLength);
     unsigned callCount = 1;
@@ -518,100 +598,29 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
     {
         if (similar(*currentIt, *it, stddev))
         {
-            // Count genotypes for all samples across all windows and take their means. // Test if median is better
-            ++winCount;
-            for (unsigned s = 0; s < length(genotypes); ++s)
-            {
-                genotypes[s].i1 += it->gtLikelihoods[s].i1;
-                genotypes[s].i2 += it->gtLikelihoods[s].i2;
-                genotypes[s].i3 += it->gtLikelihoods[s].i3;
-                addToLADlist(lads, it->lads, s);
-                addToDADlist(dads, it->dads, s);
-            }
             if (checkAllPass(*it))
             {
                 appendValue(startPositions, it->position);
                 appendValue(sizeEstimates, it->deletionLength);
                 ++significantWindows;
             }
-
+            ++winCount;
             lr += it->likelihoodRatio;
             markInvalidCall(*it);
+
             if (it == last)
             {
-                for (unsigned s = 0; s < length(genotypes); ++s)
-                {
-                    unsigned minGt = std::min(std::min(genotypes[s].i1, genotypes[s].i2), genotypes[s].i3);
-                    double ref = static_cast<double> (genotypes[s].i1 - minGt) / winCount;
-                    double het = static_cast<double> (genotypes[s].i2 - minGt) / winCount;
-                    double hom = static_cast<double> (genotypes[s].i3 - minGt) / winCount;
-                    currentIt->gtLikelihoods[s].i1 = std::round(ref);
-                    currentIt->gtLikelihoods[s].i2 = std::round(het);
-                    currentIt->gtLikelihoods[s].i3 = std::round(hom);
-                    if (currentIt->gtLikelihoods[s].i2 == currentIt->gtLikelihoods[s].i3)   // A bit hacky... TODO: Implement better solution.
-                    {
-                        if (het > hom)
-                            ++(currentIt->gtLikelihoods[s].i2);
-                        else
-                            ++(currentIt->gtLikelihoods[s].i3);
-                    }
-                    else if (currentIt->gtLikelihoods[s].i1 == currentIt->gtLikelihoods[s].i2)
-                    {
-                        if (ref > het)
-                            ++(currentIt->gtLikelihoods[s].i1);
-                        else
-                            ++(currentIt->gtLikelihoods[s].i2);
-                    }
-                    currentIt->lads[s] = getMedianLAD(lads[s]);
-                    currentIt->dads[s] = getMedianDAD(dads[s]);
-
-                }
-                setFreqFromGTs(*currentIt);
-                currentIt->likelihoodRatio = lr / winCount;
-                std::sort(begin(startPositions), end(startPositions));
-                std::sort(begin(sizeEstimates), end(sizeEstimates));
-                currentIt->position = startPositions[length(startPositions) / 2];
-                currentIt->deletionLength = sizeEstimates[length(sizeEstimates) / 2];
-                currentIt->significantWindows = significantWindows;
-                if (30.0 * significantWindows / currentIt->deletionLength < r)
-                    setRelWinCovFilter(*currentIt);
+                mergeWindowRange(currentIt, it, lads, dads, genotypes, startPositions, sizeEstimates, lr, callCount, winCount, significantWindows, r);
                 break;
             }
         }
-        else if (winCount != 1)
-        {
-            for (unsigned s = 0; s < length(genotypes); ++s)
-            {
-                double minGt = std::min(std::min(genotypes[s].i1, genotypes[s].i2), genotypes[s].i3);
-                currentIt->gtLikelihoods[s].i1 = std::round(static_cast<double> (genotypes[s].i1 - minGt) / winCount);
-                currentIt->gtLikelihoods[s].i2 = std::round(static_cast<double> (genotypes[s].i2 - minGt) / winCount);
-                currentIt->gtLikelihoods[s].i3 = std::round(static_cast<double> (genotypes[s].i3 - minGt) / winCount);
-                genotypes[s].i1 = 0;
-                genotypes[s].i2 = 0;
-                genotypes[s].i3 = 0;
-                currentIt->lads[s] = getMedianLAD(lads[s]);
-                currentIt->dads[s] = getMedianDAD(dads[s]);
-            }
-            setFreqFromGTs(*currentIt);
-            currentIt->likelihoodRatio = lr / winCount;
-            std::sort(begin(startPositions), end(startPositions));
-            std::sort(begin(sizeEstimates), end(sizeEstimates));
-            currentIt->position = startPositions[length(startPositions) / 2];
-            currentIt->deletionLength = sizeEstimates[length(sizeEstimates) / 2];
-            currentIt->significantWindows = significantWindows;
-            if (30.0 * significantWindows / currentIt->deletionLength < r)
-                setRelWinCovFilter(*currentIt);
-            clear(startPositions);
-            clear(sizeEstimates);
-            currentIt = it;
-            winCount = 1;
-            significantWindows = 1;
-            lr = 0.0;
-            ++callCount;
-        }
         else
         {
-            markInvalidCall(*currentIt);
+            if (winCount != 1)
+                mergeWindowRange(currentIt, it, lads, dads, genotypes, startPositions, sizeEstimates, lr, callCount, winCount, significantWindows, r);
+            else
+                markInvalidCall(*currentIt);
+
             currentIt = it;
         }
         if (it != last)
@@ -735,7 +744,7 @@ void printStatus(std::ostringstream & message)
 // =======================================================================================
 // Function loadBai()
 // =======================================================================================
-// Load the BAI-file belonging to the given BAM-file. 
+// Load the BAI-file belonging to the given BAM-file.
 // Return false on errors, true otherwise.
 template<typename TString>
 inline bool loadBai(BamIndex<Bai> & bai, TString filename)
@@ -1118,7 +1127,8 @@ void createRegularIntervals(String<GenomicRegion> & intervals,
     {
         std::ostringstream msg;
         msg << "[PopDel] No contig name of any ROI matches any of the contig names of the default intervals for"
-               " the parameter estimation. If you are using hg19/GRCh37 please use the --hg19 option."
+               " the parameter estimation. If you are using hg19/GRCh37 please use '--reference', followed by your reference build."
+               " Please note, that your contig names have to match the patterns definde by used by the builds."
                " Otherwise, please check the contig names of the ROI's and/or use user-defined"
                " sampling regions (option \'-i\')";
         SEQAN_THROW(ParseError(toCString(msg.str())));
@@ -1448,12 +1458,6 @@ inline double phredsToFrequency(const String<Triple<unsigned> > & phredGLs)
         return 0;
     else
         return static_cast<double>(alleles) / n;
-}
-
-
-inline double pBinom(unsigned n, unsigned k, const BinomTable & tab, double p=0.4)
-{
-    return tab.nCk(n, k) * pow(p, k) * pow(1 - p, n - k);
 }
 
 #endif /* UTILS_POPDEL_H_ */

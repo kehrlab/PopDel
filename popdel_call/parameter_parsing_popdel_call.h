@@ -176,8 +176,6 @@ struct PopDelCallParameters
     unsigned defaultMaxLoad;                         // Default value for the maximum load.
     String<unsigned> maxLoad;                       // Maximum number of active reads per read group.
     unsigned pseudoCountFraction;                   // max(hist)/pseudoCountFraction = min value of hist
-    double probDelInBinom;                          // Probability of drawing the Del allele of the HET binom. distr.
-    BinomTable binomTable;
 
     PopDelCallParameters() :
     histogramsFile(""),
@@ -199,9 +197,7 @@ struct PopDelCallParameters
     meanStddev(0.0),
     windowWiseOutput(false),
     defaultMaxLoad(100),
-    pseudoCountFraction(500),
-    probDelInBinom(0.4),
-    binomTable()
+    pseudoCountFraction(500)
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -216,7 +212,6 @@ void setHiddenOptions(ArgumentParser & parser, bool hide, const PopDelCallParame
     hideOption(parser, "F", hide);
     hideOption(parser, "n", hide);
     hideOption(parser, "p", hide);
-    hideOption(parser, "q", hide);
     hideOption(parser, "t", hide);
     hideOption(parser, "u", hide);
 }
@@ -232,22 +227,18 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelCallParameters & para
     addOption(parser, ArgParseOption("F", "output-failed", "Also output calls which did not pass the filters."));
     addOption(parser, ArgParseOption("n", "no-regenotyping",   "Outputs every potential variant window without re-genotyping and merging."));
     addOption(parser, ArgParseOption("p", "prior-probability", "Prior probability of a deletion.",                  ArgParseArgument::DOUBLE, "NUM"));
-    addOption(parser, ArgParseOption("q", "del-ref-ratio",     "Probability to draw a DEL allele in a HET scenario. Used in Binomial distribution.", ArgParseArgument::DOUBLE, "NUM"));
     addOption(parser, ArgParseOption("t", "iterations",        "Number of iterations in EM for length estimation.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("u", "unsmoothed",        "Disable the smoothing of the insert size histogram."));
 
     setDefaultValue(parser, "b",  params.windowBuffer);
     setDefaultValue(parser, "f",  params.pseudoCountFraction);
     setDefaultValue(parser, "p",  params.prior);
-    setDefaultValue(parser, "q",  params.probDelInBinom);
     setDefaultValue(parser, "t", params.iterations);
     setDefaultValue(parser, "c", params.minRelWinCover);
     setMinValue(parser, "buffer-size", "10000");
     setMinValue(parser, "pseudocount-fraction", "50");
     setMinValue(parser, "prior-probability", "0.0");
     setMaxValue(parser, "prior-probability", "0.9999");
-    setMinValue(parser, "del-ref-ratio", "0.1");
-    setMaxValue(parser, "del-ref-ratio", "0.9");
     setMinValue(parser, "min-relative-window-cover", "0.0");
     setMaxValue(parser, "min-relative-window-cover", "2.0");
     setHiddenOptions(parser, true, params);
@@ -316,7 +307,6 @@ void getParameterValues(PopDelCallParameters & params, ArgumentParser & parser)
 {
     getOptionValue(params.outfile,              parser, "out");
     getOptionValue(params.prior,                parser, "prior-probability");
-    getOptionValue(params.probDelInBinom,       parser, "del-ref-ratio");
     getOptionValue(params.iterations,           parser, "iterations");
     getOptionValue(params.roiFile,              parser, "ROI-file");
     getOptionValue(params.maxLoadFile,          parser, "active-coverage-file");
