@@ -9,10 +9,10 @@ PopDel - Population-wide Deletion Calling
 
 <b>Output</b>: Called deletions in VCF file
 
-<b>Note:</b> The default reference genome is GRCh38 (Genome Reference Consortium Human Build 38). Other human reference builds can be specified in the options. See [Specifying the reference genome](https://github.com/kehrlab/PopDel-develop/wiki/03.-Create-profiles-with-popdel-profile#specifying-the-reference-genome). For other diploid organism or custom reference builds, it is necessary to specify user-defined sampling intervals. See [Sampling intervals for parameter estimation](https://github.com/kehrlab/PopDel-develop/wiki/03.-Create-profiles-with-popdel-profile#sampling-options-for-parameter-estimation).  
+<b>Note:</b> The default reference genome is GRCh38 (Genome Reference Consortium Human Build 38). Other human reference builds can be specified in the options. See [Specifying the reference genome](https://github.com/kehrlab/PopDel/wiki/03.-Create-profiles-with-popdel-profile#specifying-the-reference-genome). For other diploid organism or custom reference builds, it is necessary to specify user-defined sampling intervals. See [Sampling intervals for parameter estimation](https://github.com/kehrlab/PopDel/wiki/03.-Create-profiles-with-popdel-profile#sampling-options-for-parameter-estimation).  
 
 ## Quickstart
-For more detailed information see the [Wiki](https://github.com/kehrlab/PopDel-develop/wiki).
+For more detailed information see the [Wiki](https://github.com/kehrlab/PopDel/wiki).
 
 ### Installation
 ```
@@ -34,7 +34,7 @@ popdel profile myBam1.bam
 popdel profile myBam2.bam
 popdel profile myBamN.bam
 ```
-For more options see Wiki: [PopDel Profile](https://github.com/kehrlab/PopDel-develop/wiki/03.-Create-profiles-with-popdel-profile)
+For more options see Wiki: [PopDel Profile](https://github.com/kehrlab/PopDel/wiki/03.-Create-profiles-with-popdel-profile)
 
 #### Step 2: Call deletions
 Joint calling on list of all profiles
@@ -44,9 +44,9 @@ realpath myBam*.profile > myProfiles.txt
 # Run calling on all profiles
 popdel call myProfiles.txt
 ```
-For more options see Wiki: [PopDel Call](https://github.com/kehrlab/PopDel-develop/wiki/04.-Call-deletions-with-popdel-call)
+For more options see Wiki: [PopDel Call](https://github.com/kehrlab/PopDel/wiki/04.-Call-deletions-with-popdel-call)
 
-See wiki for more information on how to view the profile with [PopDel View](https://github.com/kehrlab/PopDel-develop/wiki/06.-Inspect-profiles-with-popdel-view) and interpret the [output in VCF-format](https://github.com/kehrlab/PopDel-develop/wiki/05.-Output-Format:-A-(modified)-VCF).
+See wiki for more information on how to view the profile with [PopDel View](https://github.com/kehrlab/PopDel/wiki/06.-Inspect-profiles-with-popdel-view) and interpret the [output in VCF-format](https://github.com/kehrlab/PopDel/wiki/05.-Output-Format:-A-(modified)-VCF).
 
 ## Citation
 Sebastian Roskosch, Hákon Jónsson, Eythór Björnsson, Doruk Beyter, Hannes P. Eggertsson, Patrick Sulem, Kári Stefánsson, Bjarni V. Halldórsson, Birte Kehr.    
