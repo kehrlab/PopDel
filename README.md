@@ -55,8 +55,8 @@ Preprint available at bioRxiv 740225; doi: https://doi.org/10.1101/740225
 
 ## Version and License
 ```
-    Last update: 2020-04-14
-    PopDel version: 1.2.0
+    Last update: 2020-07-30
+    PopDel version: 1.2.1
     SeqAn version: 2.3.1 (modified)
     Author: Sebastian Niehus (Sebastian.Niehus[at]bihealth.de)
 ```

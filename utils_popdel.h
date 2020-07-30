@@ -506,6 +506,7 @@ inline bool setGenotypes(const Iterator<String<Call>, Standard >::Type & start,
 // startPositions is cleared during this process.
 inline unsigned getStartPosition(String<unsigned> & startPositions)
 {
+    SEQAN_ASSERT(!empty(startPositions));
     std::sort(begin(startPositions), end(startPositions));
     unsigned start = startPositions[length(startPositions) / 2];
     clear(startPositions);
@@ -518,6 +519,7 @@ inline unsigned getStartPosition(String<unsigned> & startPositions)
 // sizeEstimates is cleared during this process.
 inline unsigned getDeletionLength(String<unsigned> & sizeEstimates)
 {
+    SEQAN_ASSERT(!empty(sizeEstimates));
     std::sort(begin(sizeEstimates), end(sizeEstimates));
     unsigned len = sizeEstimates[length(sizeEstimates) / 2];
     clear(sizeEstimates);
@@ -610,13 +612,15 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
 
             if (it == last)
             {
-                mergeWindowRange(currentIt, it, lads, dads, genotypes, startPositions, sizeEstimates, lr, callCount, winCount, significantWindows, r);
+                if (!empty(startPositions))
+                    mergeWindowRange(currentIt, it, lads, dads, genotypes, startPositions, sizeEstimates, lr, callCount, winCount, significantWindows, r);
+
                 break;
             }
         }
         else
         {
-            if (winCount != 1)
+            if (winCount != 1 && !empty(startPositions))
                 mergeWindowRange(currentIt, it, lads, dads, genotypes, startPositions, sizeEstimates, lr, callCount, winCount, significantWindows, r);
             else
                 markInvalidCall(*currentIt);
