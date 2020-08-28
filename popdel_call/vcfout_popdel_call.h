@@ -177,7 +177,10 @@ inline VcfRecord buildRecord(const QuantileMap& quantileMap, const Call& call, i
 {
     VcfRecord record;
     record.rID = rID;
-    record.beginPos = call.position;
+    if (call.position > 1)
+        record.beginPos = call.position - 1;
+    else
+        record.beginPos = call.position;
     record.id = ".";
     record.ref = "N";
     record.alt = "<DEL>";

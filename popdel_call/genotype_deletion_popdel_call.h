@@ -203,18 +203,13 @@ inline Triple<long double> compute_data_likelihoods(String<Triple<long double> >
             int currentDeviation = chromosomeProfiles.getSingleDeviation(rg, it);
             long double refLikelihood = I(hist, currentDeviation - refShift);
             long double delLikelihood = I(hist, currentDeviation - deletion_length);
-            if (refLikelihood < 2 * delLikelihood && delLikelihood < 2 * refLikelihood)
-            {
-                ++it;
-                continue;               // unclear support.
-            }
 //               std::cout << "====================================================" << std::endl;
 //               std::cout << "Pos:\t" << chromosomeProfiles.currentPos << std::endl;
 //               std::cout << "Dev:\t" << currentDeviation << std::endl;
 //               std::cout << "L(REF):\t" << refLikelihood << std::endl;
 //               std::cout << "L(DEL):\t" << delLikelihood << std::endl;
             long double g0 = log(refLikelihood);
-            long double g1 = log(refLikelihood +delLikelihood) - log(2.0);    
+            long double g1 = log(refLikelihood +delLikelihood) - log(2.0);
             long double g2 = log(delLikelihood);
             currentRgWiseDataLikelihoods.i1 += g0;
             currentRgWiseDataLikelihoods.i2 += g1;
@@ -291,20 +286,12 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
             long double refLikelihood = I(hist, currentDeviation - refShift);
             long double delLikelihood = I(hist, currentDeviation - deletion_length);
             if (refLikelihood >= 2 * delLikelihood)
-            {
                 ++lad.i1;       // Supporting the reference
-
-            }
             else if (delLikelihood >= 2 * refLikelihood)
-            {
                 ++lad.i3;       // Supporting a deletion
-            }
             else
-            {
                 ++lad.i2;       // Unclear support.
-                ++it;
-                continue;
-            }
+
             logLikelihoods.i1 += log(refLikelihood);
             gtLogs.i1 += log10(refLikelihood);
             logLikelihoods.i2 += log(refLikelihood +delLikelihood) - log(2.0);
