@@ -150,8 +150,9 @@ int popdel_profile(int argc, char const ** argv)
 
     // Calculate parameters for the input data:
     //   Get read groups from bam file, genome intervals, calculate insert size
+    BamWindowIterator bwi(params.bamfile, params.referenceFile);
     //   distributions, estimate window size, etc.
-    calculateParameters(params);
+    calculateParameters(bwi.infile, params);
     printStatus("Finished parameter estimation.\n");
     printReadGroupParams(params);
     std::cout << std::endl;
@@ -160,9 +161,8 @@ int popdel_profile(int argc, char const ** argv)
     // Define an iterator over the whole bam file or the specified intervals and iterate window by window:
     //   Calculate standardized read pair distance histograms for each genomic window
     //   and write the corresponding insert size profile to the output file.
-    BamWindowIterator bwi;
+
     initialize(bwi,
-               params.bamfile,
                params.readGroups,
                params.rois,
                params.qualReq,
@@ -177,17 +177,13 @@ int popdel_profile(int argc, char const ** argv)
     if (!out.good())
         SEQAN_THROW(FileOpenError(toCString(params.outfile)));
 
-    FormattedFileContext<BamFileIn, void>::Type const & bamContext = context(bwi.infile);
     // Initialize file offsets (by chromosome) for profile index.
     unsigned indexSize = 0;
-    const String<uint32_t> & cLengths = contigLengths(bamContext);
+    String<int32_t> cLengths;
+    getContigLengths(cLengths, bwi.infile);
 
-    // For some reason we get an exception when directly giving contigNames(bamContext) to writeProfileHeader() in debug.
-    // Therefore we need to manually create a string of the contigNames before.
     String<CharString> cNames;
-    resize(cNames, length(contigNames(bamContext)));
-    for (unsigned i = 0; i < length(contigNames(bamContext)); ++i)
-        cNames[i] = contigNames(bamContext)[i];
+    getContigNames(cNames, bwi.infile);
 
     String<String<uint64_t> > indexFields;
     resize(indexFields, length(cLengths));

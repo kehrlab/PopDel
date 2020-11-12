@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@
 #include <exception>
 #include <stdexcept>
 
-#if !defined(STDLIB_VS)
+#ifdef PLATFORM_GCC
 #include <cxxabi.h>
 #endif
 
@@ -327,7 +327,7 @@ struct AssertFunctor
         else
         {
             char buffer[6]; // 5 + 1, e.g. "\0xff" + trailing zero
-            snprintf(buffer, 6, "\\%#2x", (unsigned)val);
+            sprintf(buffer, "\\%#2x", (unsigned)val);
             return std::string(buffer);
         }
     }

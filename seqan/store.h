@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -64,9 +64,9 @@
 #include <seqan/store/store_align_intervals.h>
 #include <seqan/store/store_intervaltree.h>
 
-#include <seqan/store/store_io.h>
-#include <seqan/store/store_io_sam.h>
-#include <seqan/store/store_io_gff.h>
-#include <seqan/store/store_io_ucsc.h>
+// #include <seqan/store/store_io.h>
+// #include <seqan/store/store_io_sam.h>
+// #include <seqan/store/store_io_gff.h>
+// #include <seqan/store/store_io_ucsc.h>
 
 #endif //#ifndef SEQAN_HEADER_...

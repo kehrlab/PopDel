@@ -7,20 +7,18 @@
 CXX=g++
 CC=$(CXX)
 
-# Set this to include SeqAn libraries, either system wide
-# or download into current folder and set to .
+# Don't change the path to SeqAn! PopDel relies on added HTSlib functionality.
 SEQAN_LIB=.
 
-CXXFLAGS+=-I$(SEQAN_LIB) -DSEQAN_HAS_ZLIB=1 -std=c++14 -DSEQAN_DISABLE_VERSION_CHECK
-LDLIBS=-lz -lpthread
+CXXFLAGS+=-I$(SEQAN_LIB) -DSEQAN_HAS_ZLIB=1 -DSEQAN_USE_HTSLIB=1 -std=c++14 -DSEQAN_DISABLE_VERSION_CHECK
+LDLIBS=-lz -lpthread -lhts
 
-DATE=on 2020-08-04
-VERSION=1.2.2
+DATE=on 2020-11-12
+VERSION=1.3.0
 CXXFLAGS+=-DDATE=\""$(DATE)"\" -DVERSION=\""$(VERSION)"\"
 
 # Enable warnings
 CXXFLAGS+=-W -Wall -Wno-long-long -pedantic -Wno-variadic-macros -Wno-unused-result
-
 
 HEADERS=parse_popdel.h insert_histogram_popdel.h workflow_popdel.h utils_popdel.h popdel_view_parameter_parsing.h
 HEADERS+=popdel_profile/*.h

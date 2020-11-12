@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -95,7 +95,7 @@ _adaptTraceSegmentsTo(String<TValue, Journaled<THostSpec, SortedArray, TBuffSpec
     {
         switch (value(traceSegIter)._traceValue)
         {
-        case TraceBitMap_<>::DIAGONAL: //matching area
+        case TraceBitMap_::DIAGONAL: //matching area
         {
             appendValue(targetJournal._journalEntries._journalNodes, TJournalEntry(SOURCE_ORIGINAL, value(traceSegIter)._horizontalBeginPos,
                                                                                    virtualPos, value(traceSegIter)._horizontalBeginPos, value(traceSegIter)._length));
@@ -103,7 +103,7 @@ _adaptTraceSegmentsTo(String<TValue, Journaled<THostSpec, SortedArray, TBuffSpec
             break;
         }
 
-        case TraceBitMap_<>::VERTICAL: //insertion
+        case TraceBitMap_::VERTICAL: //insertion
         {
             appendValue(targetJournal._journalEntries._journalNodes, TJournalEntry(SOURCE_PATCH, length(targetJournal._insertionBuffer),
                                                                                    virtualPos, 0, value(traceSegIter)._length));

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@
 
 #include <algorithm>
 
-namespace seqan {
+namespace SEQAN_NAMESPACE_MAIN {
 
 /*!
  * @class HammingSimplePattern
@@ -78,6 +78,7 @@ public:
 
     Pattern() : maxDistance(-1), distance(0), matchNFlags(0) {}
 
+#ifdef SEQAN_CXX11_STANDARD
     template <typename TNeedle2>
     Pattern(TNeedle2 && ndl,
             int k = -1,
@@ -90,6 +91,13 @@ public:
         ignoreUnusedVariableWarning(dummy);
     }
 
+#else
+    template <typename TNeedle2>
+    Pattern(const TNeedle2 &ndl, int k = -1) : maxDistance(-k), distance(0), matchNFlags(0) {
+        SEQAN_CHECKPOINT;
+        setHost(*this, ndl);
+    }
+#endif  // SEQAN_CXX11_STANDARD
 };
 
 
@@ -116,24 +124,28 @@ inline void _patternMatchNOfFinder(Pattern<TNeedle, HammingSimple> & pattern, bo
 
 template <typename TNeedle>
 inline void _finderInit(Pattern<TNeedle, HammingSimple> & me) {
+    SEQAN_CHECKPOINT;
     (void) me;  // Suppress unused variable warning.
 }
 
 
 template <typename TNeedle>
 inline int score(const Pattern<TNeedle, HammingSimple> &me) {
+    SEQAN_CHECKPOINT;
     return -me.distance;
 }
 
 
 template <typename TNeedle>
 inline int getScore(const Pattern<TNeedle, HammingSimple> &me) {
+    SEQAN_CHECKPOINT;
     return -me.distance;
 }
 
 
 template <typename TNeedle>
 inline void setScoreLimit(Pattern<TNeedle, HammingSimple> & me, int _limit) {
+    SEQAN_CHECKPOINT;
     SEQAN_ASSERT_LEQ(_limit, 0);
     me.maxDistance = -_limit;
 }
@@ -179,6 +191,7 @@ template <typename TFinder, typename TNeedle>
 inline bool find(TFinder &finder,
                  Pattern<TNeedle, HammingSimple> &me,
                  int minScore) {
+    SEQAN_CHECKPOINT;
 
     typedef typename Haystack<TFinder>::Type THaystack;
     typedef typename Size<THaystack>::Type TSize;
@@ -254,6 +267,6 @@ inline bool find(TFinder &finder,
 {
     return find(finder, me, -me.maxDistance);
 }
-}  // namespace seqan
+}  // namespace SEQAN_NAMESPACE_MAIN
 
 #endif  // SEQAN_FIND_FIND_SIMPLE_H_

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -164,7 +164,7 @@ readRecord(BamHeaderRecord & record,
     {
         skipOne(iter, IsTab());
 
-        appendValue(record.tags, Pair<CharString>(), Exact());
+        appendValue(record.tags, Pair<CharString>());
 
         clear(buffer);
         readLine(buffer, iter);
@@ -177,7 +177,7 @@ readRecord(BamHeaderRecord & record,
         {
             skipOne(iter, IsTab());
 
-            appendValue(record.tags, Pair<CharString>(), Exact());
+            appendValue(record.tags, Pair<CharString>());
 
             clear(buffer);
             readUntil(buffer, iter, EqualsChar<':'>());
@@ -274,7 +274,7 @@ readRecord(BamAlignmentRecord & record,
     // TODO(holtgrew): Interpret hex and char as c-samtools -X does?
     clear(buffer);
     readUntil(buffer, iter, nextEntry);
-    record.flag = lexicalCast<uint16_t>(buffer);
+    record.flag = lexicalCast<__uint16>(buffer);
     skipOne(iter, IsTab());
 
     // RNAME
@@ -288,9 +288,9 @@ readRecord(BamAlignmentRecord & record,
 
     // POS
     clear(buffer);
-    SEQAN_ASSERT_EQ((int32_t)0 - 1, (int32_t)BamAlignmentRecord::INVALID_POS);
+    SEQAN_ASSERT_EQ((__int32)0 - 1, (__int32)BamAlignmentRecord::INVALID_POS);
     readUntil(buffer, iter, nextEntry);
-    record.beginPos = (int32_t)lexicalCast<uint32_t>(buffer) - 1;
+    record.beginPos = (__int32)lexicalCast<__uint32>(buffer) - 1;
     skipOne(iter, IsTab());
 
     // MAPQ
@@ -303,7 +303,7 @@ readRecord(BamAlignmentRecord & record,
     else
     {
         readUntil(buffer, iter, nextEntry);
-        record.mapQ = lexicalCast<uint16_t>(buffer);
+        record.mapQ = lexicalCast<__uint16>(buffer);
     }
     skipOne(iter, IsTab());
 
@@ -316,8 +316,8 @@ readRecord(BamAlignmentRecord & record,
         do
         {
             clear(buffer);
-            readUntil(buffer, iter, OrFunctor<NotFunctor<IsDigit>, AssertFunctor<NotFunctor<IsNewline>, ParseError, Sam> >());
-            element.count = lexicalCast<uint32_t>(buffer);
+            readUntil(buffer, iter, OrFunctor<IsAlpha, AssertFunctor<NotFunctor<IsNewline>, ParseError, Sam> >());
+            element.count = lexicalCast<__uint32>(buffer);
             element.operation = value(iter);
             skipOne(iter);
             appendValue(record.cigar, element);
@@ -346,21 +346,21 @@ readRecord(BamAlignmentRecord & record,
     {
         clear(buffer);
         readUntil(buffer, iter, nextEntry);
-        record.pNext = (int32_t)lexicalCast<uint32_t>(buffer) - 1;
+        record.pNext = (__int32)lexicalCast<__uint32>(buffer) - 1;
     }
     skipOne(iter, IsTab());
 
     // TLEN
     if (value(iter) == '*')
     {
-        record.tLen = MaxValue<int32_t>::VALUE;
+        record.tLen = MaxValue<__int32>::VALUE;
         skipOne(iter);
     }
     else
     {
         clear(buffer);
         readUntil(buffer, iter, nextEntry);
-        record.tLen = lexicalCast<int32_t>(buffer);
+        record.tLen = lexicalCast<__int32>(buffer);
     }
     skipOne(iter, IsTab());
 
@@ -397,3 +397,4 @@ readRecord(BamAlignmentRecord & record,
 }  // namespace seqan
 
 #endif  // #ifndef INCLUDE_SEQAN_BAM_IO_READ_SAM_H_
+

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -74,6 +74,28 @@ typedef
     >
 #endif
     CompressedFileTypes;  // if TagSelector is set to -1, the file format is auto-detected
+
+// --------------------------------------------------------------------------
+// TagList CompressedFileTypes
+// --------------------------------------------------------------------------
+// NOTE(h-2): this currently lacks BGZF, so that we don't get .fasta.bam, .m8.bam ...
+// in the long term bgzf should just not contain .bam but that would require more changes
+
+typedef
+#if SEQAN_HAS_ZLIB
+    TagList<GZFile,
+#endif
+#if SEQAN_HAS_BZIP2
+    TagList<BZ2File,
+#endif
+    TagList<Nothing>
+#if SEQAN_HAS_BZIP2
+    >
+#endif
+#if SEQAN_HAS_ZLIB
+    >
+#endif
+    CompressedFileTypesWithoutBgzf_;
 
 // ============================================================================
 // Metafunctions

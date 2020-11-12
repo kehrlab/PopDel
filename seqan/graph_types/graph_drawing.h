@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@
 #ifndef SEQAN_HEADER_GRAPH_DRAWING_H
 #define SEQAN_HEADER_GRAPH_DRAWING_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -65,6 +65,7 @@ _markRootVertex(Graph<Automaton<TAlphabet, TCargo, TSpec> > const& g,
                 TVertexDescriptor const& v,
                 TAttributes& str)
 {
+    SEQAN_CHECKPOINT
     if (isRoot(g,v)) {
         append(str, ", shape = doublecircle");
     }
@@ -78,6 +79,7 @@ _markRootVertex(Graph<Directed<TCargo, TSpec> > const&,
                 TVertexDescriptor const&,
                 TAttributes&)
 {
+    SEQAN_CHECKPOINT
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -88,6 +90,7 @@ _markRootVertex(Graph<Undirected<TCargo, TSpec> > const&,
                 TVertexDescriptor const&,
                 TAttributes&)
 {
+    SEQAN_CHECKPOINT
 }
 
 
@@ -99,6 +102,7 @@ _markRootVertex(Graph<Tree<TCargo, TSpec> > const& g,
                 TVertexDescriptor const& v,
                 TAttributes& str)
 {
+    SEQAN_CHECKPOINT
     if (isRoot(g,v)) {
         append(str, ", shape = doublecircle");
     }
@@ -112,6 +116,7 @@ _createTrieNodeAttributes(Graph<Automaton<TAlphabet, TCargo, TSpec> > const& g,
                           String<String<TPosition> > pos,
                           TNodeMap& nodeMap)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Automaton<TAlphabet, TCargo, TSpec> > TGraph;
     resizeVertexMap(nodeMap, g);
     typedef typename Iterator<TGraph, VertexIterator>::Type TConstIter;
@@ -223,6 +228,7 @@ inline void
 _createEdgeAttributes(Graph<Undirected<TCargo, TSpec> > const& g,
                       TEdgeAttributes& edgeMap)
 {
+    SEQAN_CHECKPOINT
     _createEmptyEdgeAttributes(g,edgeMap);
 }
 
@@ -233,6 +239,7 @@ inline void
 _createEdgeAttributes(Graph<Tree<void, TSpec> > const& g,
                       TEdgeAttributes& edgeMap)
 {
+    SEQAN_CHECKPOINT
     _createEmptyEdgeAttributes(g,edgeMap);
 }
 
@@ -264,6 +271,7 @@ inline void
 _createEdgeAttributes(Graph<Automaton<TAlphabet, TCargo, TSpec> > const& g,
                       TEdgeAttributes& edgeMap)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Automaton<TAlphabet, TCargo, TSpec> > TGraph;
     resizeEdgeMap(edgeMap, g);
 
@@ -285,6 +293,7 @@ inline void
 _createEdgeAttributes(Graph<Automaton<TAlphabet, TCargo, WordGraph<TSpec> > > const& g,
                       TEdgeAttributes& edgeMap)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Automaton<TAlphabet, TCargo, WordGraph<TSpec> > > TGraph;
     resizeEdgeMap(edgeMap, g);
 
@@ -316,6 +325,7 @@ _writeGraphFooter(TFile &,
                   DotDrawing)
 {
 //IOREV
+    SEQAN_CHECKPOINT
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -327,6 +337,7 @@ _writeGraphFooter(TFile &,
                   DotDrawing)
 {
 //IOREV
+    SEQAN_CHECKPOINT
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -338,6 +349,7 @@ _writeGraphFooter(TFile &,
                   DotDrawing)
 {
 //IOREV
+    SEQAN_CHECKPOINT
 }
 
 
@@ -350,6 +362,7 @@ _writeGraphFooter(TFile &,
                   DotDrawing)
 {
 //IOREV
+    SEQAN_CHECKPOINT
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -909,6 +922,6 @@ void readRecords(
 }
 
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

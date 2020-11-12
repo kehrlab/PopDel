@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ public:
     typedef ResourcePool<TItem>             TPool;
     typedef typename Size<Serializer>::Type TSize;
 
-    std::mutex          cs;
+    CriticalSection     cs;
     TWorker             worker;
     TItemPtr            first;
     TItemPtr            last;
@@ -149,7 +149,7 @@ aquireValue(Serializer<TValue, TWorker> & me)
 
     // add item to the end of our linked list
     {
-        std::lock_guard<std::mutex> lock(me.cs);
+        ScopedLock<CriticalSection> lock(me.cs);
         if (me.first == NULL)
             me.first = item;
         else
@@ -177,7 +177,7 @@ releaseValue(Serializer<TValue, TWorker> & me, TValue *ptr)
 
     // change our ready flag and test if me.first->ready became true
     {
-        std::lock_guard<std::mutex> lock(me.cs);
+        ScopedLock<CriticalSection> lock(me.cs);
         item->ready = true;
         if (item != me.first)
             return true;
@@ -195,7 +195,7 @@ releaseValue(Serializer<TValue, TWorker> & me, TValue *ptr)
 
         // remove item from linked list
         {
-            std::lock_guard<std::mutex> lock(me.cs);
+            ScopedLock<CriticalSection> lock(me.cs);
             me.first = item->next;
 
             // recycle released items

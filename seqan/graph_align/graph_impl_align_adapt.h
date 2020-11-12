@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -68,12 +68,14 @@ public:
 
     Iter()
     {
+        SEQAN_CHECKPOINT
     }
 
     Iter(TGraph_ const& _graph, TVertexDescriptor_ const v) :
         data_host(&_graph),
         data_source(v)
     {
+        SEQAN_CHECKPOINT
         if (empty(_graph)) data_edge = 0;
         else data_edge = getValue(_graph.data_align.data_vertex,v);
     }
@@ -89,6 +91,7 @@ public:
     }
 
     Iter const&    operator = (Iter const & _other) {
+        SEQAN_CHECKPOINT
         if (this == &_other) return *this;
         data_host = _other.data_host;
         data_source = _other.data_source;
@@ -128,6 +131,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline typename GetValue<Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > > >::Type
 getValue(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     return it.data_edge;
 }
 
@@ -137,6 +141,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline typename Reference<Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > > >::Type
 value(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     return it.data_edge;
 }
 
@@ -146,6 +151,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline bool
 atBegin(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     return (it.data_edge == getValue(_getVertexString(*it.data_host), it.data_source));
 }
 
@@ -155,6 +161,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline void
 goBegin(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     it.data_edge = getValue(_getVertexString(*it.data_host),it.data_source);
 }
 
@@ -164,6 +171,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline bool
 atEnd(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     return (it.data_edge == 0);
 }
 
@@ -174,6 +182,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline void
 goEnd(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     it.data_edge = 0;
 }
 
@@ -183,6 +192,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline void
 goNext(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     if (!atEnd(it)) {
         if (it.data_source == getSource(it.data_edge)) it.data_edge = getNextS(it.data_edge);
         else it.data_edge = getNextT(it.data_edge);
@@ -196,6 +206,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline void
 goPrevious(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Undirected<TCargo, TGraphSpec> > TGraph;
     typedef typename EdgeType<TGraph>::Type TEdge;
     TEdge* current = getValue(_getVertexString(*it.data_host), it.data_source);
@@ -219,6 +230,7 @@ inline bool
 operator ==(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it1,
             Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it2)
 {
+    SEQAN_CHECKPOINT
     return ((it1.data_edge==it2.data_edge) &&
             (it1.data_source==it2.data_source));
 }
@@ -230,6 +242,7 @@ inline bool
 operator !=(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it1,
             Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it2)
 {
+    SEQAN_CHECKPOINT
     return ((it1.data_edge!=it2.data_edge) ||
             (it1.data_source!=it2.data_source));
 }
@@ -240,6 +253,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline typename VertexDescriptor<Graph<Alignment<TStringSet, TCargo, TGraphSpec> > >::Type
 targetVertex(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalOutEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Alignment<TStringSet, TCargo, TGraphSpec> > TGraph;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
     TVertexDescriptor target = targetVertex(*it.data_host, it.data_edge);
@@ -259,6 +273,7 @@ template<typename TStringSet, typename TCargo, typename TGraphSpec, typename TSp
 inline void
 goNext(Iter<Graph<Alignment<TStringSet, TCargo, TGraphSpec> >, GraphIterator<InternalEdgeIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Alignment<TStringSet, TCargo, TGraphSpec> > TGraph;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
     _goNextInternal(it);
@@ -285,6 +300,7 @@ inline void
 _createNodeAttributes(Graph<Alignment<TStringSet, TCargo, TSpec> > const& g,
                       TNodeAttributes& nodeMap)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Alignment<TStringSet, TCargo, TSpec> > TGraph;
     typedef typename Id<TGraph>::Type TIdType;
     resizeVertexMap(nodeMap, g);
@@ -315,6 +331,7 @@ inline void
 _createEdgeAttributes(Graph<Alignment<TStringSet, void, TSpec> > const& g,
                       TEdgeAttributes& edgeMap)
 {
+    SEQAN_CHECKPOINT
     _createEmptyEdgeAttributes(g.data_align,edgeMap);
 }
 

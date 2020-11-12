@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_INDEX_WOTD_H
 #define SEQAN_HEADER_INDEX_WOTD_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 
@@ -210,18 +210,6 @@ namespace seqan
         TSize            sentinelBound;
         bool            interSentinelNodes;    // should virtually one (true) $-sign or many (false) $_i-signs be appended to the strings in text
 
-        /*!
-         * @fn IndexWotd::Index
-         * @brief Constructor
-         *
-         * @signature Index::Index();
-         * @signature Index::Index(index);
-         * @signature Index::Index(text);
-         *
-         * @param[in] index    Other Index object to copy from.
-         * @param[in] text     The text to be indexed.
-         */
-
         Index():
             interSentinelNodes(false) {}
 
@@ -323,7 +311,7 @@ SEQAN_CONCEPT_IMPL((Index<TText, IndexWotd<TSpec> > const), (StringTreeConcept))
         TSize        parentRepLen;    // representative length of parent node
         TSize        edgeLen;        // length of edge above current node
         Pair<TSize> range;            // current SA interval of hits
-        TSize        parentRight;    // right boundary of parent node's range (allows one to go right)
+        TSize        parentRight;    // right boundary of parent node's range (allows to go right)
 
         VertexWotdModified_() :
             node(0),

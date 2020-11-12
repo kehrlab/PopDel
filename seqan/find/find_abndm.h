@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 // uncomment this for verbose output of the ABNDM ALGO
 //#define SEQAN_DEBUG_ABNDM
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 
@@ -131,6 +131,7 @@ public:
         blockCount(0), last(0), needleLength(0), haystackLength(0), limit(1), cP(0), findNext(false)
     {}
 
+#ifdef SEQAN_CXX11_STANDARD
     template <typename TNeedle2>
     Pattern(TNeedle2 && ndl,
             SEQAN_CTOR_DISABLE_IF(IsSameType<typename std::remove_reference<TNeedle2>::type const &, Pattern const &>)) :
@@ -160,7 +161,22 @@ public:
     {
         setHost(*this, std::forward<TNeedle2>(ndl));
     }
+#else
+    template <typename TNeedle2>
+    Pattern(TNeedle2 const & ndl) :
+        blockCount(0), last(0), needleLength(0), haystackLength(0), limit(1), cP(0), findNext(false),
+        verifier(ndl,-1)
+    {
+        setHost(*this, ndl);
+    }
 
+    template <typename TNeedle2>
+    Pattern(TNeedle2 const & ndl, int _limit = -1) :
+        limit(- _limit), cP(0), verifier(ndl,_limit)
+    {
+        setHost(*this, ndl);
+    }
+#endif  // SEQAN_CXX11_STANDARD
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -181,6 +197,7 @@ void _printR(Pattern<TNeedle, AbndmAlgo> & me)
 template <typename TNeedle>
 void _reinitPattern(Pattern<TNeedle, AbndmAlgo> & me)
 {
+SEQAN_CHECKPOINT
     typedef unsigned int TWord;
     typedef typename Value<TNeedle>::Type TValue;
 
@@ -229,6 +246,7 @@ void _reinitPattern(Pattern<TNeedle, AbndmAlgo> & me)
 template <typename TNeedle>
 inline void _patternInit (Pattern<TNeedle, AbndmAlgo> & me)
 {
+    SEQAN_CHECKPOINT
     clear(me.r_table);
     resize(me.r_table, me.blockCount * (me.limit + 1), 0, Exact());
     me.findNext = false;
@@ -254,6 +272,7 @@ inline void _patternInit (Pattern<TNeedle, AbndmAlgo> & me)
 template <typename TNeedle>
 int getScore(Pattern<TNeedle, AbndmAlgo > & me)
 {
+    SEQAN_CHECKPOINT
     return getScore(me.verifier);
 }
 
@@ -262,6 +281,7 @@ int getScore(Pattern<TNeedle, AbndmAlgo > & me)
 template <typename TFinder, typename TNeedle>
 inline bool _findAbndmSmallNeedle(TFinder & finder, Pattern<TNeedle, AbndmAlgo> & me)
 {
+    SEQAN_CHECKPOINT
     typedef unsigned int TWord;
 
     typedef typename Host<TFinder>::Type    THost;
@@ -311,6 +331,7 @@ inline bool _findAbndmSmallNeedle(TFinder & finder, Pattern<TNeedle, AbndmAlgo> 
     // walk on
     while (position(finder) <= me.haystackLength - me.needleLength)
     {
+        SEQAN_CHECKPOINT
             j = me.needleLength - me.limit - 1;
         me.last = j;
 
@@ -394,6 +415,7 @@ inline bool _findAbndmSmallNeedle(TFinder & finder, Pattern<TNeedle, AbndmAlgo> 
 template <typename TFinder, typename TNeedle>
 inline bool _findAbndmLargeNeedle(TFinder & finder, Pattern<TNeedle, AbndmAlgo> & me)
 {
+    SEQAN_CHECKPOINT
         typedef unsigned int TWord;
     TWord carryPattern = ((TWord)1 << (BitsPerValue<TWord>::VALUE - 1));
     typedef typename Host<TFinder>::Type    THost;
@@ -443,6 +465,7 @@ inline bool _findAbndmLargeNeedle(TFinder & finder, Pattern<TNeedle, AbndmAlgo> 
     // walk on
     while (position(finder) <= me.haystackLength - me.needleLength)
     {
+        SEQAN_CHECKPOINT
             j = me.needleLength - me.limit - 1;
         me.last = j;
 
@@ -581,6 +604,7 @@ template <typename TNeedle>
 inline int
 scoreLimit(Pattern<TNeedle, AbndmAlgo > const & me)
 {
+    SEQAN_CHECKPOINT
     return - (int) me.limit;
 }
 
@@ -604,6 +628,7 @@ inline void
 setScoreLimit(Pattern<TNeedle, AbndmAlgo > & me,
               TScoreValue _limit)
 {
+    SEQAN_CHECKPOINT
         setScoreLimit(me.verifier,_limit);
     me.limit = (- _limit);
 }
@@ -614,6 +639,7 @@ template <typename TFinder, typename TNeedle>
 inline bool find (TFinder & finder,
                   Pattern<TNeedle, AbndmAlgo > & me)
 {
+    SEQAN_CHECKPOINT
     if (empty(finder)) {
             _patternInit(me);
             _finderSetNonEmpty(finder);
@@ -639,11 +665,12 @@ inline bool find (TFinder & finder,
                   Pattern<TNeedle, AbndmAlgo > & me,
                   int const k)
 {
+    SEQAN_CHECKPOINT
     setScoreLimit(me, k);
     return find(finder, me);
 }
 
 //////////////////////////////////////////////////////////////////////////////
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_FIND_ABNDMALGO_H

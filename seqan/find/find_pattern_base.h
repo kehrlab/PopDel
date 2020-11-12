@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -245,6 +245,8 @@ _dataHost(Pattern<TNeedle, TSpec> const & me)
 
 //host access: see basic_host.h
 
+#ifdef SEQAN_CXX11_STANDARD
+
 template <typename TNeedle, typename TSpec, typename TNeedle2>
 inline void
 setHost(Pattern<TNeedle, TSpec> & me,
@@ -254,6 +256,30 @@ setHost(Pattern<TNeedle, TSpec> & me,
     setValue(_dataHost(me), std::forward<TNeedle2>(ndl));
     _reinitPattern(me);
 }
+
+#else  // SEQAN_CXX11_STANDARD
+
+template <typename TNeedle, typename TSpec, typename TNeedle2>
+inline void
+setHost(Pattern<TNeedle, TSpec> & me,
+        TNeedle2 const & ndl)
+{
+    SEQAN_ASSERT(!empty(ndl));
+    setValue(_dataHost(me), ndl);
+    _reinitPattern(me);
+}
+
+template <typename TNeedle, typename TSpec, typename TNeedle2>
+inline void
+setHost(Pattern<TNeedle, TSpec> & me,
+        TNeedle2 & ndl)
+{
+    SEQAN_ASSERT(!empty(ndl));
+    setValue(_dataHost(me), ndl);
+    _reinitPattern(me);
+}
+
+#endif  // SEQAN_CXX11_STANDARD
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -336,6 +362,7 @@ template <typename TNeedle, typename TSpec>
 inline typename Host<Pattern<TNeedle, TSpec> >::Type &
 host(Pattern<TNeedle, TSpec> & me)
 {
+    SEQAN_CHECKPOINT
     return value(me.data_host);
 }
 
@@ -343,6 +370,7 @@ template <typename TNeedle, typename TSpec>
 inline typename Host<Pattern<TNeedle, TSpec> const>::Type &
 host(Pattern<TNeedle, TSpec> const & me)
 {
+    SEQAN_CHECKPOINT
     return value(me.data_host);
 }
 
@@ -436,12 +464,14 @@ template <typename TNeedle, typename TSpec>
 inline typename ScoringScheme<Pattern<TNeedle, TSpec> >::Type
 scoringScheme(Pattern<TNeedle, TSpec> &)
 {
+SEQAN_CHECKPOINT
     return typename ScoringScheme<Pattern<TNeedle, TSpec> >::Type();
 }
 template <typename TNeedle, typename TSpec>
 inline typename ScoringScheme<Pattern<TNeedle, TSpec> const>::Type
 scoringScheme(Pattern<TNeedle, TSpec> const &)
 {
+SEQAN_CHECKPOINT
     return typename ScoringScheme<Pattern<TNeedle, TSpec> const>::Type();
 }
 

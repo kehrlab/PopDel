@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -58,35 +58,6 @@ namespace seqan {
 // ----------------------------------------------------------------------------
 // Function stronglyConnectedComponents()
 // ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TVertexDescriptor, typename TTokenMap, typename TPredecessorMap, typename TDiscoveryTimeMap, typename TFinishingTimeMap, typename TVal>
-void
-_dfsVisit(Graph<TSpec> const& g,
-           TVertexDescriptor const u,
-           TTokenMap& tokenMap,
-           TPredecessorMap& predecessor,
-           TDiscoveryTimeMap& disc,
-           TFinishingTimeMap& finish,
-           TVal& time)
-{
-    typedef typename Iterator<Graph<TSpec>, AdjacencyIterator>::Type TAdjacencyIterator;
-
-    assignProperty(tokenMap, u, true);
-    ++time;
-    assignProperty(disc, u, time);
-    TAdjacencyIterator itad(g,u);
-    for(;!atEnd(itad);goNext(itad))
-    {
-        TVertexDescriptor v = getValue(itad);
-        if (getProperty(tokenMap, v) == false)
-        {
-            assignProperty(predecessor, v, u);
-            _dfsVisit(g, v, tokenMap, predecessor, disc, finish, time);
-        }
-    }
-    ++time;
-    assignProperty(finish, u, time);
-}
 
 /*!
  * @fn stronglyConnectedComponents

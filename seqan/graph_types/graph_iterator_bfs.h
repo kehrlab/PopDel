@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 #ifndef SEQAN_HEADER_GRAPH_ITERATOR_BFS_H
 #define SEQAN_HEADER_GRAPH_ITERATOR_BFS_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -93,17 +93,20 @@ public:
 
     Iter()
     {
+        SEQAN_CHECKPOINT
     }
 
     Iter(TGraph const& _graph, TVertexDescriptor_ v) :
         data_host(&_graph),
         data_source(v)
     {
+        SEQAN_CHECKPOINT
         _init();
     }
 
 
     ~Iter() {
+        SEQAN_CHECKPOINT
     }
 
     Iter(Iter const& _iter) :
@@ -112,9 +115,11 @@ public:
         data_tokenMap(_iter.data_tokenMap),
         data_queue(_iter.data_queue)
     {
+        SEQAN_CHECKPOINT
     }
 
     Iter const&    operator = (Iter const & _other) {
+        SEQAN_CHECKPOINT
         if (this == &_other) return *this;
         data_host=_other.data_host;
         data_source=_other.data_source;
@@ -184,6 +189,7 @@ template<typename TGraph, typename TSpec>
 inline typename GetValue<Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > > >::Type
 getValue(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     return it.data_queue.front();
 }
 
@@ -191,6 +197,7 @@ template<typename TGraph, typename TSpec>
 inline typename GetValue<Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > > >::Type
 value(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     return getValue(it);
 }
 
@@ -198,6 +205,7 @@ template<typename TGraph, typename TSpec>
 inline typename GetValue<Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > > >::Type
 operator * (Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     return value(it);
 }
 
@@ -205,6 +213,7 @@ template<typename TGraph, typename TSpec>
 inline typename Host<Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > > >::Type const&
 hostGraph(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     return *it.data_host;
 }
 
@@ -212,6 +221,7 @@ template<typename TGraph, typename TSpec>
 inline bool
 atBegin(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     if (it.data_queue.empty()) return false;
     else return (it.data_queue.front() == it.data_source);
 }
@@ -220,6 +230,7 @@ template<typename TGraph, typename TSpec>
 inline void
 goBegin(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     it._init();
 }
 
@@ -227,6 +238,7 @@ template<typename TGraph, typename TSpec>
 inline bool
 atEnd(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     return (it.data_queue.empty());
 }
 
@@ -234,6 +246,7 @@ template<typename TGraph, typename TSpec>
 inline void
 goEnd(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     it.data_queue.clear();
 }
 
@@ -241,6 +254,7 @@ template<typename TGraph, typename TSpec>
 inline void
 goNext(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+    SEQAN_CHECKPOINT
     if (it.data_queue.empty()) return;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
     TVertexDescriptor u = it.data_queue.front();
@@ -260,6 +274,7 @@ template<typename TGraph, typename TSpec>
 inline Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >&
 operator ++(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it)
 {
+SEQAN_CHECKPOINT
     goNext(it);
     return it;
 }
@@ -268,6 +283,7 @@ template<typename TGraph, typename TSpec>
 inline Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >
 operator ++(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it, int)
 {
+    SEQAN_CHECKPOINT
     Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > > ret = it;
     goNext(it);
     return ret;
@@ -278,6 +294,7 @@ inline bool
 operator ==(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it1,
             Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it2)
 {
+    SEQAN_CHECKPOINT
     return ((it1.data_source==it2.data_source) &&
             (it1.data_tokenMap==it2.data_tokenMap) &&
             (it1.data_queue==it2.data_queue));
@@ -288,11 +305,12 @@ inline bool
 operator !=(Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it1,
             Iter<TGraph, GraphIterator<InternalBfsIterator<TSpec> > >& it2)
 {
+    SEQAN_CHECKPOINT
     return ((it1.data_source!=it2.data_source) ||
             (it1.data_tokenMap!=it2.data_tokenMap) ||
             (it1.data_queue!=it2.data_queue));
 }
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -475,7 +475,7 @@
  * @param[in] character  The character.
  * @param[in] pos        The position (which is included in the counting).
  *
- * @return TSize The number of occurrences  (Metafunction: @link Index#Size @endlink).
+ * @return TSize The number of occurences  (Metafunction: @link Index#Size @endlink).
  */
 
 /*!

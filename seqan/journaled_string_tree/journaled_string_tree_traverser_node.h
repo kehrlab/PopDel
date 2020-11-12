@@ -54,30 +54,21 @@ public:
     typedef typename Member<TJst, JstSourceMember>::Type                TSequence;
     typedef typename Iterator<TSequence, Standard>::Type                TSeqIterator;
     typedef typename Position<TSequence>::Type                          TPosition;
-    typedef typename MakeSigned<TPosition>::Type                        TSignedPos;
     typedef typename Member<TJst, JstDeltaMapMember>::Type              TDeltaMap;
     typedef typename Iterator<TDeltaMap, Standard>::Type                TDeltaIterator;
     typedef typename DeltaCoverage<TDeltaMap>::Type                     TCoverage;
     typedef typename Size<TJst>::Type                                   TSize;
 
-    // __ Mapping Resources ___________________________________________________
-
-    TSignedPos          headSrcPos;     // Head of the context pointing into base sequence. Can be negative in the initialization phase.
+    TPosition           mappedSrcEndPos;
     TSize               remainingSize;
-    TSize               proxyId;
-    TDeltaIterator      headDelta;      // Iterator to first delta in context.
-    TDeltaIterator      branchRoot;     // Iterator to root of current branch.
-
-    // __ Navigation Resources ________________________________________________
-
     TDeltaIterator      curDelta;       // current delta iterator.
     TDeltaIterator      nextDelta;
     TSeqIterator        begEdgeIt;      // Current iterator of this edge.
     TSeqIterator        curEdgeIt;      // Current iterator of this edge.
     TSeqIterator        endEdgeIt;      // End of this edge.
     TCoverage           coverage;       // Coverage of this node.
-
     bool                isBase;
+    bool                fromBase;
 };
 
 // ============================================================================
@@ -93,11 +84,8 @@ inline void
 swap(JstTraversalNode<TJstLhs> & lhs,
      JstTraversalNode<TJstRhs> & rhs)
 {
+    std::swap(lhs.mappedSrcEndPos, rhs.mappedSrcEndPos);
     std::swap(lhs.remainingSize, rhs.remainingSize);
-    std::swap(lhs.headSrcPos, rhs.headSrcPos);
-    std::swap(lhs.proxyId, rhs.proxyId);
-    std::swap(lhs.headDelta, rhs.headDelta);
-    std::swap(lhs.branchRoot, rhs.branchRoot);
     std::swap(lhs.curDelta, rhs.curDelta);
     std::swap(lhs.nextDelta, rhs.nextDelta);
     std::swap(lhs.begEdgeIt, rhs.begEdgeIt);
@@ -105,24 +93,28 @@ swap(JstTraversalNode<TJstLhs> & lhs,
     std::swap(lhs.endEdgeIt, rhs.endEdgeIt);
     swap(lhs.coverage, rhs.coverage);
     std::swap(lhs.isBase, rhs.isBase);
+    std::swap(lhs.fromBase, rhs.fromBase);
 }
 
 template <typename TStream, typename TJst>
 inline TStream&
 operator<<(TStream & stream, JstTraversalNode<TJst> const & node)
 {
-    stream << "<HEA: " << node.headSrcPos;
+    stream << "<SRC: " << node.mappedSrcEndPos;
     stream << " REM: " << node.remainingSize;
     stream << " CUR: (" << *node.curDelta << ")";
     stream << " NXT: (" << *node.nextDelta << ")";
     stream << " SEQ: " << infix(container(node.begEdgeIt), position(node.begEdgeIt), position(node.endEdgeIt));
-    stream << " POS: " << position(node.curEdgeIt) - position(node.begEdgeIt);
-    stream << " PID: " << node.proxyId;
+    stream << " PTR: " << position(node.curEdgeIt) - position(node.begEdgeIt);
     stream << " COV: " << _printCoverage(node.coverage);
     if (node.isBase)
-        stream << " Base: true";
+        stream << " ISB: true";
     else
-        stream << " Base: false";
+        stream << " ISB: false";
+    if (node.fromBase)
+        stream << " FSB: true";
+    else
+        stream << " FSB: false";
     stream << ">";
     return stream;
 }

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -131,9 +131,8 @@ public:
 // Metafunction ScoutSpecForAlignmentAlgorithm_
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TDPMatrixLocation, typename TDPCell>
-struct ScoutSpecForAlignmentAlgorithm_<BandedChainAlignment_<TSpec, TDPMatrixLocation>,
-                                       DPScoutState_<BandedChainAlignmentScoutState<TDPCell> > >
+template <typename TSpec, typename TDPMatrixLocation>
+struct ScoutSpecForAlignmentAlgorithm_<BandedChainAlignment_<TSpec, TDPMatrixLocation> >
 {
     typedef BandedChainAlignmentScout Type;
 };

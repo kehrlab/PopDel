@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -283,6 +283,7 @@ template <typename T>
 inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, void const *)
 getObjectId(T const & me)
 {
+    SEQAN_CHECKPOINT;
     return &*end(me, Standard());
 }
 
@@ -308,6 +309,7 @@ inline bool
 shareResources(T1 const & obj1,
                T2 const & obj2)
 {
+    SEQAN_CHECKPOINT;
     return getObjectId(obj1) == getObjectId(obj2);
 }
 
@@ -318,35 +320,39 @@ shareResources(T1 const & obj1,
 //* ???Anti Default Sequences
 // TODO(holtgrew): Evil -- each value is a container of length 1.
 template <typename T>
-inline typename Iterator<T, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T, Standard>::Type
 _beginDefault(T & me,
                Standard)
 {
+    SEQAN_CHECKPOINT;
     return & me;
 }
 // TODO(holtgrew): Evil -- each value is a container of length 1.
 template <typename T>
-inline typename Iterator<T const, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T const, Standard>::Type
 _beginDefault(T const & me,
                Standard)
 {
+    SEQAN_CHECKPOINT;
     return & me;
 }
 //*/
 
 template <typename T>
-inline typename Iterator<T, Rooted>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T, Rooted>::Type
 _beginDefault(T & me,
                Rooted)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Iterator<T, Rooted>::Type TIterator;
     return TIterator(me, begin(me, Standard()));
 }
 template <typename T>
-inline typename Iterator<T const, Rooted>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T const, Rooted>::Type
 _beginDefault(T const & me,
                Rooted)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Iterator<T const, Rooted>::Type TIterator;
     return TIterator(me, begin(me, Standard()));
 }
@@ -356,16 +362,18 @@ _beginDefault(T const & me,
 // --------------------------------------------------------------------------
 
 template <typename T>
-inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type
 begin(T & me)
 {
+    SEQAN_CHECKPOINT;
     return begin(me, typename DefaultGetIteratorSpec<T>::Type()) ;
 }
 
 template <typename T>
-inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Type
 begin(T const & me)
 {
+    SEQAN_CHECKPOINT;
     return begin(me, typename DefaultGetIteratorSpec<T>::Type()) ;
 }
 
@@ -373,7 +381,7 @@ begin(T const & me)
 //implemented in string_pointer.h
 // template <typename TValue,
 //           typename DisableIf<Is<StlContainerConcept<typename RemoveReference<T>::Type> >, int>::Type>
-// inline typename Iterator<TValue const *, Standard>::Type
+// SEQAN_HOST_DEVICE inline typename Iterator<TValue const *, Standard>::Type
 // begin(TValue const * me,
 //       Standard);
 
@@ -382,6 +390,7 @@ inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>:
 begin(T & me,
       Tag<TSpec> const tag_)
 {
+    SEQAN_CHECKPOINT;
     return _beginDefault(me, tag_);
 }
 template <typename T, typename TSpec>
@@ -389,6 +398,7 @@ inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>:
 begin(T const & me,
       Tag<TSpec> const tag_)
 {
+    SEQAN_CHECKPOINT;
     return _beginDefault(me, tag_);
 }
 
@@ -398,6 +408,7 @@ inline typename Iterator<TValue *, Standard>::Type
 begin(TValue * me,
       Standard)
 {
+    SEQAN_CHECKPOINT;
     return me;
 }
 
@@ -407,6 +418,7 @@ inline typename Iterator<TValue const *, Standard>::Type
 begin(TValue const * me,
       Standard)
 {
+    SEQAN_CHECKPOINT;
     return me;
 }
 
@@ -416,6 +428,7 @@ begin(TValue * me,
       Tag<TSpec> const tag_)
 //    Standard)
 {
+    SEQAN_CHECKPOINT;
     return me;
 }
 
@@ -426,6 +439,7 @@ begin(TValue const * me,
       Tag<TSpec> const tag_)
 //    Standard)
 {
+    SEQAN_CHECKPOINT;
     return me;
 }
 */
@@ -438,6 +452,7 @@ template <typename T>
 inline typename Position<T>::Type
 beginPosition(T &)
 {
+    SEQAN_CHECKPOINT;
     return 0;
 }
 
@@ -445,6 +460,7 @@ template <typename T>
 inline typename Position<T>::Type
 beginPosition(T const &)
 {
+    SEQAN_CHECKPOINT;
     return 0;
 }
 
@@ -454,34 +470,38 @@ beginPosition(T const &)
 
 //* ???Anti Default Sequences
 template <typename T>
-inline typename Iterator<T, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T, Standard>::Type
 _endDefault(T & me,
              Standard)
 {
+    SEQAN_CHECKPOINT;
     return (& me) + 1;
 }
 template <typename T>
-inline typename Iterator<T const, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T const, Standard>::Type
 _endDefault(T const & me,
              Standard)
 {
+    SEQAN_CHECKPOINT;
     return (& me) + 1;
 }
 //*/
 
 template <typename T>
-inline typename Iterator<T, Rooted>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T, Rooted>::Type
 _endDefault(T & me,
              Rooted)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Iterator<T, Rooted>::Type TIterator;
     return TIterator(me, end(me, Standard()));
 }
 template <typename T>
-inline typename Iterator<T const, Rooted>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T const, Rooted>::Type
 _endDefault(T const & me,
              Rooted)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Iterator<T const, Rooted>::Type TIterator;
     return TIterator(me, end(me, Standard()));
 }
@@ -491,32 +511,36 @@ _endDefault(T const & me,
 // --------------------------------------------------------------------------
 
 template <typename T>
-inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type
 end(T & me)
 {
+    SEQAN_CHECKPOINT;
     return end(me, typename DefaultGetIteratorSpec<T>::Type()) ;
 }
 
 template <typename T>
-inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Type
 end(T const & me)
 {
+    SEQAN_CHECKPOINT;
     return end(me, typename DefaultGetIteratorSpec<T>::Type()) ;
 }
 
 template <typename T, typename TSpec>
-inline typename Iterator<T, Tag<TSpec> const>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T, Tag<TSpec> const>::Type
 end(T & me,
     Tag<TSpec> const tag_)
 {
+    SEQAN_CHECKPOINT;
     return _endDefault(me, tag_);
 }
 
 template <typename T, typename TSpec>
-inline typename Iterator<T const, Tag<TSpec> const>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<T const, Tag<TSpec> const>::Type
 end(T const & me,
     Tag<TSpec> const tag_)
 {
+    SEQAN_CHECKPOINT;
     return _endDefault(me, tag_);
 }
 
@@ -528,6 +552,7 @@ template <typename T>
 inline typename Position<T>::Type
 endPosition(T & me)
 {
+    SEQAN_CHECKPOINT;
     return length(me);
 }
 
@@ -535,6 +560,7 @@ template <typename T>
 inline typename Position<T>::Type
 endPosition(T const & me)
 {
+    SEQAN_CHECKPOINT;
     return length(me);
 }
 
@@ -549,6 +575,7 @@ inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>:
 value(T & me,
       TPos /*pos*/)
 {
+    SEQAN_CHECKPOINT;
     return me;
 }
 
@@ -558,6 +585,7 @@ inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>:
 value(T const & me,
       TPos /*pos*/)
 {
+    SEQAN_CHECKPOINT;
     return me;
 }
 //*/
@@ -572,6 +600,7 @@ inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>:
 getValue(T & me,
          TPos pos)
 {
+    SEQAN_CHECKPOINT;
     return /*(typename GetValue<T>::Type)*/ value(me, pos);
 }
 
@@ -581,6 +610,7 @@ inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>:
 getValue(T const & me,
          TPos pos)
 {
+    SEQAN_CHECKPOINT;
     return value(me, pos);
 }
 
@@ -592,6 +622,7 @@ template <typename T>
 inline typename Reference<T>::Type
 front(T & me)
 {
+    SEQAN_CHECKPOINT;
     return *begin(me, Standard());
 }
 
@@ -599,15 +630,20 @@ template <typename T>
 inline typename Reference<T const>::Type
 front(T const & me)
 {
+    SEQAN_CHECKPOINT;
     return *begin(me, Standard());
 }
 
+#ifdef SEQAN_CXX11_STANDARD
 template <typename T>
 inline SEQAN_FUNC_DISABLE_IF(IsSameType<T, T &>, typename Value<T>::Type)
 front(T && me)
 {
+    SEQAN_CHECKPOINT;
     return *begin(me, Standard());
 }
+
+#endif
 
 // --------------------------------------------------------------------------
 // Function back()
@@ -617,6 +653,7 @@ template <typename T>
 inline typename Reference<T const>::Type
 back(T const & me)
 {
+    SEQAN_CHECKPOINT;
     return *(end(me, Standard()) - 1);
 }
 
@@ -624,15 +661,20 @@ template <typename T>
 inline typename Reference<T>::Type
 back(T & me)
 {
+    SEQAN_CHECKPOINT;
     return *(end(me, Standard()) - 1);
 }
 
+#ifdef SEQAN_CXX11_STANDARD
 template <typename T>
 inline SEQAN_FUNC_DISABLE_IF(IsSameType<T, T &>, typename Value<T>::Type)
 back(T && me)
 {
+    SEQAN_CHECKPOINT;
     return *(end(me, Standard()) - 1);
 }
+
+#endif
 
 //NOTE(h-2): why do we have this?
 template <typename T>
@@ -658,6 +700,7 @@ inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type
 iter(T & me,
      TPos const pos)
 {
+    SEQAN_CHECKPOINT;
     return iter(me, pos, typename DefaultGetIteratorSpec<T>::Type());
 }
 
@@ -666,6 +709,7 @@ inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Typ
 iter(T const & me,
      TPos const pos)
 {
+    SEQAN_CHECKPOINT;
     return iter(me, pos, typename DefaultGetIteratorSpec<T>::Type());
 }
 
@@ -675,6 +719,7 @@ iter(T & me,
      TPos const pos,
      Tag<TTag> const &)
 {
+    SEQAN_CHECKPOINT;
     SEQAN_ASSERT_LEQ_MSG(pos, static_cast<TPos>(length(me)), "Trying to get an iterator behind a container through iter().");
     return begin(me, Tag<TTag>()) + pos;
 }
@@ -685,6 +730,7 @@ iter(T const & me,
      TPos const pos,
      Tag<TTag> const &)
 {
+    SEQAN_CHECKPOINT;
     SEQAN_ASSERT_LEQ_MSG(pos, static_cast<TPos>(length(me)), "Trying to get an iterator behind a container through iter().");
     return begin(me, Tag<TTag>()) + pos;
 }
@@ -699,6 +745,7 @@ assignValue(T & me,
             TPos pos,
             TValue const & _value)
 {
+    SEQAN_CHECKPOINT;
     assign(value(me, pos), _value);
 }
 
@@ -724,6 +771,7 @@ moveValue(T & me,
           TPos pos,
           TValue const & _value)
 {
+    SEQAN_CHECKPOINT;
     move(value(me, pos), _value);
 }
 
@@ -733,6 +781,7 @@ moveValue(T const & me,
           TPos pos,
           TValue const & _value)
 {
+    SEQAN_CHECKPOINT;
     move(value(me, pos), _value);
 }
 
@@ -745,6 +794,7 @@ template <typename T>
 inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, typename Size<T>::Type)
 length(T const & /*me*/)
 {
+    SEQAN_CHECKPOINT;
     return 1;
 }
 //*/
@@ -771,9 +821,10 @@ length(T const & /*me*/)
  */
 
 template <typename T>
-inline typename Size<T const>::Type
+inline SEQAN_HOST_DEVICE typename Size<T const>::Type
 capacity(T const & me)
 {
+    SEQAN_CHECKPOINT;
     return length(me);
 }
 
@@ -785,6 +836,7 @@ template <typename T>
 inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, bool)
 empty(T const & me)
 {
+    SEQAN_CHECKPOINT;
     return (length(me) == 0);
 }
 
@@ -805,6 +857,7 @@ inline TSize
 _computeSizeForCapacity(T const & /*me*/,
                       TSize capacity)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Value<T>::Type TValue;
     if (sizeof(TValue) <= 2) return capacity + 1;
     else return capacity;
@@ -833,6 +886,7 @@ inline TSize
 computeGenerousCapacity(T const & /*me*/,
                          TSize capacity)
 {
+    SEQAN_CHECKPOINT;
     if (capacity < 32) return 32;       // returned value is implicitly >= capacity + 1
     return capacity + (capacity >> 1);
 }
@@ -870,12 +924,13 @@ _storageUpdated(T const & me)
 
 template<typename TTarget, typename TSource>
 inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<TTarget>::Type> >, void)
-assign(TTarget && target,
-       TSource && source,
+assign(TTarget SEQAN_FORWARD_ARG target,
+       TSource SEQAN_FORWARD_CARG source,
        typename Size<TTarget>::Type limit)
 {
-    assign(std::forward<TTarget>(target),
-           std::forward<TSource>(source),
+    SEQAN_CHECKPOINT;
+    assign(SEQAN_FORWARD(TTarget, target),
+           SEQAN_FORWARD(TSource, source),
            limit,
            typename DefaultOverflowImplicit<TTarget>::Type());
 }
@@ -897,18 +952,20 @@ assign(TTarget && target,
 
 template<typename TTarget, typename TSource>
 inline void
-append(TTarget && target,
+append(TTarget SEQAN_FORWARD_ARG target,
        TSource const & source)
 {
+    SEQAN_CHECKPOINT;
     append(target, source, typename DefaultOverflowImplicit<TTarget>::Type());
 }
 
 template<typename TTarget, typename TSource>
 inline void
-append(TTarget && target,
+append(TTarget SEQAN_FORWARD_ARG target,
        TSource const & source,
        typename Size<TTarget>::Type const limit)
 {
+    SEQAN_CHECKPOINT;
     append(target, source, limit, typename DefaultOverflowImplicit<TTarget>::Type());
 }
 
@@ -931,10 +988,10 @@ append(TTarget && target,
 
 template <typename T, typename TValue>
 inline void
-appendValue(T && me,
-            TValue && _value)
+appendValue(T SEQAN_FORWARD_ARG me,
+            TValue SEQAN_FORWARD_CARG _value)
 {
-    appendValue(std::forward<T>(me), std::forward<TValue>(_value), typename DefaultOverflowImplicit<T>::Type());
+    appendValue(SEQAN_FORWARD(T, me), SEQAN_FORWARD(TValue, _value), typename DefaultOverflowImplicit<T>::Type());
 }
 
 // --------------------------------------------------------------------------
@@ -956,27 +1013,29 @@ appendValue(T && me,
 
 template <typename T, typename TPosition, typename TSeq, typename TExpand>
 inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, void)
-insert(T && me,
+insert(T SEQAN_FORWARD_ARG me,
        TPosition const pos,
        TSeq const & insertSeq,
        Tag<TExpand> const &)
 {
-    replace(std::forward<T>(me), pos, pos, insertSeq, Tag<TExpand>());
+    SEQAN_CHECKPOINT;
+    replace(SEQAN_FORWARD(T, me), pos, pos, insertSeq, Tag<TExpand>());
 }
 
 template <typename T, typename TPosition, typename TSeq>
 inline void
-insert(T && me,
+insert(T SEQAN_FORWARD_ARG me,
        TPosition const pos,
        TSeq const & insertSeq)
 {
-    insert(std::forward<T>(me), pos, insertSeq, typename DefaultOverflowImplicit<T>::Type());
+    SEQAN_CHECKPOINT;
+    insert(SEQAN_FORWARD(T, me), pos, insertSeq, typename DefaultOverflowImplicit<T>::Type());
 }
 
 template <typename T,
           typename TSource>
 inline void
-insert(T && me,
+insert(T SEQAN_FORWARD_ARG me,
        typename Size<typename RemoveReference<T>::Type>::Type const pos,
        TSource const & source,
        typename Size<TSource>::Type const limit)
@@ -1003,11 +1062,12 @@ insert(T && me,
 
 template <typename T, typename TPosition, typename TValue>
 inline void
-insertValue(T && me,
+insertValue(T SEQAN_FORWARD_ARG me,
             TPosition const pos,
-            TValue && _value)
+            TValue SEQAN_FORWARD_CARG _value)
 {
-    insertValue(std::forward<T>(me), pos, std::forward<TValue>(_value), typename DefaultOverflowImplicit<T>::Type());
+    SEQAN_CHECKPOINT;
+    insertValue(SEQAN_FORWARD(T, me), pos, SEQAN_FORWARD(TValue, _value), typename DefaultOverflowImplicit<T>::Type());
 }
 
 // --------------------------------------------------------------------------
@@ -1032,12 +1092,12 @@ insertValue(T && me,
 
 template<typename TTarget, typename TPositionBegin, typename TPositionEnd, typename TSource>
 inline void
-replace(TTarget && target,
+replace(TTarget SEQAN_FORWARD_ARG target,
         TPositionBegin const pos_begin,
         TPositionEnd const pos_end,
         TSource const & source)
 {
-    replace(std::forward<TTarget>(target),
+    replace(SEQAN_FORWARD(TTarget, target),
             pos_begin,
             pos_end,
             source,
@@ -1046,13 +1106,13 @@ replace(TTarget && target,
 
 template<typename TTarget, typename TPositionBegin, typename TPositionEnd, typename TSource>
 inline void
-replace(TTarget && target,
+replace(TTarget SEQAN_FORWARD_ARG target,
         TPositionBegin const pos_begin,
         TPositionEnd const pos_end,
         TSource const & source,
         typename Size<TTarget>::Type const limit)
 {
-    replace(std::forward<TTarget>(target),
+    replace(SEQAN_FORWARD(TTarget, target),
             pos_begin,
             pos_end,
             source,
@@ -1101,7 +1161,7 @@ _capacityReturned(T const &,
  * @return TSize The amount of the requested capacity that was available.  That is the function returns the minimum of
  *               <tt>newCapacity</tt> and <tt>capacity(me)</tt>.
  *
- * This function allows one to increase the capacity but not the length of a container.
+ * This function allows to increase the capacity but not the length of a container.
  *
  * Use @link StringConcept#resize @endlink if you want to change the size of a container.
  *
@@ -1120,20 +1180,22 @@ template <typename T,
           typename TSize,
           typename TExpand>
 inline typename Size<T>::Type
-reserve(T && me,
+reserve(T SEQAN_FORWARD_ARG me,
         TSize const new_capacity,
         Tag<TExpand> const &)
 {
-    return _capacityReturned(std::forward<T>(me), new_capacity, Tag<TExpand>());
+    SEQAN_CHECKPOINT;
+    return _capacityReturned(SEQAN_FORWARD(T, me), new_capacity, Tag<TExpand>());
 }
 
 template <typename T,
           typename TSize>
 inline typename Size<T>::Type
-reserve(T && me,
+reserve(T SEQAN_FORWARD_ARG me,
         TSize const new_capacity)
 {
-    return reserve(std::forward<T>(me), new_capacity, typename DefaultOverflowExplicit<T>::Type());
+    SEQAN_CHECKPOINT;
+    return reserve(SEQAN_FORWARD(T, me), new_capacity, typename DefaultOverflowExplicit<T>::Type());
 }
 
 // --------------------------------------------------------------------------
@@ -1143,21 +1205,23 @@ reserve(T && me,
 template <typename T,
           typename TSize>
 inline typename Size<T>::Type
-resize(T && me,
+resize(T SEQAN_FORWARD_ARG me,
        TSize const new_length)
 {
-    return resize(std::forward<T>(me), new_length, typename DefaultOverflowExplicit<T>::Type());
+    SEQAN_CHECKPOINT;
+    return resize(SEQAN_FORWARD(T, me), new_length, typename DefaultOverflowExplicit<T>::Type());
 }
 
 template <typename T,
           typename TSize,
           typename TValue>
 inline typename Size<T>::Type
-resize(T && me,
+resize(T SEQAN_FORWARD_ARG me,
        TSize const new_length,
        TValue const & val)
 {
-    return resize(std::forward<T>(me), new_length, val, typename DefaultOverflowExplicit<T>::Type());
+    SEQAN_CHECKPOINT;
+    return resize(SEQAN_FORWARD(T, me), new_length, val, typename DefaultOverflowExplicit<T>::Type());
 }
 
 // --------------------------------------------------------------------------
@@ -1193,6 +1257,7 @@ resizeSpace(T & me,
             TBeginPosition pos_begin,
             TEndPosition pos_end)
 {
+    SEQAN_CHECKPOINT;
     return resizeSpace(me, size, pos_begin, pos_end, typename DefaultOverflowExplicit<T>::Type());
 }
 
@@ -1204,6 +1269,7 @@ resizeSpace(T & me,
             TEndPosition pos_end,
             TLimit limit)
 {
+    SEQAN_CHECKPOINT;
     return resizeSpace(me, size, pos_begin, pos_end, limit, typename DefaultOverflowExplicit<T>::Type());
 }
 
@@ -1217,6 +1283,7 @@ erase(T & me,
       TBeginPosition pos,
       TEndPosition pos_end)
 {
+    SEQAN_CHECKPOINT;
     resizeSpace(me, 0, pos, pos_end);
 }
 
@@ -1225,6 +1292,7 @@ inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>:
 erase(T & me,
       TPosition pos)
 {
+    SEQAN_CHECKPOINT;
     resizeSpace(me, 0, pos, pos + 1);
 }
 
@@ -1236,6 +1304,7 @@ erase(T const & me,
       TBeginPosition pos,
       TEndPosition pos_end)
 {
+    SEQAN_CHECKPOINT;
     resizeSpace(me, 0, pos, pos_end);
 }
 
@@ -1244,6 +1313,7 @@ inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>:
 erase(T const & me,
       TPosition pos)
 {
+    SEQAN_CHECKPOINT;
     resizeSpace(me, 0, pos, pos + 1);
 }
 
@@ -1255,6 +1325,7 @@ template <typename T>
 inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, void)
 eraseBack(T & me)
 {
+    SEQAN_CHECKPOINT;
     SEQAN_ASSERT_GT_MSG(length(me), 0u, "String must have more than 0 characters in eraseBack()!");
     resize(me, length(me) - 1);
 }
@@ -1277,6 +1348,7 @@ template <typename T>
 inline void
 shrinkToFit(T & me)
 {
+    SEQAN_CHECKPOINT;
 
 //  following line has no effect as in SeqAn it is not yet possible
 //  to reduce the memory consumption of a string with resize/reserve

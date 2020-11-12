@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_CONSENSUS_BASE_H
 #define SEQAN_HEADER_CONSENSUS_BASE_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 
@@ -362,9 +362,7 @@ getGappedConsensus(FragmentStore<TSpec, TConfig>& fragStore,
 
         for(int i = 0; i < ((int) itGaps->gapPos - (int) itGaps->seqPos) - diff; ++i)
             appendValue(gappedConsensus, gapChar, Generous());
-        //NOTE(h-2): the next line was previously indented although it belonged to the for loop
-        //           in case of unexpected behaviour, enclose these statements in {}
-        diff = (itGaps->gapPos - itGaps->seqPos);
+            diff = (itGaps->gapPos - itGaps->seqPos);
     }
     for(;seqContigIt != seqContigItEnd; ++seqContigIt)
         appendValue(gappedConsensus, *seqContigIt, Generous());
@@ -539,6 +537,7 @@ updateContig(FragmentStore<TFragSpec, TConfig>& fragStore,
              Graph<Alignment<TStringSet, TCargo, TSpec> > const& g,
              TContigId contigId)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Alignment<TStringSet, TCargo, TSpec> > TGraph;
     typedef typename Size<TGraph>::Type TSize;
     typedef typename Value<TStringSet>::Type TString;
@@ -1019,6 +1018,7 @@ consensusCalling(FragmentStore<TFragSpec, TConfig>& fragStore,
                  TContigId contigId,
                  Bayesian)
 {
+    SEQAN_CHECKPOINT
 
     typedef FragmentStore<TFragSpec, TConfig> TFragmentStore;
     typedef typename Size<TFragmentStore>::Type TSize;

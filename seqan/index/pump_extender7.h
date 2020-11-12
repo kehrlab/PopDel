@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_PUMP_EXTENDER7_H
 #define SEQAN_HEADER_PUMP_EXTENDER7_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //namespace SEQAN_NAMESPACE_PIPELINING
@@ -140,28 +140,28 @@ namespace seqan
         switch (r) {
         case 6:
 /* 6 */                                                                    cp___(o6,0,    *textIn); ++textIn; o6.i1 = p--;
-            SEQAN_FALLTHROUGH
+
         case 5:
 /* 5 */                                                         cp___(o5,0,cp___(o6,1,    *textIn)); ++textIn; o5.i1 = p--;
-            SEQAN_FALLTHROUGH
+
         case 4:
 /* 4 */                                                 o4.i2[0] = o5.i2[0] = o6.i2[0] = (*nameIn).i2; ++nameIn; o4.i1 = p--;
                                                      cp___(o4,0,cp___(o5,1,cp___(o6,2,    *textIn))); ++textIn;
-            SEQAN_FALLTHROUGH
+
         case 3:
 /* 3 */                                   cp___(o3,0,cp___(o4,1,cp___(o5,2,cp___(o6,3,   *textIn)))); ++textIn; o3.i1 = p--;
-            SEQAN_FALLTHROUGH
+
         case 2:
 /* 2 */                           o2.i2[0] = o3.i2[0] = o4.i2[1] = o5.i2[1] = o6.i2[1] = (*nameIn).i2; ++nameIn; o2.i1 = p--;
                                cp___(o2,0,cp___(o3,1,cp___(o4,2,cp___(o5,3,cp___(o6,4,    *textIn))))); ++textIn;
-            SEQAN_FALLTHROUGH
+
         case 1:
 /* 1 */                o1.i2[0] = o2.i2[1] = o3.i2[1] = o4.i2[2] = o5.i2[2] = o6.i2[2] = (*nameIn).i2; ++nameIn; o1.i1 = p--;
                     cp___(o1,0,cp___(o2,1,cp___(o3,2,                                     *textIn))); ++textIn;
             if (r >= 6) push(out6, o6);
             if (r >= 5) push(out5, o5);
             if (r >= 4) push(out124, o4);
-            SEQAN_FALLTHROUGH
+
         case 0:;
         }
 
@@ -393,28 +393,28 @@ namespace seqan
             switch (r) {
             case 6:
     /* 6 */                                                                    cp___(o6,0,    *textIn); ++textIn; o6.i1 = p; ++p;
-                SEQAN_FALLTHROUGH
+
             case 5:
     /* 5 */                                                         cp___(o5,0,cp___(o6,1,    *textIn)); ++textIn; o5.i1 = p; ++p;
-                SEQAN_FALLTHROUGH
+
             case 4:
     /* 4 */                                                 o4.i2[0] = o5.i2[0] = o6.i2[0] = (*nameIn4).i2; ++nameIn4; o4.i1 = p; ++p;
                                                         cp___(o4,0,cp___(o5,1,cp___(o6,2,    *textIn))); ++textIn;
-                SEQAN_FALLTHROUGH
+
             case 3:
     /* 3 */                                   cp___(o3,0,cp___(o4,1,cp___(o5,2,cp___(o6,3,   *textIn)))); ++textIn; o3.i1 = p; ++p;
-                SEQAN_FALLTHROUGH
+
             case 2:
     /* 2 */                           o2.i2[0] = o3.i2[0] = o4.i2[1] = o5.i2[1] = o6.i2[1] = (*nameIn2).i2; ++nameIn2; o2.i1 = p; ++p;
                                 cp___(o2,0,cp___(o3,1,cp___(o4,2,cp___(o5,3,cp___(o6,4,    *textIn))))); ++textIn;
-                SEQAN_FALLTHROUGH
+
             case 1:
     /* 1 */                o1.i2[0] = o2.i2[1] = o3.i2[1] = o4.i2[2] = o5.i2[2] = o6.i2[2] = (*nameIn1).i2; ++nameIn1; o1.i1 = p; ++p;
                         cp___(o1,0,cp___(o2,1,cp___(o3,2,                                     *textIn))); ++textIn;
                 if (r >= 6) push(out6, o6);
                 if (r >= 5) push(out5, o5);
                 if (r >= 4) push(out124, o4);
-                SEQAN_FALLTHROUGH
+
             case 0:;
             }
 

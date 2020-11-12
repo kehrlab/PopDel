@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -47,18 +47,21 @@
 #include <seqan/misc/name_store_cache.h>
 #include <seqan/stream.h>
 
+#include <htslib/bgzf.h>
+#include <htslib/tbx.h>
+#include <htslib/kseq.h>
+
 // ===========================================================================
 // First Header Group.
 // ===========================================================================
 
 #include <seqan/vcf_io/vcf_header_record.h>
+
+#include <seqan/vcf_io/tabix.h>
 #include <seqan/vcf_io/vcf_header.h>
 #include <seqan/vcf_io/vcf_record.h>
-
 #include <seqan/vcf_io/vcf_io_context.h>
 #include <seqan/vcf_io/read_vcf.h>
 #include <seqan/vcf_io/write_vcf.h>
-
 #include <seqan/vcf_io/vcf_file.h>
-
 #endif  // SEQAN_INCLUDE_SEQAN_VCF_IO_H_

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -93,6 +93,7 @@ public:
               _insertionBufferSegmentEnd(other._insertionBufferSegmentEnd),
               _currentInsertionBufferIt(other._currentInsertionBufferIt)
     {
+        SEQAN_CHECKPOINT;
     }
 
     Iter(typename IterComplementConst<TIterator>::Type const & other)
@@ -105,12 +106,14 @@ public:
               _insertionBufferSegmentEnd(other._insertionBufferSegmentEnd),
               _currentInsertionBufferIt(other._currentInsertionBufferIt)
     {
+        SEQAN_CHECKPOINT;
     }
 
     // TODO(holtgrew): Commented out because of weird ambiguities with other constructor.
     // explicit
     // Iter(TJournaledString & journalString)
     // {
+    //     SEQAN_CHECKPOINT;
     //     _initJournaledStringIterator(*this, journalString);
     // }
 
@@ -299,6 +302,7 @@ inline
 typename Iterator<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const, Standard>::Type
 begin(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & journalString, Standard const &)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Iterator<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const, Standard>::Type TResult;
     TResult result;
     _initJournaledStringIterator(result, journalString);
@@ -310,6 +314,7 @@ inline
 typename Iterator<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> >, Standard>::Type
 begin(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journalString, Standard const &)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Iterator<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> >, Standard>::Type TResult;
     TResult result;
     _initJournaledStringIterator(result, journalString);
@@ -325,6 +330,7 @@ inline
 typename Iterator<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const, Rooted>::Type
 begin(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & journalString, Rooted const &)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Iterator<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const, Rooted>::Type TResult;
     TResult result;
     _initJournaledStringIterator(result, journalString);
@@ -336,6 +342,7 @@ inline
 typename Iterator<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> >, Rooted>::Type
 begin(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journalString, Rooted const &)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Iterator<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> >, Rooted>::Type TResult;
     TResult result;
     _initJournaledStringIterator(result, journalString);
@@ -410,6 +417,7 @@ void
 _initJournaledStringIterator(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & iterator,
                            TJournaledString & journalString)
 {
+    SEQAN_CHECKPOINT;
     iterator._journalStringPtr = &journalString;
     iterator._journalEntriesIterator = begin(journalString._journalEntries);
     // Update iterators on the segment.
@@ -425,6 +433,7 @@ inline
 void
 _initJournaledStringIteratorEnd(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & iterator)
 {
+    SEQAN_CHECKPOINT;
     iterator._journalEntriesIterator = end(iterator._journalStringPtr->_journalEntries, Standard()) - 1;
     _updateSegmentIteratorsLeft(iterator);
     if (value(iterator._journalEntriesIterator).segmentSource == SOURCE_PATCH)
@@ -439,6 +448,7 @@ inline
 void
 _updateSegmentIterators(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & iterator)
 {
+    SEQAN_CHECKPOINT;
     if (atEnd(iterator._journalEntriesIterator, _journalEntries(container(iterator))))
     {
         _initJournaledStringIteratorEnd(iterator);
@@ -469,6 +479,7 @@ inline
 void
 _updateSegmentIteratorsLeft(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & iterator)
 {
+    SEQAN_CHECKPOINT;
     switch (value(iterator._journalEntriesIterator).segmentSource) {
         case SOURCE_ORIGINAL:
             iterator._hostSegmentBegin = begin(host(*iterator._journalStringPtr), Standard()) + value(iterator._journalEntriesIterator).physicalPosition;
@@ -493,6 +504,7 @@ template <typename TJournaledString, typename TJournalSpec>
 inline typename Reference<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type
 value(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & me)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Reference<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type TReference;
     TReference res(me);
     return res;
@@ -502,6 +514,7 @@ template <typename TJournaledString, typename TJournalSpec>
 inline typename Reference<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const>::Type
 value(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & me)
 {
+    SEQAN_CHECKPOINT;
     typedef typename Reference<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const>::Type TReference;
     TReference res(me);
     return res;
@@ -562,6 +575,7 @@ inline void
 assignValue(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & me,
             TValue const & _value)
 {
+    SEQAN_CHECKPOINT;
     typedef Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > TIterator;
     assignValue(static_cast<TIterator const>(me), _value);
 }
@@ -571,6 +585,7 @@ inline void
 assignValue(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & iterator,
             TValue const & _value)
 {
+    SEQAN_CHECKPOINT;
     typedef Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > TIterator;
     typename Value<TIterator>::Type _temp_value = _value; //conversion
     assignValue(*iterator._journalStringPtr, position(iterator), _temp_value);
@@ -583,6 +598,7 @@ inline void
 moveValue(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & me,
           TValue const & _value)
 {
+    SEQAN_CHECKPOINT;
     // TODO(holtgrew): Copied from packed string. Actually, why no real move?
     assignValue(me, _value);
 }
@@ -592,6 +608,7 @@ inline void
 moveValue(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & me,
           TValue const & _value)
 {
+    SEQAN_CHECKPOINT;
     // TODO(holtgrew): Copied from packed string. Actually, why no real move?
     assignValue(me, _value);
 }
@@ -794,6 +811,7 @@ inline
 typename GetValue<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type
 getValue(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & iterator)
 {
+    SEQAN_CHECKPOINT;
     if (value(iterator._journalEntriesIterator).segmentSource == SOURCE_ORIGINAL) {
         return getValue(iterator._currentHostIt);
     } else {
@@ -807,6 +825,7 @@ inline
 typename GetValue<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type
 getValue(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & iterator)
 {
+    SEQAN_CHECKPOINT;
     if (value(iterator._journalEntriesIterator).segmentSource == SOURCE_ORIGINAL) {
         return getValue(iterator._currentHostIt);
     } else {
@@ -820,6 +839,7 @@ inline
 Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > &
 operator++(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & iterator)
 {
+    SEQAN_CHECKPOINT;
     switch (value(iterator._journalEntriesIterator).segmentSource) {
         case SOURCE_ORIGINAL:
             ++iterator._currentHostIt;
@@ -846,6 +866,7 @@ inline
 Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> >
 operator++(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & iterator, int /*postfix*/)
 {
+    SEQAN_CHECKPOINT;
     Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > temp(iterator);
     ++iterator;
     return temp;
@@ -905,6 +926,7 @@ inline
 typename Reference<TJournaledString>::Type
 operator*(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & iterator)
 {
+    SEQAN_CHECKPOINT;
     return value(iterator);
 }
 
@@ -913,6 +935,7 @@ inline
 typename Reference<TJournaledString>::Type
 operator*(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & iterator)
 {
+    SEQAN_CHECKPOINT;
     return value(iterator);
 }
 
@@ -922,6 +945,7 @@ Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > &
 operator+=(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > & iterator,
            TLen len_)
 {
+    SEQAN_CHECKPOINT;
 
     SEQAN_ASSERT_GEQ(len_, static_cast<TLen>(0));
 
@@ -960,6 +984,7 @@ Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> >
 operator+(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & iterator,
           typename Size<TJournaledString>::Type const & len)
 {
+    SEQAN_CHECKPOINT;
     Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > temp(iterator);
     temp += len;
     return temp;
@@ -1036,6 +1061,7 @@ Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> >
 operator-(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & iterator,
            typename Size<TJournaledString>::Type const & len)
 {
+    SEQAN_CHECKPOINT;
     Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > temp(iterator);
     temp -= len;
     return temp;
@@ -1137,6 +1163,7 @@ bool
 operator==(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            typename IterComplementConst<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type const & b)
 {
+    SEQAN_CHECKPOINT;
     typedef typename IterMakeConst<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type TConstIter;
     return static_cast<TConstIter>(a) == static_cast<TConstIter>(b);
 }
@@ -1147,6 +1174,7 @@ bool
 operator!=(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & b)
 {
+    SEQAN_CHECKPOINT;
     return !(a == b);
 }
 
@@ -1156,6 +1184,7 @@ bool
 operator!=(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            typename IterComplementConst<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type const & b)
 {
+    SEQAN_CHECKPOINT;
     return !(a == b);
 }
 
@@ -1165,6 +1194,7 @@ bool
 operator<(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & b)
 {
+    SEQAN_CHECKPOINT;
     return position(a) < position(b);
 }
 
@@ -1174,6 +1204,7 @@ bool
 operator<(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            typename IterComplementConst<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type const & b)
 {
+    SEQAN_CHECKPOINT;
     return position(a) < position(b);
 }
 
@@ -1183,6 +1214,7 @@ bool
 operator<=(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & b)
 {
+    SEQAN_CHECKPOINT;
     return position(a) <= position(b);
 }
 
@@ -1192,6 +1224,7 @@ bool
 operator<=(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            typename IterComplementConst<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type const & b)
 {
+    SEQAN_CHECKPOINT;
     return position(a) <= position(b);
 }
 
@@ -1201,6 +1234,7 @@ bool
 operator>(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & b)
 {
+    SEQAN_CHECKPOINT;
     return position(a) > position(b);
 }
 
@@ -1210,6 +1244,7 @@ bool
 operator>(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            typename IterComplementConst<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type const & b)
 {
+    SEQAN_CHECKPOINT;
     return position(a) > position(b);
 }
 
@@ -1219,6 +1254,7 @@ bool
 operator>=(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & b)
 {
+    SEQAN_CHECKPOINT;
     return position(a) >= position(b);
 }
 
@@ -1228,6 +1264,7 @@ bool
 operator>=(Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > const & a,
            typename IterComplementConst<Iter<TJournaledString, JournaledStringIterSpec<TJournalSpec> > >::Type const & b)
 {
+    SEQAN_CHECKPOINT;
     return position(a) >= position(b);
 }
 

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 // uncomment this for verbose debug output
 //#define SEQAN_DEBUG_PEX
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 struct Hierarchical;
@@ -187,6 +187,7 @@ class Pattern<TNeedle, Pex<TVerification, TMultiFinder > >:
        limit(1), lastFPos(0), lastFNdl(0), findNext(false), patternNeedsInit(true)
    {}
 
+#ifdef SEQAN_CXX11_STANDARD
     template <typename TNeedle2>
     Pattern(TNeedle2 && ndl,
             SEQAN_CTOR_DISABLE_IF(IsSameType<typename std::remove_reference<TNeedle2>::type const &, Pattern const &>)) :
@@ -210,6 +211,22 @@ class Pattern<TNeedle, Pex<TVerification, TMultiFinder > >:
     {
         setHost(*this, std::forward<TNeedle2>(ndl));
     }
+
+#else
+   template <typename TNeedle2>
+   Pattern(TNeedle2 const & ndl) :
+       limit(1), lastFPos(0), lastFNdl(0), findNext(false), patternNeedsInit(true)
+   {
+     setHost(*this, ndl);
+   }
+
+   template <typename TNeedle2>
+   Pattern(TNeedle2 const & ndl, int _limit = -1) :
+       limit(-_limit), lastFPos(0), lastFNdl(0), findNext(false), patternNeedsInit(true)
+   {
+     setHost(*this, ndl);
+   }
+#endif  // SEQAN_CXX11_STANDARD
 };
 
 //////////////////////////////////////////////////////////////////////////////
@@ -229,12 +246,14 @@ void _reinitPattern(Pattern<TNeedle, Pex<TVerification,TMultiFinder > > & me)
 template <typename TNeedle, typename TMultiFinder>
 int _getRoot(Pattern<TNeedle, Pex<NonHierarchical, TMultiFinder > > & me)
 {
+SEQAN_CHECKPOINT
   return length(me.splitted_needles);
 }
 
 template <typename TNeedle, typename TMultiFinder>
 int _getRoot(Pattern<TNeedle, Pex<Hierarchical, TMultiFinder > > &)
 {
+SEQAN_CHECKPOINT
   return 1;
 }
 
@@ -254,6 +273,7 @@ int _getRoot(Pattern<TNeedle, Pex<Hierarchical, TMultiFinder > > &)
 template <typename TNeedle, typename TVerification, typename TMultiFinder>
 int getScore(Pattern<TNeedle, Pex<TVerification,TMultiFinder > > & me)
 {
+SEQAN_CHECKPOINT
   return getScore(me.range_table[_getRoot(me)].verifier);
 }
 
@@ -273,6 +293,7 @@ template <typename TNeedle, typename TVerification, typename TMultiFinder>
 inline int
 scoreLimit(Pattern<TNeedle, Pex<TVerification,TMultiFinder > > const & me)
 {
+SEQAN_CHECKPOINT
   return - (int) me.limit;
 }
 
@@ -297,6 +318,7 @@ inline void
 setScoreLimit(Pattern<TNeedle, Pex<TVerification,TMultiFinder > > & me,
               TScoreValue _limit)
 {
+SEQAN_CHECKPOINT
   me.patternNeedsInit = true;
   me.limit = (- _limit);
 }
@@ -308,6 +330,7 @@ setScoreLimit(Pattern<TNeedle, Pex<TVerification,TMultiFinder > > & me,
 template <typename TNeedle, typename TFinder, typename TMultiFinder>
 void _patternInit(Pattern<TNeedle, Pex<NonHierarchical, TMultiFinder > > &me, TFinder &)
 {
+SEQAN_CHECKPOINT
   typedef typename Position<TNeedle>::Type TPosition;
   typedef unsigned TScore;
   typedef Pattern<TNeedle,MyersUkkonen> TVerifier;
@@ -396,6 +419,7 @@ void _patternInit(Pattern<TNeedle, Pex<NonHierarchical, TMultiFinder > > &me, TF
 template <typename TFinder, typename TNeedle, typename TMultiFinder>
 inline bool find (TFinder & finder, Pattern<TNeedle, Pex<NonHierarchical, TMultiFinder > > & me)
 {
+SEQAN_CHECKPOINT
 
   typedef typename Host<TFinder>::Type    THost;
   typedef Segment<THost>                  THostSegment;
@@ -623,6 +647,7 @@ void _patternInit(Pattern<TNeedle, Pex<Hierarchical, TMultiFinder > > &me, TFind
 template <typename TFinder, typename TNeedle, typename TMultiFinder>
 inline bool find (TFinder & finder, Pattern<TNeedle, Pex<Hierarchical, TMultiFinder > > & me)
 {
+SEQAN_CHECKPOINT
 
   typedef typename Host<TFinder>::Type    THost;
   typedef Segment<THost>                  THostSegment;
@@ -731,7 +756,7 @@ inline bool find (TFinder & finder, Pattern<TNeedle, Pex<Hierarchical, TMultiFin
 }
 
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_..
 

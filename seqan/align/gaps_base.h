@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -67,35 +67,6 @@ typedef Tag<ArrayGaps_> ArrayGaps;
 // Tags, Classes, Enums
 // ============================================================================
 
-/*!
- * @defgroup GapDirectionTags Gap Direction Tags
- * @brief Tags to select the direction to which side of a view position an operation should be projected.
- */
-
-/*!
- * @tag GapDirectionTags#LeftOfViewPos
- * @headerfile <seqan/align.h>
- * @brief Projects to the left side of the current view position.
- *
- * @signature struct LeftOfViewPos_;
- *            typedef Tag<LeftOfViewPos_> LeftOfViewPos;
- */
-
-struct LeftOfViewPos_;
-typedef Tag<LeftOfViewPos_> LeftOfViewPos;
-
-/*!
- * @tag GapDirectionTags#RightOfViewPos
- * @headerfile <seqan/align.h>
- * @brief Projects to the right side of the current view position.
- *
- * @signature struct RightOfViewPos_;
- *            typedef Tag<RightOfViewPos_> RightOfViewPos;
- */
-
-struct RightOfViewPos_;
-typedef Tag<RightOfViewPos_> RightOfViewPos;
-
 // ----------------------------------------------------------------------------
 // Class Gaps
 // ----------------------------------------------------------------------------
@@ -112,7 +83,7 @@ typedef Tag<RightOfViewPos_> RightOfViewPos;
  * @tparam TSequence The type of the underlying sequence.
  * @tparam TSpec     Tag for specialization.
  *
- * Gaps wrap a @link ContainerConcept Sequence @endlink and allows one to (1) insert gaps into the sequence and (2) select
+ * Gaps wrap a @link ContainerConcept Sequence @endlink and allows to (1) insert gaps into the sequence and (2) select
  * an infix of the gapped sequence (clipping).  The gaps are not inserted into the underlying sequence (source) but
  * stored separately.  Using the clipping is optional and meant for selecting parts of the alignment as a part of the
  * result of a local alignment algorithm.
@@ -276,28 +247,6 @@ struct IsSequence<Gaps<TSequence, TSpec> const> : IsSequence<Gaps<TSequence, TSp
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function value()
-// ----------------------------------------------------------------------------
-
-template <typename TSequence, typename TSpec,
-          typename TPosition>
-inline typename Reference<Gaps<TSequence, TSpec> >::Type
-value(Gaps<TSequence, TSpec> & gaps,
-      TPosition const clippedViewPos)
-{
-    return typename Reference<Gaps<TSequence, TSpec> >::Type(begin(gaps, Standard()) + clippedViewPos);
-}
-
-template <typename TSequence, typename TSpec,
-          typename TPosition>
-inline typename Reference<Gaps<TSequence, TSpec> const>::Type
-value(Gaps<TSequence, TSpec> const & gaps,
-      TPosition const clippedViewPos)
-{
-    return typename Reference<Gaps<TSequence, TSpec> const>::Type(begin(gaps, Standard()) + clippedViewPos);
-}
-
-// ----------------------------------------------------------------------------
 // Function iter()
 // ----------------------------------------------------------------------------
 
@@ -417,13 +366,6 @@ value(Gaps<TSequence, TSpec> const & gaps,
  * @return TPos The resulting position in the underlying sequence (Metafunction: @link ContainerConcept#Position
  *              @endlink).
  */
-
-template <typename TSequence, typename TSpec, typename TPosition>
-inline typename Position<TSequence>::Type
-toSourcePosition(Gaps<TSequence, TSpec> const & gaps, TPosition const clippedViewPos)
-{
-    return toSourcePosition(gaps, clippedViewPos, RightOfViewPos());
-}
 
 // ----------------------------------------------------------------------------
 // Function isGap()
@@ -557,34 +499,20 @@ removeGap(Gaps<TSequence, TSpec> & gaps, TPosition clippedViewPos)
  * @fn Gaps#countGaps
  * @brief The number of gaps following a position.
  *
- * @signature TSize countGaps(gaps, viewPos[, dir]);
+ * @signature TSize countGaps(gaps, viewPos);
  *
  * @param[in] gaps    The Gaps object to query.
  * @param[in] viewPos View position (including clipping and gaps) to query at.
- * @param[in] dir     A tag to specify the counting direction. One of @link GapDirectionTags @endlink.
- *                    Defaults to @link GapDirectionTags#RightOfViewPos @endlink.
  *
  * @return TSize The number of gap characters at <tt>viewPos</tt>  (Metafunction: @link ContainerConcept#Size
  *               @endlink).
- *
- * If the the direction tag is @link GapDirectionTags#RightOfViewPos @endlink the current view position will be 
- * included in the count, and excluded when @link GapDirectionTags#LeftOfViewPos @endlink is selected.
  */
-
-template <typename TSequence, typename TSpec,
-          typename TPos,
-          typename TDirSpec>
-typename Size<Gaps<TSequence, TSpec> >::Type
-countGaps(Gaps<TSequence, TSpec> const & gaps, TPos const clippedViewPos, TDirSpec const & /*tag*/)
-{
-    return countGaps(iter(gaps, clippedViewPos, Standard()), TDirSpec());
-}
 
 template <typename TSequence, typename TSpec, typename TPos>
 typename Size<Gaps<TSequence, TSpec> >::Type
-countGaps(Gaps<TSequence, TSpec> const & gaps, TPos const clippedViewPos)
+countGaps(Gaps<TSequence, TSpec> const & gaps, TPos clippedViewPos)
 {
-    return countGaps(gaps, clippedViewPos, RightOfViewPos());
+    return countGaps(iter(gaps, clippedViewPos, Standard()));
 }
 
 // ----------------------------------------------------------------------------
@@ -632,82 +560,6 @@ countTrailingGaps(TGaps const & gaps)
 }
 
 // ----------------------------------------------------------------------------
-// Function countGapOpens()
-// ----------------------------------------------------------------------------
-
-/*!
- * @fn Gaps#countGapOpens
- * @brief The number of gap openings.
- *
- * @signature TSize countGapOpens(gaps);
- *
- * @param[in] gaps    The Gaps object to query.
- *
- * @return TSize The total number of gap openings (Metafunction: @link ContainerConcept#Size @endlink).
- */
-
-template <typename TGaps>
-inline typename Size<TGaps>::Type
-countGapOpens(TGaps const & gaps)
-{
-    typedef typename Iterator<TGaps const, Standard>::Type   TIter;
-    typedef typename Size<TGaps const>::Type                 TCount;
-
-    TCount count = 0;
-
-    TIter it = begin(gaps, Standard());
-    TIter itEnd = end(gaps, Standard());
-
-    while (it != itEnd)
-    {
-        count += isGap(it);
-        it += std::max(countGaps(it), (TCount)1);
-    }
-
-    SEQAN_ASSERT(it == itEnd);
-
-    return count;
-}
-
-// ----------------------------------------------------------------------------
-// Function countGapExtensions()
-// ----------------------------------------------------------------------------
-
-/*!
- * @fn Gaps#countGapExtensions
- * @brief The number of gap extensions.
- *
- * @signature TSize countGapExtensions(gaps);
- *
- * @param[in] gaps    The Gaps object to query.
- *
- * @return TSize The total number of gap extensions (Metafunction: @link ContainerConcept#Size @endlink).
- */
-
-template <typename TGaps>
-inline typename Size<TGaps>::Type
-countGapExtensions(TGaps const & gaps)
-{
-    typedef typename Iterator<TGaps const, Standard>::Type   TIter;
-    typedef typename Size<TGaps const>::Type                 TCount;
-
-    TCount count = 0;
-
-    TIter it = begin(gaps, Standard());
-    TIter itEnd = end(gaps, Standard());
-
-    while (it != itEnd)
-    {
-        count += countGaps(it);
-        it += std::max(countGaps(it), (TCount)1);
-    }
-
-    SEQAN_ASSERT(it == itEnd);
-
-    return count;
-}
-
-// ----------------------------------------------------------------------------
 // Function countCharacters()
 // ----------------------------------------------------------------------------
 
@@ -715,36 +567,20 @@ countGapExtensions(TGaps const & gaps)
  * @fn Gaps#countCharacters
  * @brief The number of characters following a position.
  *
- * @signature TSize countCharacters(gaps, viewPos[, dir]);
+ * @signature TSize countCharacters(gaps, viewPos);
  *
  * @param[in] gaps    The Gaps object to query.
  * @param[in] viewPos View position (including clipping and gaps) to query at.
- * @param[in] dir     A tag to specify the counting direction. One of @link GapDirectionTags @endlink.
- *                    Defaults to @link GapDirectionTags#RightOfViewPos @endlink.
  *
  * @return TSize The number of non-gaps characters characters at <tt>viewPos</tt> (Metafunction: @link
  *               ContainerConcept#Size @endlink).
- *
- * If the the direction tag is @link GapDirectionTags#RightOfViewPos @endlink the current view position will be
- * included in the count, and excluded when @link GapDirectionTags#LeftOfViewPos @endlink is selected.
  */
-
-template <typename TSequence, typename TSpec,
-          typename TPos,
-          typename TDirSpec>
-typename Size<Gaps<TSequence, TSpec> >::Type
-countCharacters(Gaps<TSequence, TSpec> const & gaps,
-                TPos const clippedViewPos,
-                TDirSpec const & /*dir*/)
-{
-    return countCharacters(iter(gaps, clippedViewPos, Standard()), TDirSpec());
-}
 
 template <typename TSequence, typename TSpec, typename TPos>
 typename Size<Gaps<TSequence, TSpec> >::Type
-countCharacters(Gaps<TSequence, TSpec> const & gaps, TPos const clippedViewPos)
+countCharacters(Gaps<TSequence, TSpec> const & gaps, TPos clippedViewPos)
 {
-    return countCharacters(gaps, clippedViewPos, RightOfViewPos());
+    return countCharacters(iter(gaps, clippedViewPos, Standard()));
 }
 
 // ----------------------------------------------------------------------------
@@ -1089,9 +925,9 @@ assignSource(Gaps<TSequence, TSpec> & gaps, TValue const & value)
 
 /*!
  * @fn Gaps#copyGaps
- * @brief Copy gaps from one Gaps object to another (in the clipped view of both arguments).
+ * @brief Copy gaps from one Gaps object to another (in the clipped view of both argumetns).
  *
- * The user is responsible for ensuring that the gaps are over sequences of same length and appropriate clipping.
+ * The user is resposible for ensuring that the gaps are over sequences of same length and appropriate clipping.
  *
  * @signature void copyGaps(dest, source);
  *

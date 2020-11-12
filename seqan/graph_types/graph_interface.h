@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 
 // TODO(holtgrew): The documentation needs some improvements, possibly together with a refactoring of the module.
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 // Default directed graph
@@ -568,20 +568,6 @@ struct Alphabet<Graph<Hmm<TAlphabet, TCargo, TSpec> > const> {
  */
 
 /*!
- * @fn Graph#getVertexAdjacencyVector
- * @brief Build an adjacency vector representation of a vertex of the graph.
- *
- * @signature void getVertexAdjacencyVector(vectIn, vectOut, g, vertex);
- *
- * @param[out] vectIn A @link String @endlink filled with <tt>n</tt> elements of @link IntegerConcept @endlink
- *                    where <tt>vectIn[i]</tt> gives the id number of the source vertex
- * @param[out] vectOut A @link String @endlink filled with <tt>n</tt> elements of @link IntegerConcept @endlink
- *                    where <tt>vectOut[i]</tt> gives the id number of the target vertex
- * @param[in]  g      The Graph under exploration.
- * @param[in]  vertex The vertex to compute ajacency vector for.
- */
-
-/*!
  * @fn Graph#findEdge
  * @brief Finds an edge.
  *
@@ -691,6 +677,7 @@ template<typename TId>
 inline TId
 _getId(TId const id)
 {
+    SEQAN_CHECKPOINT
     return id;
 }
 
@@ -755,6 +742,6 @@ operator << (TStream & target,
     return target;
 }
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

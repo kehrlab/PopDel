@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -76,7 +76,7 @@ namespace seqan {
  * @see isAnsiColorTerminal
  */
 
-#if defined(STDLIB_VS)
+#if defined(PLATFORM_WINDOWS)
 
 #include <io.h>
 
@@ -85,9 +85,9 @@ inline bool isTerminal()
     return false;  // Windows does not understand ANSI codes.
 }
 
-#endif  // #if defined(STDLIB_VS)
+#endif  // #if defined(PLATFORM_WINDOWS)
 
-#if !defined(STDLIB_VS)
+#if defined(PLATFORM_GCC)
 
 #include <unistd.h>
 
@@ -100,7 +100,7 @@ inline bool isTerminal()
 #endif
 }
 
-#endif  // #if !defined(STDLIB_VS)
+#endif  // #if defined(PLATFORM_GCC)
 
 // ----------------------------------------------------------------------------
 // Function isAnsiColorTerminal()
@@ -123,21 +123,21 @@ inline bool isTerminal()
  * @see getTerminalSize
  */
 
-#if defined(STDLIB_VS)
+#if defined(PLATFORM_WINDOWS) || defined(PLATFORM_GCC_MINGW)
 
 inline bool isAnsiColorTerminal()
 {
     return false;
 }
 
-#else  // #if defined(STDLIB_VS)
+#else  // #if defined(PLATFORM_WINDOWS) || defined(PLATFORM_GCC_MINGW)
 
 inline bool isAnsiColorTerminal()
 {
     return isTerminal();
 }
 
-#endif  // #if defined(STDLIB_VS)
+#endif  // #if defined(PLATFORM_WINDOWS) || defined(PLATFORM_GCC_MINGW)
 
 // ----------------------------------------------------------------------------
 // Function getTerminalSize()
@@ -169,7 +169,7 @@ inline bool isAnsiColorTerminal()
  * @see isAnsiColorTerminal
  */
 
-#if defined(STDLIB_VS)
+#if defined(PLATFORM_WINDOWS)
 
 #include <Windows.h>
 
@@ -187,9 +187,9 @@ inline bool getTerminalSize(unsigned & cols, unsigned & rows)
     return true;
 }
 
-#endif  // #if defined(STDLIB_VS)
+#endif  // #if defined(PLATFORM_WINDOWS)
 
-#if !defined(STDLIB_VS)
+#if defined(PLATFORM_GCC)
 
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -208,7 +208,7 @@ inline bool getTerminalSize(unsigned & cols, unsigned & rows)
     return true;
 }
 
-#endif  // #if !defined(STDLIB_VS)
+#endif  // #if defined(PLATFORM_GCC)
 
 }  // namespace seqan
 

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,20 +36,20 @@
 
 //////////////////////////////////////////////////////////////////////////////
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 // ==========================================================================
 // Forwards
 // ==========================================================================
 
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) || _MSC_VER <= 1600
 
 template <typename TKey, typename TCargo, typename TCompare, typename TAlloc, typename TKey2>
 inline typename Cargo< std::map<TKey,TCargo, TCompare, TAlloc> >::Type &
 cargo(std::map<TKey,TCargo, TCompare, TAlloc> & me, TKey2 const & _key);
 
-#endif  // #if !defined(_MSC_VER)
+#endif  // #if !defined(_MSC_VER) || _MSC_VER <= 1600
 
 //////////////////////////////////////////////////////////////////////////////
 //insertion tags

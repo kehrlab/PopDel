@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // Copyright (c) 2013 NVIDIA Corporation
 // All rights reserved.
 //
@@ -43,106 +43,6 @@
 #ifndef SEQAN_INCLUDE_SEQAN_BASIC_DEBUG_TEST_SYSTEM_H_
 #define SEQAN_INCLUDE_SEQAN_BASIC_DEBUG_TEST_SYSTEM_H_
 
-
-// SeqAn's has three global debug/testing levels: testing, debug and
-// release.  Depending on the level, the SEQAN_ASSERT_* macros will be enabled.
-//
-// The levels are enabled by the values of the macros
-// SEQAN_ENABLE_TESTING and SEQAN_ENABLE_DEBUG.  By setting a macro to
-// 0, one disables the level and by setting the macro to 1, one
-// enables a level.  Enabling testing also enables debug, overriding a
-// value of 0 for SEQAN_ENABLE_DEBUG.
-//
-// If the level is release (both the macros for debug and testing are
-// 0), the assertions will be disabled.  If the level is debug then
-// the assertions will be enabled.
-//
-// The default is to disable debugging and testing.
-//
-// You can print the current level using the function seqan::printDebugLevel().
-
-/*!
- * @macro TestSystemMacros#SEQAN_ENABLE_TESTING
- * @headerfile <seqan/basic.h>
- * @brief Indicates whether testing is enabled.
- *
- * @signature SEQAN_ENABLE_TESTING
- *
- * When set to 1, testing is enabled.  If it is undefined or set to 0, testing is disabled.  This means the macros for
- * the tests (SEQAN_BEGIN_TESTSUITE, SEQAN_DEFINE_TEST, SEQAN_CALL_TEST, and SEQAN_END_TESTSUITE) will be enabled.  This
- * makes failing assertions raise exceptions instead of calling <tt>abort()</tt> (which terminates the program).
- *
- * By default, this is set to 0.
- *
- * If you want to change this value in your C++ program code you have to define this value before including any SeqAn header!
- *
- * If set to 1 then @link TestSystemMacros#SEQAN_ENABLE_DEBUG @endlink is forced to 1 as well.
- *
- * @see TestSystemMacros#SEQAN_ENABLE_DEBUG
- */
-
-// Set default for SEQAN_ENABLE_TESTING.
-#ifndef SEQAN_ENABLE_TESTING
-#define SEQAN_ENABLE_TESTING 0
-#endif  // #ifndef SEQAN_ENABLE_TESTING
-
-// Force-enable debugging if testing is enabled.
-#if SEQAN_ENABLE_TESTING
-#undef SEQAN_ENABLE_DEBUG
-#define SEQAN_ENABLE_DEBUG 1
-#endif  // #if SEQAN_ENABLE_TESTING
-
-/*!
- * @macro TestSystemMacros#SEQAN_ENABLE_DEBUG
- * @headerfile <seqan/basic.h>
- * @brief Indicates whether debugging is enabled.
- *
- * @signature SEQAN_ENABLE_DEBUG
- *
- * When enabled (set to 1) then debugging is enabled.  This means the assertion macros are expanded to actual test code.
- * If debugging (and testing) is disabled then the SeqAn assertion macros expand to no instructions.
- *
- * Note that <tt>NDEBUG</tt> is set undefined if <tt>SEQAN_ENABLE_DEBUG</tt> = 1
- * and <tt>NDEBUG</tt> is set to 1 if <tt>SEQAN_ENABLE_DEBUG</tt> = 0.
- *
- * If you want to change this value then you have to define this value before including any SeqAn header.
- *
- * Force-enabled if SEQAN_ENABLE_TESTING is set to 1.
- *
- * @see TestSystemMacros#SEQAN_ENABLE_TESTING
- */
-
-// Set default for SEQAN_ENABLE_DEBUG.
-#ifndef SEQAN_ENABLE_DEBUG
-#define SEQAN_ENABLE_DEBUG 0
-#endif  // #ifndef SEQAN_ENABLE_DEBUG
-
-#if !SEQAN_ENABLE_DEBUG
-#define NDEBUG 1
-#else
-#undef NDEBUG
-#endif // #if !SEQAN_ENABLE_DEBUG
-
-/*!
- * @macro TestSystemMacros#SEQAN_TYPEDEF_FOR_DEBUG
- * @headerfile <seqan/basic.h>
- * @brief When using typedefs that are only used in debug mode then they have to be marked with macro.
- *
- * @signature SEQAN_TYPEDE_FOR_DEBUG
- *
- * @section Examples
- *
- * @code{.cpp}
- * typedef int TInt SEQAN_TYPEDEF_FOR_DEBUG;
- * @endcode
- */
-
-#if !SEQAN_ENABLE_DEBUG
-#define SEQAN_TYPEDEF_FOR_DEBUG SEQAN_UNUSED
-#else
-#define SEQAN_TYPEDEF_FOR_DEBUG
-#endif
-
 #include <iostream>  // stdout, stderr
 #include <iomanip>
 #include <cstring>   // strrpos
@@ -155,9 +55,9 @@
 #include <string>
 #include <typeinfo>
 
-#ifdef STDLIB_VS
+#ifdef PLATFORM_WINDOWS
 #include <Windows.h>    // DeleteFile()
-#else  // #ifdef STDLIB_VS
+#else  // #ifdef PLATFORM_WINDOWS
 #include <unistd.h>     // unlink()
 #include <sys/stat.h>   // mkdir()
 #include <dirent.h>     // DIR
@@ -166,7 +66,7 @@
 #endif  // #if SEQAN_HAS_EXECINFO
 #include <cxxabi.h>     // __cxa_demangle()
 #include <signal.h>
-#endif  // #ifdef STDLIB_VS
+#endif  // #ifdef PLATFORM_WINDOWS
 
 // ============================================================================
 // Classes
@@ -183,7 +83,7 @@ namespace seqan {
 template <typename T>
 struct Demangler
 {
-#if !defined(STDLIB_VS)
+#ifdef PLATFORM_GCC
     char *data_begin;
 #else
     const char *data_begin;
@@ -202,7 +102,7 @@ struct Demangler
 
     ~Demangler()
     {
-#if !defined(STDLIB_VS)
+#ifdef PLATFORM_GCC
         free(data_begin);
 #endif
     }
@@ -219,7 +119,7 @@ struct Demangler
 template <typename T>
 inline void _demangle(Demangler<T> & me, T const & t)
 {
-#if !defined(STDLIB_VS)
+#ifdef PLATFORM_GCC
     int status;
     me.data_begin = abi::__cxa_demangle(typeid(t).name(), NULL, NULL, &status);
 #else
@@ -245,7 +145,9 @@ inline const char * toCString(Demangler<T> const & me)
  * @brief The assertion and check macros provided by SeqAn.
  *
  * Assertions are checks performed at runtime when debugging is enabled.  Debugging is enabled by defining the
- * preprocessor symbol <tt>SEQAN_ENABLE_DEBUG</tt> as <tt>1</tt>.
+ * preprocessor symbol <tt>SEQAN_ENABLE_DEBUG</tt> as <tt>1</tt> (the default is to set it to <tt>0</tt> if the common C
+ * macro <tt>NDEBUG</tt> is defined and to set it to <tt>1</tt> otherwise.  When using the SeqAn build system or the
+ * CMake FindSeqAn.cmake module, this is automatically set appropriately.
  *
  * The SEQAN_CHECK and SEQAN_FAIL macro always lead to an exit of the program with a non-0 return value.
  */
@@ -358,6 +260,112 @@ inline const char * toCString(Demangler<T> const & me)
         }                                                               \
     } while (false)
 
+// SeqAn's has three global debug/testing levels: testing, debug and
+// release.  Depending on the level, the SEQAN_ASSERT_* and
+// SEQAN_CHECKPOINT macros will be enabled.
+//
+// Note that this is independent of the <cassert> assertions and
+// NDEBUG being defined.
+//
+// The levels are enabled by the values of the macros
+// SEQAN_ENABLE_TESTING and SEQAN_ENABLE_DEBUG.  By setting a macro to
+// 0, one disables the level and by setting the macro to 1, one
+// enables a level.  Enabling testing also enables debug, overriding a
+// value of 0 for SEQAN_ENABLE_DEBUG.
+//
+// If the level is release (both the macros for debug and testing are
+// 0), the assertions will be disabled.  If the level is debug then
+// the assertions will be enabled.  If the level is testing then the
+// checkpoint macros will also be enabled.
+//
+// The default is to enable debugging but disable testing.
+//
+// You can print the current level using the function seqan::printDebugLevel().
+
+/*!
+ * @macro TestSystemMacros#SEQAN_ENABLE_TESTING
+ * @headerfile <seqan/basic.h>
+ * @brief Indicates whether testing is enabled.
+ *
+ * @signature SEQAN_ENABLE_TESTING
+ *
+ * When set to 1, testing is enabled.  If it is undefined or set to 0, testing is disabled.  This means the macros for
+ * the tests (SEQAN_BEGIN_TESTSUITE, SEQAN_DEFINE_TEST, SEQAN_CALL_TEST, and SEQAN_END_TESTSUITE) will be enabled.  This
+ * makes failing assertions raise exceptions instead of calling <tt>abort()</tt> (which terminates the program).
+ *
+ * By default, this is set to 0.
+ *
+ * If you want to change this value in your C++ program code you have to define this value before including any SeqAn header!
+ *
+ * If set to 1 then @link TestSystemMacros#SEQAN_ENABLE_DEBUG @endlink is forced to 1 as well.
+ *
+ * @see TestSystemMacros#SEQAN_ENABLE_DEBUG
+ */
+
+// Set default for SEQAN_ENABLE_TESTING.
+#ifndef SEQAN_ENABLE_TESTING
+#define SEQAN_ENABLE_TESTING 0
+#endif  // #ifndef SEQAN_ENABLE_TESTING
+
+/*!
+ * @macro TestSystemMacros#SEQAN_ENABLE_DEBUG
+ * @headerfile <seqan/basic.h>
+ * @brief Indicates whether debugging is enabled.
+ *
+ * @signature SEQAN_ENABLE_DEBUG
+ *
+ * When enabled (set to 1) then debugging is enabled.  This means the assertion macros are expanded to actual test code.
+ * If debugging (and testing) is disabled then the SeqAn assertion macros expand to no instructions.
+ *
+ * By default, thi sis set to 0 if <tt>NDEBUG</tt> is defined and set to 1 if <tt>NDEBUG</tt> is not defined.
+ *
+ * If you want to change this value then you have to define this value before including any SeqAn header.
+ *
+ * Force-enabled if SEQAN_ENABLE_TESTING is set to 1.
+ *
+ * @see TestSystemMacros#SEQAN_ENABLE_TESTING
+ */
+
+// Set default for SEQAN_ENABLE_DEBUG.
+#ifndef SEQAN_ENABLE_DEBUG
+  #ifdef NDEBUG
+    #define SEQAN_ENABLE_DEBUG 0
+  #else  // #ifdef NDEBUG
+    #define SEQAN_ENABLE_DEBUG 1
+  #endif  // #ifdef NDEBUG
+#endif  // #ifndef SEQAN_ENABLE_DEBUG
+
+// Force-enable debugging if testing is enabled.
+#if SEQAN_ENABLE_TESTING
+#undef SEQAN_ENABLE_DEBUG
+#define SEQAN_ENABLE_DEBUG 1
+#endif  // #if SEQAN_ENABLE_TESTING
+
+// Allow disabling checkpoints independent of testing.
+#ifndef SEQAN_ENABLE_CHECKPOINTS
+#define SEQAN_ENABLE_CHECKPOINTS 0 // SEQAN_ENABLE_TESTING
+#endif  // #ifndef SEQAN_ENABLE_CHECKPOINTS
+
+/*!
+ * @macro TestSystemMacros#SEQAN_TYPEDEF_FOR_DEBUG
+ * @headerfile <seqan/basic.h>
+ * @brief When using typedefs that are only used in debug mode then they have to be marked with macro.
+ *
+ * @signature SEQAN_TYPEDE_FOR_DEBUG
+ *
+ * @section Examples
+ *
+ * @code{.cpp}
+ * typedef int TInt SEQAN_TYPEDEF_FOR_DEBUG;
+ * @endcode
+ */
+
+#if !SEQAN_ENABLE_DEBUG
+#define SEQAN_TYPEDEF_FOR_DEBUG SEQAN_UNUSED
+#else
+#define SEQAN_TYPEDEF_FOR_DEBUG
+#endif
+
 namespace seqan {
 
 // SEQAN_CXX_FLAGS_ contains the compiler flags, SEQAN_CXX_FLAGS is a string
@@ -386,11 +394,11 @@ void printDebugLevel(TStream & stream)
 {
     stream << "SEQAN_ENABLE_DEBUG == " << SEQAN_ENABLE_DEBUG << std::endl;
     stream << "SEQAN_ENABLE_TESTING == " << SEQAN_ENABLE_TESTING << std::endl;
+    stream << "SEQAN_ENABLE_CHECKPOINTS == " << SEQAN_ENABLE_CHECKPOINTS << std::endl;
     stream << "SEQAN_CXX_FLAGS == \"" << SEQAN_CXX_FLAGS << "\"" << std::endl;
-    stream << "SEQAN_ASYNC_IO == " << SEQAN_ASYNC_IO << std::endl;
 }
 
-#if !SEQAN_HAS_EXECINFO
+#if defined(PLATFORM_WINDOWS) || !SEQAN_HAS_EXECINFO
 
 template <typename TSize>
 void printStackTrace(TSize /*maxFrames*/)
@@ -523,7 +531,7 @@ volatile int signalHandlersDummy_ = SignalHandlersDummy_<void>::i;
 }
 
 #endif  // #if SEQAN_ENABLE_DEBUG
-#endif  // !SEQAN_HAS_EXECINFO
+#endif  // defined(PLATFORM_WINDOWS) || !SEQAN_HAS_EXECINFO
 
 
 // Namespace for the testing infrastructure.
@@ -625,6 +633,20 @@ struct StaticData
         return result;
     }
 
+    // Total number of checkpoints in header file.
+    static int & totalCheckPointCount()
+    {
+        static int result = 0;
+        return result;
+    }
+
+    // Total number of checkpoints found in binary files.
+    static int & foundCheckPointCount()
+    {
+        static int result = 0;
+        return result;
+    }
+
     // Names of temporary files as returned by tempFileName.  This
     // global state is used to remove any existing such files
     // after completing the testsuite.
@@ -640,7 +662,7 @@ struct StaticData
 /*
 inline
 int openTempFile() {
-#ifdef STDLIB_VS
+#ifdef PLATFORM_WINDOWS
     char * fileName = _tempnam(NULL, "SQN");
     if (!fileName) {
         ::std::cerr << "Cannot create a unique temporary filename" << ::std::endl;
@@ -655,7 +677,7 @@ int openTempFile() {
     int result = mkstemp(filenameBuffer);
     unlink(filenameBuffer);
     return result;
-#endif  // ifdef STDLIB_VS
+#endif  // ifdef PLATFORM_WINDOWS
 }
 */
 
@@ -665,7 +687,7 @@ inline
 const char * tempFileName()
 {
     static char fileNameBuffer[1000];
-#ifdef STDLIB_VS
+#ifdef PLATFORM_WINDOWS
     static char filePathBuffer[1000];
     //  Gets the temp path env string (no guarantee it's a valid path).
     DWORD dwRetVal = 0;
@@ -695,7 +717,7 @@ const char * tempFileName()
     strcat(fileNameBuffer, "\\test_file");
     return fileNameBuffer;
 
-#else  // ifdef STDLIB_VS
+#else  // ifdef PLATFORM_WINDOWS_VS
     strcpy(fileNameBuffer, "/tmp/SEQAN.XXXXXXXXXXXXXXXXXXXX");
     mode_t cur_umask = umask(S_IRWXO | S_IRWXG);  // to silence Coverity warning
     int _tmp = mkstemp(fileNameBuffer);
@@ -709,7 +731,7 @@ const char * tempFileName()
     strcat(fileNameBuffer, "/test_file");
     return fileNameBuffer;
 
-#endif  // ifdef STDLIB_VS
+#endif  // ifdef PLATFORM_WINDOWS
 }
 
 // Initialize the testing infrastructure.
@@ -725,6 +747,8 @@ void beginTestSuite(const char * testSuiteName, const char * argv0)
     StaticData::testCount() = 0;
     StaticData::skippedCount() = 0;
     StaticData::errorCount() = 0;
+    StaticData::totalCheckPointCount() = 0;
+    StaticData::foundCheckPointCount() = 0;
     // Get path to argv0.
     const char * end = argv0;
     const char * ptr = std::min(strchr(argv0, '\\'), strchr(argv0, '/'));     // On Windows, we can have both \ and /.
@@ -743,7 +767,7 @@ void beginTestSuite(const char * testSuiteName, const char * argv0)
         strncpy(StaticData::basePath(), argv0, len);
     }
 
-#ifdef STDLIB_VS
+#ifdef PLATFORM_WINDOWS_VS
     // Set CRT reporting such that everything goes to stderr and there are
     // no popups causing timeouts.
     _set_error_mode(_OUT_TO_STDERR);
@@ -753,70 +777,7 @@ void beginTestSuite(const char * testSuiteName, const char * argv0)
     _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
     _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-#endif  // STDLIB_VS
-}
-
-// cut off '/test_file' from tempFilename
-// returns fileNameBuffer
-inline
-std::string _stripFileName(const char * tempFilename)
-{
-    std::string s(tempFilename);
-    return s.substr(0, s.find_last_of("\\/"));
-}
-
-// delete temporary file from /tmp/ directory
-// needs only the directory name (fileNameBuffer)
-inline
-int _deleteTempFile(std::string tempFilename)
-{
-#ifdef STDLIB_VS
-    HANDLE hFind;
-    WIN32_FIND_DATA data;
-
-    std::string temp = tempFilename.c_str() + std::string("\\*");
-    hFind = FindFirstFile(temp.c_str(), &data);
-    if (hFind != INVALID_HANDLE_VALUE)
-    {
-        do
-        {
-            std::string tempp = tempFilename.c_str() + std::string("\\") + data.cFileName;
-            if (strcmp(data.cFileName, ".") == 0 || strcmp(data.cFileName, "..") == 0)
-                continue;  // Skip these.
-            DeleteFile(tempp.c_str());
-        }
-        while (FindNextFile(hFind, &data));
-        FindClose(hFind);
-    }
-
-    if (!RemoveDirectory(tempFilename.c_str()))
-    {
-        std::cerr << "ERROR: Could not delete directory " << tempFilename << "\n";
-        return 0;
-    }
-#else  // #ifdef STDLIB_VS
-    DIR * dpdf;
-    struct dirent * epdf;
-
-    dpdf = opendir(tempFilename.c_str());
-    if (dpdf != NULL)
-    {
-        while ((epdf = readdir(dpdf)) != NULL)
-        {
-            std::string temp = tempFilename.c_str() + std::string("/") + std::string(epdf->d_name);
-            unlink(temp.c_str());
-        }
-    }
-
-    rmdir(tempFilename.c_str());
-    if (closedir(dpdf) != 0)
-    {
-        std::cerr << "ERROR: Could not delete directory " << tempFilename << "\n";
-        return 0;
-    }
-#endif  // #ifdef STDLIB_VS
-
-    return 1;
+#endif  // PLATFORM_WINDOWS_VS
 }
 
 // Run test suite finalization.
@@ -830,16 +791,64 @@ int endTestSuite()
 {
     delete[] StaticData::basePath();
 
-    // Delete all temporary files that still exist.
-    for (unsigned i = 0; i < StaticData::tempFileNames().size(); ++i)
-        if (!_deleteTempFile(StaticData::tempFileNames()[i]))
-            ++StaticData::errorCount();
-
     std::cout << "**************************************" << std::endl;
+    std::cout << " Total Check Points : " << StaticData::totalCheckPointCount() << std::endl;
+    std::cout << " Found Check Points : " << StaticData::foundCheckPointCount() << std::endl;
+    std::cout << " Lost Check Points  : " << StaticData::totalCheckPointCount() - StaticData::foundCheckPointCount() << std::endl;
+    std::cout << "--------------------------------------" << std::endl;
     std::cout << " Total Tests: " << StaticData::testCount() << std::endl;
     std::cout << " Skipped:     " << StaticData::skippedCount() << std::endl;
     std::cout << " Errors:      " << StaticData::errorCount() << std::endl;
     std::cout << "**************************************" << std::endl;
+    // TODO(holtgrew): Re-enable that all check points have to be found for the test to return 1;
+    /*
+    if (StaticData::totalCheckPointCount() != StaticData::foundCheckPointCount())
+        return 1;
+    */
+    // Delete all temporary files that still exist.
+    for (unsigned i = 0; i < StaticData::tempFileNames().size(); ++i)
+    {
+#ifdef PLATFORM_WINDOWS
+        HANDLE hFind;
+        WIN32_FIND_DATA data;
+
+        std::string temp = StaticData::tempFileNames()[i].c_str() + std::string("\\*");
+        hFind = FindFirstFile(temp.c_str(), &data);
+        if (hFind != INVALID_HANDLE_VALUE)
+        {
+            do
+            {
+                std::string tempp = StaticData::tempFileNames()[i].c_str() + std::string("\\") + data.cFileName;
+                if (strcmp(data.cFileName, ".") == 0 || strcmp(data.cFileName, "..") == 0)
+                    continue;  // Skip these.
+                if (!DeleteFile(tempp.c_str()))
+                    std::cerr << "WARNING: Could not delete file " << tempp << "\n";
+            }
+            while (FindNextFile(hFind, &data));
+            FindClose(hFind);
+        }
+
+        if (!RemoveDirectory(StaticData::tempFileNames()[i].c_str()))
+            std::cerr << "WARNING: Could not delete directory " << StaticData::tempFileNames()[i] << "\n";
+#else  // #ifdef PLATFORM_WINDOWS
+        DIR * dpdf;
+        struct dirent * epdf;
+
+        dpdf = opendir(StaticData::tempFileNames()[i].c_str());
+        if (dpdf != NULL)
+        {
+            while ((epdf = readdir(dpdf)) != NULL)
+            {
+                std::string temp = StaticData::tempFileNames()[i].c_str() + std::string("/") + std::string(epdf->d_name);
+                unlink(temp.c_str());
+            }
+        }
+
+        rmdir(StaticData::tempFileNames()[i].c_str());
+        if (closedir(dpdf) != 0)
+            std::cerr << "WARNING: Could not delete directory " << StaticData::tempFileNames()[i] << "\n";
+#endif  // #ifdef PLATFORM_WINDOWS
+    }
 
     if (StaticData::errorCount() != 0)
         return 1;
@@ -1563,6 +1572,121 @@ bool testFalse(const char * file, int line,
     return testFalse(file, line, value_, expression_, 0);
 }
 
+// Represents a check point in a file.
+struct CheckPoint
+{
+    // Path to the file.
+    const char * file;
+    // Line in the file.
+    unsigned int line;
+
+    // Less-than comparator for check points.
+    bool operator<(const CheckPoint & other) const
+    {
+        int c = strcmp(file, other.file);
+        if (c < 0)
+            return true;
+
+        if (c == 0 && line < other.line)
+            return true;
+
+        return false;
+    }
+
+};
+
+// Wrapper for a set of check points.
+// TODO(holtgrew): Simply store the set?
+struct CheckPointStore
+{
+    static::std::set<CheckPoint> & data()
+    {
+        static::std::set<CheckPoint> result;
+        return result;
+    }
+};
+
+// Puts the given check point into the CheckPointStore's data.
+inline bool
+registerCheckPoint(unsigned int line, const char * file)
+{
+    const char * file_name = strrchr(file, '/');
+    const char * file_name_2 = strrchr(file, '\\');
+    if (file_name_2 > file_name)
+        file_name = file_name_2;
+    if (!file_name)
+        file_name = file;
+    else
+        ++file_name;
+
+    CheckPoint cp = {file_name, line};
+        #ifdef _OMP
+        #pragma omp critical
+        #endif  // #ifdef _OMP
+    CheckPointStore::data().insert(cp);
+    return true;
+}
+
+// Test whether the given check point exists in the check point
+// store.
+inline void
+testCheckPoint(const char * file, unsigned int line)
+{
+    StaticData::totalCheckPointCount() += 1;
+    CheckPoint cp = {file, line};
+    if (CheckPointStore::data().find(cp) == CheckPointStore::data().end())
+    {
+        std::cerr << file << ":" << line << "  -- Check point lost."
+                  << std::endl;
+        return;
+    }
+    StaticData::foundCheckPointCount() += 1;
+}
+
+// Verify the check points for the given file.
+inline void
+verifyCheckPoints(const char * file)
+{
+    char const * file_name = strrchr(file, '/');
+    char const * file_name_2 = strrchr(file, '\\');
+    if (file_name_2 > file_name)
+        file_name = file_name_2;
+    if (!file_name)
+        file_name = file;
+    else
+        ++file_name;
+
+
+
+    int len = strlen(StaticData::pathToRoot()) +
+              strlen("/") + strlen(file) + 1;
+    char * absolutePath = new char[len];
+    absolutePath[0] = '\0';
+    strcat(absolutePath, StaticData::pathToRoot());
+    strcat(absolutePath, "/");
+    strcat(absolutePath, file);
+
+    FILE * fl = ::std::fopen(absolutePath, "r");
+    delete[] absolutePath;
+    if (!fl)
+    {
+        std::cerr << file << " -- verifyCheckPoints could not find this file." << std::endl;
+    }
+    unsigned int line_number = 1;
+    char buf[1 << 16];
+
+    while (::std::fgets(buf, sizeof(buf), fl))
+    {
+        if (::std::strstr(buf, "SEQAN_CHECKPOINT"))
+        {
+            testCheckPoint(file_name, line_number);
+        }
+        ++line_number;
+    }
+
+    ::std::fclose(fl);
+}
+
 #if SEQAN_ENABLE_TESTING
 // If in testing mode then raise an AssertionFailedException.
 inline void fail()
@@ -1738,8 +1862,10 @@ inline void fail()
     } while (false)
 #endif  // #if SEQAN_ENABLE_TESTING
 
+// variadic macros are not supported by VS 2003 and before
+#if !defined(_MSC_VER) || (_MSC_VER >= 1400)
 
-#if SEQAN_ENABLE_DEBUG
+#if SEQAN_ENABLE_DEBUG && !defined(__CUDA_ARCH__)
 
 /*!
  * @macro AssertMacros#SEQAN_ASSERT
@@ -2257,6 +2383,27 @@ inline void fail()
         }                                                             \
     } while (false)
 
+
+#elif SEQAN_ENABLE_DEBUG && defined(__CUDA_ARCH__)
+
+#define SEQAN_ASSERT_EQ(_arg1, _arg2) do { assert(_arg1 == _arg2); } while (false)
+#define SEQAN_ASSERT_EQ_MSG(_arg1, _arg2, ...) do { assert(_arg1 == _arg2); } while (false)
+#define SEQAN_ASSERT_NEQ(_arg1, _arg2) do { assert(_arg1 != _arg2); } while (false)
+#define SEQAN_ASSERT_NEQ_MSG(_arg1, _arg2, ...) do { assert(_arg1 != _arg2); } while (false)
+#define SEQAN_ASSERT_LEQ(_arg1, _arg2) do { assert(_arg1 <= _arg2); } while (false)
+#define SEQAN_ASSERT_LEQ_MSG(_arg1, _arg2, ...) do { assert(_arg1 <= _arg2); } while (false)
+#define SEQAN_ASSERT_LT(_arg1, _arg2) do { assert(_arg1 < _arg2); } while (false)
+#define SEQAN_ASSERT_LT_MSG(_arg1, _arg2, ...) do { assert(_arg1 < _arg2); } while (false)
+#define SEQAN_ASSERT_GEQ(_arg1, _arg2) do { assert(_arg1 >= _arg2); } while (false)
+#define SEQAN_ASSERT_GEQ_MSG(_arg1, _arg2, ...) do { assert(_arg1 >= _arg2); } while (false)
+#define SEQAN_ASSERT_GT(_arg1, _arg2) do { assert(_arg1 > _arg2); } while (false)
+#define SEQAN_ASSERT_GT_MSG(_arg1, _arg2, ...) do { assert(_arg1 > _arg2); } while (false)
+#define SEQAN_ASSERT(_arg1) do { assert(_arg1); } while (false)
+#define SEQAN_ASSERT_MSG(_arg1, ...) do { assert(_arg1); } while (false)
+#define SEQAN_ASSERT_NOT(_arg1) do { assert(!_arg1); } while (false)
+#define SEQAN_ASSERT_NOT_MSG(_arg1, ...) do { assert(!_arg1); } while (false)
+#define SEQAN_ASSERT_FAIL(...) do { assert(false); } while (false)
+
 #else
 
 #define SEQAN_ASSERT_EQ(_arg1, _arg2) do {} while (false)
@@ -2277,7 +2424,216 @@ inline void fail()
 #define SEQAN_ASSERT_NOT_MSG(_arg1, ...) do {} while (false)
 #define SEQAN_ASSERT_FAIL(...) do {} while (false)
 
-#endif  // #if defined(SEQAN_ENABLE_DEBUG)
+#endif  // #if defined(SEQAN_ENABLE_DEBUG) && !defined(__CUDA_ARCH__)
+
+#else // no variadic macros
+
+#if SEQAN_ENABLE_DEBUG
+inline void SEQAN_ASSERT_FAIL(const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    ::seqan::ClassTest::vforceFail("", 0, comment, args);
+    ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+template <typename T1, typename T2, typename T3>
+void SEQAN_ASSERT_IN_DELTA(T1 const & _arg1, T2 const & _arg2, T3 const & _arg3)
+{
+    if (!::seqan::ClassTest::testInDelta("", 0, _arg1, "", _arg2, "", _arg3, ""))
+        ::seqan::ClassTest::fail();
+}
+
+template <typename T1, typename T2, typename T3>
+void SEQAN_ASSERT_IN_DELTA_MSG(T1 const & _arg1, T2 const & _arg2, T3 const & _arg3, const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    if (!::seqan::ClassTest::vtestInDelta("", 0, _arg1, "", _arg2, "", _arg3, "", comment, args))
+        ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_EQ(T1 const & _arg1, T2 const & _arg2)
+{
+    if (!::seqan::ClassTest::testEqual("", 0, _arg1, "", _arg2, ""))
+        ::seqan::ClassTest::fail();
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_EQ_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    if (!::seqan::ClassTest::vtestEqual("", 0, _arg1, "", _arg2, "", comment, args))
+        ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_NEQ(T1 const & _arg1, T2 const & _arg2)
+{
+    if (!::seqan::ClassTest::testNotEqual("", _arg1, "", _arg2, ""))
+        ::seqan::ClassTest::fail();
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_NEQ_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    if (!::seqan::ClassTest::vtestNotEqual("", _arg1, "", _arg2, "", comment, args))
+        ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_LEQ(T1 const & _arg1, T2 const & _arg2)
+{
+    if (!::seqan::ClassTest::testLeq("", 0, _arg1, "", _arg2, ""))
+        ::seqan::ClassTest::fail();
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_LEQ_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    if (!::seqan::ClassTest::vtestLeq("", 0, _arg1, "", _arg2, "", comment, args))
+        ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_LT(T1 const & _arg1, T2 const & _arg2)
+{
+    if (!::seqan::ClassTest::testLt("", 0, _arg1, "", _arg2, ""))
+        ::seqan::ClassTest::fail();
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_LT_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    if (!::seqan::ClassTest::vtestLt("", 0, _arg1, "", _arg2, "", comment, args))
+        ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_GEQ(T1 const & _arg1, T2 const & _arg2)
+{
+    if (!::seqan::ClassTest::testGeq("", 0, _arg1, "", _arg2, ""))
+        ::seqan::ClassTest::fail();
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_GEQ_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    if (!::seqan::ClassTest::vtestGeq("", 0, _arg1, "", _arg2, "", comment, args))
+        ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_GT(T1 const & _arg1, T2 const & _arg2)
+{
+    if (!::seqan::ClassTest::testGt("", 0, _arg1, "", _arg2, ""))
+        ::seqan::ClassTest::fail();
+}
+
+template <typename T1, typename T2>
+void SEQAN_ASSERT_GT_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    if (!::seqan::ClassTest::vtestGt("", 0, _arg1, "", _arg2, "", comment, args))
+        ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+template <typename T1>
+void SEQAN_ASSERT(T1 const & _arg1)
+{
+    if (!::seqan::ClassTest::testTrue("", 0, _arg1, ""))
+        ::seqan::ClassTest::fail();
+}
+
+template <typename T1>
+void SEQAN_ASSERT_MSG(T1 const & _arg1, const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    if (!::seqan::ClassTest::vtestTrue("", 0, _arg1, "", comment, args))
+        ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+template <typename T1>
+void SEQAN_ASSERT_NOT(T1 const & _arg1)
+{
+    if (!::seqan::ClassTest::testFalse("", 0, _arg1, ""))
+        ::seqan::ClassTest::fail();
+}
+
+template <typename T1>
+void SEQAN_ASSERT_NOT_MSG(T1 const & _arg1, const char * comment, ...)
+{
+    va_list args;
+    va_start(args, comment);
+    if (!::seqan::ClassTest::vtestFalse("", 0, _arg1, "", comment, args))
+        ::seqan::ClassTest::fail();
+    va_end(args);
+}
+
+#else // #if SEQAN_ENABLE_DEBUG
+
+inline void SEQAN_ASSERT_FAIL(const char * comment, ...) {}
+template <typename T1, typename T2, typename T3>
+void SEQAN_ASSERT_IN_DELTA(T1 const & _arg1, T2 const & _arg2, T3 const & _arg3) {}
+template <typename T1, typename T2, typename T3>
+void SEQAN_ASSERT_IN_DELTA_MSG(T1 const & _arg1, T2 const & _arg2, T3 const & _arg3, const char * comment, ...) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_EQ(T1 const & _arg1, T2 const & _arg2) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_EQ_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_NEQ(T1 const & _arg1, T2 const & _arg2) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_NEQ_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_LEQ(T1 const & _arg1, T2 const & _arg2) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_LEQ_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_LT(T1 const & _arg1, T2 const & _arg2) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_LT_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_GEQ(T1 const & _arg1, T2 const & _arg2) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_GEQ_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_GT(T1 const & _arg1, T2 const & _arg2) {}
+template <typename T1, typename T2>
+void SEQAN_ASSERT_GT_MSG(T1 const & _arg1, T2 const & _arg2, const char * comment, ...) {}
+template <typename T1>
+void SEQAN_ASSERT(T1 const & _arg1) {}
+template <typename T1>
+void SEQAN_ASSERT_MSG(T1 const & _arg1, const char * comment, ...) {}
+template <typename T1>
+void SEQAN_ASSERT_NOT(T1 const & _arg1) {}
+template <typename T1>
+void SEQAN_ASSERT_NOT_MSG(T1 const & _arg1, const char * comment, ...) {}
+
+#endif // #if SEQAN_ENABLE_DEBUG
+
+#endif // no variadic macros
 
 // Returns a string (of type char*) with the path to the called binary.
 //
@@ -2352,6 +2708,32 @@ inline void fail()
 #define SEQAN_TEMP_FILENAME() (::seqan::ClassTest::tempFileName())
 
 
+#if SEQAN_ENABLE_CHECKPOINTS
+
+// Create a check point at the point where the macro is placed.
+// TODO(holtgrew): Should be called SEQAN_CHECK_POINT to be consistent.
+#define SEQAN_CHECKPOINT                                        \
+    ::seqan::ClassTest::registerCheckPoint(__LINE__, __FILE__);
+
+// Call the check point verification code for the given file.
+#define SEQAN_VERIFY_CHECKPOINTS(filename)          \
+    ::seqan::ClassTest::verifyCheckPoints(filename)
+
+#else  // #if SEQAN_ENABLE_CHECKPOINTS
+
+#define SEQAN_CHECKPOINT
+
+// If checkpoints are to be verified if testing is disabled then print
+// a warning.
+#define SEQAN_VERIFY_CHECKPOINTS(filename)                              \
+    do {                                                                \
+        fprintf(stderr, ("WARNING: Check point verification is "        \
+                         "disabled. Trying to verify %s from %s:%d.\n"), \
+                filename, __FILE__, __LINE__);                          \
+    } while (false)
+
+#endif  // #if SEQAN_ENABLE_CHECKPOINTS
+
 #if !SEQAN_ENABLE_TESTING
 
 #define SEQAN_BEGIN_TESTSUITE(suite_name)                               \
@@ -2384,7 +2766,7 @@ inline void fail()
 
 inline std::string getAbsolutePath(const char * path)
 {
-    return std::string(SEQAN_PATH_TO_ROOT()) + "/" + path;
+    return std::string(SEQAN_PATH_TO_ROOT()) + path;
 }
 
 }  // namespace seqan

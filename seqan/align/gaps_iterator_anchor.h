@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -74,6 +74,7 @@ public:
 public:
     Iter()
     {
+SEQAN_CHECKPOINT
         data_container = NULL;
         seqLength = 0;
     }
@@ -85,10 +86,12 @@ public:
         nextAnchor(other_.nextAnchor),
         anchorIdx(other_.anchorIdx)
     {
+SEQAN_CHECKPOINT
     }
 */    Iter(TGaps & container_):
         data_container(&container_)
     {
+SEQAN_CHECKPOINT
         _assignSourceLength(seqLength, container_);
         _goToGapAnchorIterator(*this, data_container->data_viewCutBegin + data_container->data_cutBegin);
         viewBegin = current;
@@ -98,6 +101,7 @@ public:
     Iter(TGaps & container_, TGapPos clippedViewPosition):
         data_container(&container_)
     {
+SEQAN_CHECKPOINT
         _assignSourceLength(seqLength, container_);
         _goToGapAnchorIterator(*this, clippedViewPosition + data_container->data_viewCutBegin + data_container->data_cutBegin);
         viewBegin.gapPos = data_container->data_viewCutBegin + data_container->data_cutBegin;
@@ -107,10 +111,12 @@ public:
     }
     ~Iter()
     {
+SEQAN_CHECKPOINT
     }
 
     Iter const & operator = (Iter const & other_)
     {
+SEQAN_CHECKPOINT
         data_container = other_.data_container;
         seqLength = other_.seqLength;
         current = other_.current;
@@ -254,32 +260,7 @@ isClipped(Iter<TGaps, GapsIterator<AnchorGaps<TGapAnchors> > > const & me)
 
 template <typename TGaps, typename TGapAnchors>
 inline typename Size<TGaps>::Type
-countGaps(Iter<TGaps, GapsIterator<AnchorGaps<TGapAnchors> > > const & me, LeftOfViewPos const & /*dir*/)
-{
-    typedef Iter<TGaps, GapsIterator<AnchorGaps<TGapAnchors> > > TIter;
-    typedef typename TIter::TGapAnchor TGapAnchor;
-
-    if (isGap(me))
-    {
-        if (me.prevAnchor.gapPos < me.viewBegin.gapPos)
-            return me.current.gapPos - me.viewBegin.gapPos;
-        return me.current.gapPos - me.prevAnchor.gapPos - (me.current.seqPos - me.prevAnchor.seqPos);
-    }
-    // In case we are at the beginning of a new anchor we need to get back the previous one.
-    if (me.prevAnchor.gapPos == me.current.gapPos)
-    {
-        TGapAnchor tmp;
-        _getAnchor(tmp, *me.data_container, me.anchorIdx - 1);
-        if (tmp.gapPos < me.viewBegin.gapPos)
-            tmp.gapPos = me.viewBegin.gapPos;
-        return me.current.gapPos - tmp.gapPos - (me.current.seqPos - tmp.seqPos);
-    }
-    return 0;
-}
-
-template <typename TGaps, typename TGapAnchors>
-inline typename Size<TGaps>::Type
-countGaps(Iter<TGaps, GapsIterator<AnchorGaps<TGapAnchors> > > const & me, RightOfViewPos const & /*dir*/)
+countGaps(Iter<TGaps, GapsIterator<AnchorGaps<TGapAnchors> > > const & me)
 {
     if (!isGap(me))
         return 0;
@@ -294,19 +275,7 @@ countGaps(Iter<TGaps, GapsIterator<AnchorGaps<TGapAnchors> > > const & me, Right
 
 template <typename TGaps, typename TGapAnchors>
 inline typename Size<TGaps>::Type
-countCharacters(Iter<TGaps, GapsIterator<AnchorGaps<TGapAnchors> > > const & me, LeftOfViewPos const & /*dir*/)
-{
-    if (!isGap(me))
-        return me.current.seqPos - me.prevAnchor.seqPos;
-    // In case we are at the beginning of a new anchor we need to get back the previous one.
-    if (me.current.seqPos - me.prevAnchor.seqPos == me.current.gapPos - me.prevAnchor.gapPos)
-        return me.current.seqPos - me.prevAnchor.seqPos;
-    return 0;
-}
-
-template <typename TGaps, typename TGapAnchors>
-inline typename Size<TGaps>::Type
-countCharacters(Iter<TGaps, GapsIterator<AnchorGaps<TGapAnchors> > > const & me, RightOfViewPos const & /*dir*/)
+countCharacters(Iter<TGaps, GapsIterator<AnchorGaps<TGapAnchors> > > const & me)
 {
     if (isGap(me))
         return 0;

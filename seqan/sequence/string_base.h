@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -47,13 +47,6 @@ namespace seqan {
 // ============================================================================
 // Tags, Classes, Enums
 // ============================================================================
-
-// NOTE(rrahn): Special alloc overload for over-aligned data, e.g., simd vector types.
-// We need this, since the standard new/delete operator are not guarenteed
-// to support alignment higher than sizeof(void *), which causes seg faults when holding
-// simd vector types in a string.
-struct OverAligned_;
-using OverAligned = Tag<OverAligned_>;
 
 template <typename TSpec = void>
 struct Alloc {};
@@ -343,16 +336,6 @@ struct StringSpec<String<TValue, TSpec> >
 };
 
 // ----------------------------------------------------------------------------
-// Metafunction StringSpecForValue_
-// ----------------------------------------------------------------------------
-
-template <typename TValue>
-struct StringSpecForValue_
-{
-    typedef typename If<Is<SimdVectorConcept<TValue> >, Alloc<OverAligned>, Alloc<> >::Type Type;
-};
-
-// ----------------------------------------------------------------------------
 // Metafunction Chunk
 // ----------------------------------------------------------------------------
 
@@ -438,7 +421,7 @@ shareResources(TValue const & obj1,
 // ----------------------------------------------------------------------------
 
 template <typename TValue, typename TSpec, typename TPos>
-inline typename Reference< String<TValue, TSpec> >::Type
+SEQAN_HOST_DEVICE inline typename Reference< String<TValue, TSpec> >::Type
 value(String<TValue, TSpec> & me,
       TPos const & pos)
 {
@@ -450,7 +433,7 @@ value(String<TValue, TSpec> & me,
 }
 
 template <typename TValue, typename TSpec, typename TPos>
-inline typename Reference< String<TValue, TSpec> const >::Type
+SEQAN_HOST_DEVICE inline typename Reference< String<TValue, TSpec> const >::Type
 value(String<TValue, TSpec> const & me,
       TPos const & pos)
 {
@@ -466,7 +449,7 @@ value(String<TValue, TSpec> const & me,
 // ----------------------------------------------------------------------------
 
 template <typename TValue, typename TSpec>
-inline typename Size< String<TValue, TSpec> const>::Type
+SEQAN_HOST_DEVICE inline typename Size< String<TValue, TSpec> const>::Type
 length(String<TValue, TSpec> const & me)
 {
     return end(me, Standard()) - begin(me, Standard());
@@ -477,7 +460,7 @@ length(String<TValue, TSpec> const & me)
 // ----------------------------------------------------------------------------
 
 template <typename TValue, typename TSpec>
-inline bool
+SEQAN_HOST_DEVICE inline bool
 empty(String<TValue, TSpec> const & me)
 {
     return end(me, Standard()) == begin(me, Standard());
@@ -1331,7 +1314,7 @@ struct AppendValueToString_
     template <typename T, typename TValue>
     static inline void
     appendValue_(T & me,
-                 TValue && _value)
+                 TValue SEQAN_FORWARD_CARG _value)
     {
         typedef typename Value<T>::Type TTargetValue;
         typedef typename Size<T>::Type TSize;
@@ -1339,19 +1322,19 @@ struct AppendValueToString_
         TSize me_length = length(me);
         if (capacity(me) <= me_length)
         {
-            TTargetValue temp_copy(std::forward<TValue>(_value)); //temp copy because resize could invalidate _value
+            TTargetValue temp_copy(SEQAN_FORWARD(TValue, _value)); //temp copy because resize could invalidate _value
             // TODO(holtgrew): The resize() function will default construct the last element. This is slow. Get rid of this.
             TSize new_length = reserve(me, me_length + 1, TExpand());
             if (me_length < new_length)
             {
                 // *(begin(me) + me_length) = temp_copy;
-                valueConstruct(begin(me, Standard()) + me_length, std::forward<TTargetValue>(temp_copy)); //??? this should be valueMoveConstruct
+                valueConstruct(begin(me, Standard()) + me_length, SEQAN_FORWARD(TTargetValue, temp_copy)); //??? this should be valueMoveConstruct
                 _setLength(me, me_length + 1);
             }
         }
         else
         {
-            valueConstruct(begin(me, Standard()) + me_length, std::forward<TValue>(_value));
+            valueConstruct(begin(me, Standard()) + me_length, SEQAN_FORWARD(TValue, _value));
             _setLength(me, me_length + 1);
         }
     }
@@ -1360,10 +1343,10 @@ struct AppendValueToString_
 template <typename TTargetValue, typename TTargetSpec, typename TValue, typename TExpand>
 inline void
 appendValue(String<TTargetValue, TTargetSpec> & me,
-            TValue && _value,
+            TValue SEQAN_FORWARD_CARG _value,
             Tag<TExpand>)
 {
-    AppendValueToString_<Tag<TExpand> >::appendValue_(me, std::forward<TValue>(_value));
+    AppendValueToString_<Tag<TExpand> >::appendValue_(me, SEQAN_FORWARD(TValue, _value));
 }
 
 // ----------------------------------------------------------------------------
@@ -1373,11 +1356,11 @@ appendValue(String<TTargetValue, TTargetSpec> & me,
 template <typename TTargetValue, typename TTargetSpec, typename TValue, typename TExpand>
 inline void
 appendValue(String<TTargetValue, TTargetSpec> & me,
-            TValue && _value,
+            TValue SEQAN_FORWARD_CARG _value,
             Tag<TExpand> const & expandTag,
             Serial)
 {
-    appendValue(me, std::forward<TValue>(_value), expandTag);
+    appendValue(me, SEQAN_FORWARD(TValue, _value), expandTag);
 }
 
 //////////////////////////////////////////////////////////////////////////////

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_FIND_MULTI_H
 #define SEQAN_HEADER_FIND_MULTI_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -56,21 +56,25 @@ public:
     Finder():
         data_pattern(0)
     {
+SEQAN_CHECKPOINT
     }
 
     Finder(Finder const & other_):
         data_pattern(other_.data_pattern)
     {
+SEQAN_CHECKPOINT
     }
 
     ~Finder()
     {
+SEQAN_CHECKPOINT
     }
 //____________________________________________________________________________
 
     Finder &
     operator = (Finder const & other_)
     {
+SEQAN_CHECKPOINT
         data_pattern = other_.data_pattern;
         return *this;
     }
@@ -86,6 +90,7 @@ findNext(Finder & me,
          THaystack & hstk,
          TNeedle const & ndl)
 {
+SEQAN_CHECKPOINT
     ++hstk;
     return find(me, hstk, ndl);
 }*/
@@ -98,12 +103,14 @@ template <typename THaystack>
 inline unsigned int &
 needle(Finder<THaystack, MultipatternFinder> & me)
 {
+SEQAN_CHECKPOINT
     return me.data_pattern;
 }
 template <typename THaystack>
 inline unsigned int const &
 needle(Finder<THaystack, MultipatternFinder> const & me)
 {
+SEQAN_CHECKPOINT
     return me.data_pattern;
 }
 //____________________________________________________________________________
@@ -112,6 +119,7 @@ template <typename THaystack>
 inline void
 setNeedle(Finder<THaystack, MultipatternFinder> & me, unsigned int const needleIndex_)
 {
+SEQAN_CHECKPOINT
     me.data_pattern = needleIndex_;
 }
 
@@ -121,6 +129,7 @@ template <typename THaystack>
 inline void
 init(Finder<THaystack, MultipatternFinder> & me)
 {
+SEQAN_CHECKPOINT
     me.data_pattern = 0;
 }
 //____________________________________________________________________________
@@ -132,6 +141,7 @@ find(Finder<THaystack, MultipatternFinder> & me,
      THaystack2 & hstk,
      TNeedle const & ndl)
 {
+SEQAN_CHECKPOINT
     while ( needle(me) < length(ndl) )
     {
         Finder<THaystack2, Horspool> horspool(ndl[needle(me)]);
@@ -145,6 +155,6 @@ find(Finder<THaystack, MultipatternFinder> & me,
     }
     return false;
 }
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

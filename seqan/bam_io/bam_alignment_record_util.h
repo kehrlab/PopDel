@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -232,7 +232,7 @@ inline unsigned countPaddings(String<CigarElement<> > const & cigarString)
 
 template <typename TSource, typename TSpec, typename TReference>
 void
-bamRecordToAlignment(Align<TSource, TSpec> & result, TReference & reference, BamAlignmentRecord const & record)
+bamRecordToAlignment(Align<TSource, TSpec> & result, TReference & reference, BamAlignmentRecord & record)
 {
     // TODO(holtgrew): Clipping better than copying infix? But is it generic?
     resize(rows(result), 2);

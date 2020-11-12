@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -79,14 +79,14 @@
 
 #include <omp.h>
 
-#if defined(COMPILER_MSVC) || defined(COMPILER_WINTEL)
-  // MSVC __pragma-operator
-  #define SEQAN_OMP_PRAGMA(x) __pragma(omp x)
-#else
+#if defined(PLATFORM_WINDOWS_MINGW) || defined(PLATFORM_GCC)
   // GCC _Pragma operator
   #define SEQAN_DO_PRAGMA(x) _Pragma(# x)
   #define SEQAN_OMP_PRAGMA(x) SEQAN_DO_PRAGMA(omp x)
-#endif
+#else  // #if defined(PLATFORM_WINDOWS_MINGW) || defined(PLATFORM_GCC)
+  // MSVC __pragma-operator
+  #define SEQAN_OMP_PRAGMA(x) __pragma(omp x)
+#endif // #if defined(PLATFORM_WINDOWS_MINGW) || defined(PLATFORM_GCC)
 
 #else  // #ifdef _OPENMP
 
@@ -122,9 +122,12 @@ inline double omp_get_wtime()
 // Function getThreadId()
 // ----------------------------------------------------------------------------
 
-inline unsigned getThreadId()
+SEQAN_HOST_DEVICE inline unsigned getThreadId()
 {
-#if defined(_OPENMP)
+#if defined(__CUDA_ARCH__)
+    return blockIdx.x * blockDim.x + threadIdx.x;
+
+#elif defined(_OPENMP)
     return omp_get_thread_num();
 
 #else

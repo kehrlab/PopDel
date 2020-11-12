@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_FIND_SIMPLE_H
 #define SEQAN_HEADER_FIND_SIMPLE_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -68,13 +68,20 @@ public:
 
     Pattern() {}
 
+#ifdef SEQAN_CXX11_STANDARD
     template <typename TNeedle2>
     Pattern(TNeedle2 && ndl, SEQAN_CTOR_DISABLE_IF(IsSameType<typename std::remove_reference<TNeedle2>::type const &, Pattern const &>))
     {
         setHost(*this, ndl);
         ignoreUnusedVariableWarning(dummy);
     }
-
+#else
+    template <typename TNeedle2>
+    Pattern(TNeedle2 const & ndl)
+    {
+        setHost(*this, ndl);
+    }
+#endif  // SEQAN_CXX11_STANDARD
 //____________________________________________________________________________
 };
 
@@ -130,6 +137,6 @@ inline bool find(TFinder & finder,
 
 //____________________________________________________________________________
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

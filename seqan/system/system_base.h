@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_SYSTEM_BASE_H
 #define SEQAN_HEADER_SYSTEM_BASE_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 #if SEQAN_ENABLE_DEBUG  // Note the new-style for macros, is always defined and 0/1
@@ -46,14 +46,14 @@ namespace seqan
 
 #else  // #ifdef SEQAN_ENABLE_DEBUG
 
-#if !defined(COMPILER_MSVC)
+#if defined(PLATFORM_GCC) || defined(PLATFORM_WINDOWS_MINGW)
 // GCC warns below that the "value computed is not used".  However,
 // MSVC does not like casting void values to void. Thus, this
 // distinction.
 #define SEQAN_DO_SYS(_cond) do { (void) _cond; } while (false)
-#else   // #if !defined(COMPILER_MSVC)
+#else   // #if defined(PLATFORM_GCC) || defined(PLATFORM_WINDOWS_MINGW)
 #define SEQAN_DO_SYS(_cond) do { _cond; } while (false)
-#endif  // #if !defined(COMPILER_MSVC)
+#endif  // #if defined(PLATFORM_GCC) || defined(PLATFORM_WINDOWS_MINGW)
 
 #define SEQAN_DO_SYS1(_cond) SEQAN_DO_SYS(_cond)
 #define SEQAN_DO_SYS2(_cond, _comment) SEQAN_DO_SYS(_cond)

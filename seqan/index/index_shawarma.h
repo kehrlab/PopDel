@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@ extern "C" {
 
 }
 
-namespace seqan {
+namespace SEQAN_NAMESPACE_MAIN {
 
 /*    namespace shawarma {
 
@@ -95,6 +95,6 @@ namespace seqan {
     }
 
 
-} // namespace seqan
+} // namespace SEQAN_NAMESPACE_MAIN
 
 #endif // SEQAN_HEADER_INDEX_PIZZACHILI_H

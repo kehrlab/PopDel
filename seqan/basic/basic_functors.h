@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -136,17 +136,17 @@ struct NotFunctor
 // Functor CountDownFunctor
 // ----------------------------------------------------------------------------
 
-template <typename TFunctor = True, uint64_t REMAINING = 0>
+template <typename TFunctor = True, __uint64 REMAINING = 0>
 struct CountDownFunctor
 {
-    uint64_t remaining;
+    __uint64 remaining;
     TFunctor func;
 
-    CountDownFunctor(uint64_t remaining = REMAINING):
+    CountDownFunctor(__uint64 remaining = REMAINING):
         remaining(remaining)
     {}
 
-    CountDownFunctor(uint64_t remaining, TFunctor const &func):
+    CountDownFunctor(__uint64 remaining, TFunctor const &func):
         remaining(remaining),
         func(func)
     {}
@@ -174,7 +174,7 @@ struct CountDownFunctor
 template <typename TFunctor = True>
 struct CountFunctor
 {
-    uint64_t count;
+    __uint64 count;
     TFunctor func;
 
     CountFunctor() : count(0)
@@ -191,7 +191,7 @@ struct CountFunctor
         return false;
     }
 
-    operator uint64_t() const
+    operator __uint64() const
     {
         return count;
     }
@@ -204,7 +204,7 @@ inline void clear(CountFunctor<TFunctor> &func)
 }
 
 template <typename TFunctor>
-inline uint64_t & value(CountFunctor<TFunctor> &func)
+inline __uint64 & value(CountFunctor<TFunctor> &func)
 {
     return func.count;
 }

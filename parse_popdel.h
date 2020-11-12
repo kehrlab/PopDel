@@ -108,7 +108,7 @@ void printHelp(char const * name)
     std::cerr << "    \033[1m" << name << " COMMAND\033[0m [\033[4mOPTIONS\033[0m]" << std::endl;
     std::cerr << std::endl;
     std::cerr << "\033[1mCOMMANDS\033[0m" << std::endl;
-    std::cerr << "    \033[1mprofile\033[0m   Write a profile of read pair distances for a given bamfile." << std::endl;
+    std::cerr << "    \033[1mprofile\033[0m   Write a profile of read pair distances for a given BAM or CRAM file." << std::endl;
     std::cerr << "    \033[1mcall\033[0m      Call deletions based on read pair distance profiles of multiple samples."
               << std::endl;
     std::cerr << "    \033[1mview\033[0m      View a profile of read pair distances in human readable format." << std::endl;
@@ -116,7 +116,7 @@ void printHelp(char const * name)
     std::cerr << "\033[1mVERSION\033[0m" << std::endl;
     std::cerr << "    " << "PopDel" << " version: " << VERSION << std::endl;
     std::cerr << "    Last update " << DATE << std::endl;
-    std::cerr << "    Contact: Sebastian Niehus (Sebastian.Niehus[at]bihealth.de)" << std::endl;
+    std::cerr << "    Contact: Sebastian Niehus (Sebastian.Niehus[at]ukr.de)" << std::endl;
     std::cerr << std::endl;
     std::cerr << "Try `" << name << " COMMAND --help' for more information on each command." << std::endl;
     std::cerr << std::endl;

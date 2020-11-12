@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -59,30 +59,8 @@ namespace seqan {
  *
  * @tparam TString The type of the string to store in the string set.
  *
- * The Generous Dependent StringSet stores pointers to a source set, enabling the user to perform deletions and additions to the set without
- * changing the original source set (See @link DependentStringSet @endlink for further details).
- *
- * @section Run time and Memory
- *
- * When a value is removed from the Generous Dependent StringSet, the pointer is simply set to zero. The only exception applies to zero pointers at the end
- * of the pointer array, which are removed by resizing the array step by step.
- * This results into the following run time complexity:
- *
- * - value() or operator []: amortised O(1)
- *
- * - getValueById(): O(1)
- *
- * - removeValueById(): amortised O(1)
- *
- * The memory consumption is linear to the number of pointers but potentially stores a lot of unneccessary null pointers.
- *
  * See @link TightDependentStringSet @endlink for a Dependent StringSet implementation with a more memory efficient
  * representation at higher costs for by-id element access.
- *
- * @section Accessing non-existing entries returns empty string
- *
- * This also applies for accessing a position behind the last element.
- *
  */
 
 // The Dddoc documentation of the Dependent specialization is in string_set_tight.h
@@ -155,35 +133,9 @@ inline void appendValue(
     TString const & obj,
     Tag<TExpand> tag)
 {
+    SEQAN_CHECKPOINT;
     appendValue(me.limits, lengthSum(me) + length(obj), tag);
     appendValue(me.strings, const_cast<TString*>(&obj), tag);
-}
-
-// --------------------------------------------------------------------------
-// Function insertValue()
-// --------------------------------------------------------------------------
-
-template <typename TString, typename TPos, typename TExpand >
-inline void insertValue(
-    StringSet<TString, Dependent<Generous> > & me,
-    TPos pos,
-    TString const & obj,
-    Tag<TExpand> tag)
-{
-    typedef StringSet<TString, Dependent<Generous> > TStringSet;
-    typedef typename Size<TStringSet>::Type TSize;
-    typedef typename StringSetLimits<TStringSet>::Type TLimits;
-    typedef typename Value<TLimits>::Type TLimitValue;
-
-    insertValue(me.strings, pos, const_cast<TString*>(&obj), tag);
-
-    insertValue(me.limits, pos, me.limits[pos] + length(obj), tag);
-    TLimitValue delta = (TLimitValue)length(obj);
-    TSize size = length(me);
-    while (pos+1 <size)
-        me.limits[++pos] += delta;
-
-    me.limitsValid = false; // needed here ?
 }
 
 // --------------------------------------------------------------------------
@@ -193,6 +145,7 @@ inline void insertValue(
 template <typename TString >
 inline void clear(StringSet<TString, Dependent<Generous> > & me)
 {
+    SEQAN_CHECKPOINT;
     clear(me.strings);
     resize(me.limits, 1, Exact());
     me.limitsValid = true;
@@ -209,13 +162,6 @@ length(StringSet<TString, Dependent<Generous> > & me)
     return length(me.limits) - 1;
 }
 
-template <typename TString>
-inline typename Size<StringSet<TString, Dependent<Generous> > >::Type
-length(StringSet<TString, Dependent<Generous> > const & me)
-{
-    return length(me.limits) - 1;
-}
-
 // --------------------------------------------------------------------------
 // Function value()
 // --------------------------------------------------------------------------
@@ -224,6 +170,7 @@ template <typename TString, typename TPos >
 inline typename Reference<StringSet<TString, Dependent<Generous> > >::Type
 value(StringSet<TString, Dependent<Generous> >& me, TPos pos)
 {
+    SEQAN_CHECKPOINT;
     unsigned i = _findIthNonZeroValue(me.strings, pos);
     if (i <length(me.strings))
         return *me.strings[i];
@@ -235,6 +182,7 @@ template <typename TString, typename TPos >
 inline typename Reference<StringSet<TString, Dependent<Generous> > const >::Type
 value(StringSet<TString, Dependent<Generous> > const & me, TPos pos)
 {
+    SEQAN_CHECKPOINT;
     unsigned i = _findIthNonZeroValue(me.strings, pos);
     if (i < length(me.strings))
         return *me.strings[i];
@@ -251,6 +199,7 @@ inline typename Reference<StringSet<TString, Dependent<Generous> > >::Type
 getValueById(StringSet<TString, Dependent<Generous> >& me,
             TId const id)
 {
+    SEQAN_CHECKPOINT;
     if (me.strings[id])
         return *me.strings[id];
     static TString tmp = "";
@@ -267,6 +216,7 @@ assignValueById(StringSet<TString, Dependent<Generous> >& me,
                 TString& obj,
                 TId id)
 {
+    SEQAN_CHECKPOINT;
     SEQAN_ASSERT_EQ(length(stringSetLimits(me)), length(me) + 1);
     if (id >= (TId) length(me.strings)) resize(me.strings, id+1, (TString*) 0);
     if ((TString*) me.strings[id] == (TString*) 0)
@@ -285,6 +235,7 @@ template<typename TString, typename TId>
 inline void
 removeValueById(StringSet<TString, Dependent<Generous> >& me, TId const id)
 {
+    SEQAN_CHECKPOINT;
     if (me.strings[id] != (TString*) 0)
     {
         resize(me.limits, length(me.limits) - 1, Generous());
@@ -304,6 +255,7 @@ inline typename Id<StringSet<TString, Dependent<Generous> > >::Type
 positionToId(StringSet<TString, Dependent<Generous> >& me,
         TPos const pos)
 {
+    SEQAN_CHECKPOINT;
     return _findIthNonZeroValue(me.strings,pos);
 }
 
@@ -312,6 +264,7 @@ inline typename Id<StringSet<TString, Dependent<Generous> > >::Type
 positionToId(StringSet<TString, Dependent<Generous> > const& me,
             TPos const pos)
 {
+    SEQAN_CHECKPOINT;
     return _findIthNonZeroValue(me.strings,pos);
 }
 
@@ -324,6 +277,7 @@ inline typename Id<StringSet<TString, Dependent<Generous> > >::Type
 idToPosition(StringSet<TString, Dependent<Generous> > const& me,
             TId const id)
 {
+    SEQAN_CHECKPOINT;
     return _countNonZeroValues(me.strings,id);
 }
 

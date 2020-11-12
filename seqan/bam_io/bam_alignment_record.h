@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,8 @@
 
 #ifndef INCLUDE_SEQAN_BAM_IO_BAM_RECORD_H_
 #define INCLUDE_SEQAN_BAM_IO_BAM_RECORD_H_
+
+#include <seqan/bam_io/cigar.h>
 
 namespace seqan {
 
@@ -163,13 +165,13 @@ typedef TagList<int,
  */
 
 /*!
- * @var uint32_t BamAlignmentRecord::INVALID_POS
+ * @var __uint32 BamAlignmentRecord::INVALID_POS
  * @brief Static member with invalid sentinel/position value (-1).
  *
- * @var uint32_t BamAlignmentRecord::INVALID_REFID
+ * @var __uint32 BamAlignmentRecord::INVALID_REFID
  * @brief Static member with invalid sentinel/position value (-1).
  *
- * @var uint32_t BamAlignmentRecord::INVALID_LEN
+ * @var __uint32 BamAlignmentRecord::INVALID_LEN
  * @brief Static member with invalid/sentinel reference ids (0 as in BAM/SAM).
  *
  * @var CharString BamAlignmentRecord::qName;
@@ -178,37 +180,37 @@ typedef TagList<int,
  * Note that the reads of a template all of the same query name and are differentiated by their position
  * and the <tt>BAM_FLAG_FIRST</tt>/<tt>BAM_FLAG_LAST</tt> flag values.
  *
- * @var uint16_t BamAlignmentRecord::flag;
+ * @var __uint16 BamAlignmentRecord::flag;
  * @brief The flag of this mapping.
  *
  * See @link BamFlags @endlink for flag constants and also see the <tt>hasFlag*()</tt> functions.
  *
- * @var int32_t BamAlignmentRecord::rID
+ * @var __int32 BamAlignmentRecord::rID
  * @brief ID of reference for this fragment mapping (0-based, <tt>INVALID_REFID</tt> for '*' in SAM).
  *
- * @var int32_t BamAlignmentRecord::beginPos
+ * @var __int32 BamAlignmentRecord::beginPos
  * @brief Begin position of the alignment (0-based, <tt>INVALID_POS</tt> for '0' in SAM).
  *
- * @var uint8_t BamAlignmentRecord::mapQ;
+ * @var __uint8 BamAlignmentRecord::mapQ;
  * @brief Mapping quality (255 for '*').
  *
- * @var uint16_t BamAlignmentRecord::bin;
+ * @var __uint16 BamAlignmentRecord::bin;
  * @brief The bin of the alignment, automatically computed when writing BAM.
  *
  * @var TCigarString BamAlignmentRecord::cigar;
  * @brief The CIGAR string for the BAM alignment (of type String<CigarElement<> >).
  *
- * @var int32_t BamAlignmentRecord::rNextId;
+ * @var __int32 BamAlignmentRecord::rNextId;
  * @brief The ID of the reference where the next fragment in this template aligns.
  *
  * <tt>INVALID_REFID</tt> for '*'.
  *
- * @var int32_t BamAlignmentRecord::pNext;
+ * @var __int32 BamAlignmentRecord::pNext;
  * @brief Position on the reference where the next fragment in this template aligns.
  *
  * <tt>INVALID_POS</tt> for '*'.
  *
- * @var int32_t BamAlignmentRecord::tLen;
+ * @var __int32 BamAlignmentRecord::tLen;
  * @brief The inferred template size.
  *
  * <tt>INVALID_LEN</tt> for '*'.
@@ -225,23 +227,23 @@ typedef TagList<int,
 
 struct BamAlignmentRecordCore
 {
-            int32_t rID;
-            int32_t beginPos;
-    mutable uint32_t _l_qname:8;
-            uint32_t mapQ:8;
-    mutable uint32_t bin:16;
-    mutable uint32_t _n_cigar:16;
-            uint32_t flag:16;
-    mutable int32_t _l_qseq;  // _l_qname, _n_cigar and _l_qseq for internal usage
-            int32_t rNextId;
-            int32_t pNext;
-            int32_t tLen;
+            __int32 rID;
+            __int32 beginPos;
+    mutable __uint32 _l_qname:8;
+            __uint32 mapQ:8;
+    mutable __uint32 bin:16;
+    mutable __uint32 _n_cigar:16;
+            __uint32 flag:16;
+    mutable __int32 _l_qseq;  // _l_qname, _n_cigar and _l_qseq for internal usage
+            __int32 rNextId;
+            __int32 pNext;
+            __int32 tLen;
 };
 
 class BamAlignmentRecord : public BamAlignmentRecordCore
 {
 public:
-    uint32_t _qID;  // TODO(holtgrew): Undocumented as of yet.
+    __uint32 _qID;  // TODO(holtgrew): Undocumented as of yet.
     String<CigarElement<> > cigar;
     CharString qName;
     IupacString seq;
@@ -249,10 +251,10 @@ public:
     CharString tags;  // raw tags in BAM format
     CharString _buffer; // reusable internal buffer (used for I/O)
 
-    static int32_t const INVALID_POS = -1;
-    static int32_t const INVALID_REFID = -1;  // TODO(holtgrew): Rename to ...REF_ID.
-    static int32_t const INVALID_LEN = 0;
-    static uint32_t const INVALID_QID = 4294967295u;  // TODO(holtgrew): Undocumented as of yet.
+    static __int32 const INVALID_POS = -1;
+    static __int32 const INVALID_REFID = -1;  // TODO(holtgrew): Rename to ...REF_ID.
+    static __int32 const INVALID_LEN = 0;
+    static __uint32 const INVALID_QID = 4294967295u;  // TODO(holtgrew): Undocumented as of yet.
 
     BamAlignmentRecord() : _qID(MaxValue<unsigned>::VALUE) { clear(*this); }
 };
@@ -281,7 +283,7 @@ clear(BamAlignmentRecord & record)
 {
     clear(record.qName);
     record.flag = 0;
-    record._qID = MaxValue<uint32_t>::VALUE;
+    record._qID = MaxValue<__uint32>::VALUE;
     record.rID = BamAlignmentRecord::INVALID_REFID;
     record.beginPos = BamAlignmentRecord::INVALID_POS;
     record.mapQ = 255;
@@ -319,6 +321,12 @@ hasFlagMultiple(BamAlignmentRecord const & record)
     return (record.flag & BAM_FLAG_MULTIPLE) == BAM_FLAG_MULTIPLE;
 }
 
+inline void
+toggleFlagMultiple(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_MULTIPLE;
+}
+
 // ----------------------------------------------------------------------------
 // Function hasFlagAllProper()
 // ----------------------------------------------------------------------------
@@ -341,6 +349,12 @@ inline bool
 hasFlagAllProper(BamAlignmentRecord const & record)
 {
     return (record.flag & BAM_FLAG_ALL_PROPER) == BAM_FLAG_ALL_PROPER;
+}
+
+inline void
+toggleFlagAllProper(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_ALL_PROPER;
 }
 
 // ----------------------------------------------------------------------------
@@ -367,6 +381,13 @@ hasFlagUnmapped(BamAlignmentRecord const & record)
     return (record.flag & BAM_FLAG_UNMAPPED) == BAM_FLAG_UNMAPPED;
 }
 
+inline void
+toggleFlagUnmapped(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_UNMAPPED;
+}
+
+
 // ----------------------------------------------------------------------------
 // Function hasFlagNextUnmapped()
 // ----------------------------------------------------------------------------
@@ -389,6 +410,12 @@ inline bool
 hasFlagNextUnmapped(BamAlignmentRecord const & record)
 {
     return (record.flag & BAM_FLAG_NEXT_UNMAPPED) == BAM_FLAG_NEXT_UNMAPPED;
+}
+
+inline void
+toggleFlagNextUnmapped(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_NEXT_UNMAPPED;
 }
 
 // ----------------------------------------------------------------------------
@@ -415,6 +442,12 @@ hasFlagRC(BamAlignmentRecord const & record)
     return (record.flag & BAM_FLAG_RC) == BAM_FLAG_RC;
 }
 
+inline void
+toggleFlagRC(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_RC;
+}
+
 // ----------------------------------------------------------------------------
 // Function hasFlagNextRC()
 // ----------------------------------------------------------------------------
@@ -437,6 +470,12 @@ inline bool
 hasFlagNextRC(BamAlignmentRecord const & record)
 {
     return (record.flag & BAM_FLAG_NEXT_RC) == BAM_FLAG_NEXT_RC;
+}
+
+inline void
+toggleFlagNextRC(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_NEXT_RC;
 }
 
 // ----------------------------------------------------------------------------
@@ -463,6 +502,12 @@ hasFlagFirst(BamAlignmentRecord const & record)
     return (record.flag & BAM_FLAG_FIRST) == BAM_FLAG_FIRST;
 }
 
+inline void
+toggleFlagFirst(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_FIRST;
+}
+
 // ----------------------------------------------------------------------------
 // Function hasFlagLast()
 // ----------------------------------------------------------------------------
@@ -485,6 +530,12 @@ inline bool
 hasFlagLast(BamAlignmentRecord const & record)
 {
     return (record.flag & BAM_FLAG_LAST) == BAM_FLAG_LAST;
+}
+
+inline void
+toggleFlagLast(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_LAST;
 }
 
 // ----------------------------------------------------------------------------
@@ -511,6 +562,12 @@ hasFlagSecondary(BamAlignmentRecord const & record)
     return (record.flag & BAM_FLAG_SECONDARY) == BAM_FLAG_SECONDARY;
 }
 
+inline void
+toggleFlagSecondary(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_SECONDARY;
+}
+
 // ----------------------------------------------------------------------------
 // Function hasFlagQCNoPass()
 // ----------------------------------------------------------------------------
@@ -533,6 +590,12 @@ inline bool
 hasFlagQCNoPass(BamAlignmentRecord const & record)
 {
     return (record.flag & BAM_FLAG_QC_NO_PASS) == BAM_FLAG_QC_NO_PASS;
+}
+
+inline void
+toggleFlagQCNoPass(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_QC_NO_PASS;
 }
 
 // ----------------------------------------------------------------------------
@@ -559,6 +622,13 @@ hasFlagDuplicate(BamAlignmentRecord const & record)
     return (record.flag & BAM_FLAG_DUPLICATE) == BAM_FLAG_DUPLICATE;
 }
 
+inline void
+toggleFlagDuplicate(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_DUPLICATE;
+}
+
+
 // ----------------------------------------------------------------------------
 // Function hasFlagSupplementary()
 // ----------------------------------------------------------------------------
@@ -579,6 +649,12 @@ inline bool
 hasFlagSupplementary(BamAlignmentRecord const & record)
 {
     return (record.flag & BAM_FLAG_SUPPLEMENTARY) == BAM_FLAG_SUPPLEMENTARY;
+}
+
+inline void
+toggleFlagSupplementary(BamAlignmentRecord & record)
+{
+    record.flag ^= BAM_FLAG_SUPPLEMENTARY;
 }
 
 // ----------------------------------------------------------------------------

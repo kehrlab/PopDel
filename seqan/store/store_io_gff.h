@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_STORE_IO_GFF_H
 #define SEQAN_HEADER_STORE_IO_GFF_H
 
-namespace seqan {
+namespace SEQAN_NAMESPACE_MAIN {
 
 //////////////////////////////////////////////////////////////////////////////
 // Read Gff
@@ -146,16 +146,14 @@ _readOneAnnotation(
         if (ctx._key == "Parent" || ctx._key == "ParentID")
         {
             ctx.parentKey = ctx._key;
-            auto it = begin(ctx._value);
-            readUntil(ctx.parentName, it, EqualsChar<','>());
+            ctx.parentName = ctx._value;
         }
         else if (ctx._key == "transcript_id")
         {
             if (isEqual(format, Gtf()))
             {
                 ctx.parentKey = ctx._key;
-                auto it = begin(ctx._value);
-                readUntil(ctx.parentName, it, EqualsChar<','>());
+                ctx.parentName = ctx._value;
             }
             else
             {
@@ -591,6 +589,6 @@ writeRecords(FormattedFile<Gff, Output, TSpec> & gffFile,
     _writeGffGtf(gffFile, store, format(gffFile));
 }
 
-} // namespace seqan
+} // namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

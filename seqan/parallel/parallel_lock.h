@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -37,12 +37,14 @@
 #ifndef SEQAN_PARALLEL_PARALLEL_LOCK_H_
 #define SEQAN_PARALLEL_PARALLEL_LOCK_H_
 
-#if defined(__SSE2__)
+#if defined(__SSE2__) && !defined(__CUDACC__)
 #include <xmmintrin.h>  // _mm_pause()
 #endif
 
-#ifdef STDLIB_VS
+#ifdef PLATFORM_WINDOWS
 #include <Windows.h>
+#else
+#include <sched.h>
 #endif
 
 namespace seqan {
@@ -51,6 +53,7 @@ namespace seqan {
 // Forwards
 // ============================================================================
 
+struct Mutex;
 inline void yieldProcessor();
 
 // ============================================================================
@@ -85,7 +88,13 @@ waitFor(SpinDelay & me)
     }
     else
     {
-        std::this_thread::yield();
+#ifdef PLATFORM_WINDOWS
+#if _WIN32_WINNT >= 0x0400
+        SwitchToThread();
+#endif
+#else
+        sched_yield();
+#endif
     }
 }
 
@@ -112,12 +121,17 @@ inline void
 spinCas(TAtomic & x, TValue cmp, TValue y)
 {
     SpinDelay spinDelay;
+#ifdef SEQAN_CXX11_STL
     TValue exp = cmp;
     while (!x.compare_exchange_weak(exp, y))
     {
         exp = cmp;
         waitFor(spinDelay);
     }
+#else
+    while (!atomicCasBool(x, cmp, y))
+        waitFor(spinDelay);
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -137,6 +151,37 @@ public:
     ReadWriteLock() :
         readers(0),
         writers(0)
+    {}
+};
+
+// ----------------------------------------------------------------------------
+// Class ScopedLock
+// ----------------------------------------------------------------------------
+
+template <typename TMutex = Mutex, typename TParallel = Parallel>
+struct ScopedLock
+{
+    TMutex & mutex;
+
+    explicit
+    ScopedLock(TMutex & mutex) :
+        mutex(mutex)
+    {
+        lock(mutex);
+    }
+
+    ~ScopedLock()
+    {
+        unlock(mutex);
+    }
+
+};
+
+template <typename TLock>
+struct ScopedLock<TLock, Serial>
+{
+    explicit
+    ScopedLock(TLock &)
     {}
 };
 
@@ -213,26 +258,14 @@ struct ScopedWriteLock<TLock, Serial>
 inline void
 yieldProcessor()
 {
-#if defined(STDLIB_VS)  // Visual Studio - all platforms.
+#if defined( __CUDACC__)
+    // don't wait on the GPU
+#elif defined(PLATFORM_WINDOWS_VS)
     YieldProcessor();
-#elif defined(__arm__) || defined(__aarch64__)  // ARM.
-    __asm__ __volatile__ ("yield" ::: "memory");
-#elif defined(__sparc) // SPARC
-#if defined(__SUNPRO_C)
-    __asm __volatile__ ("rd %%ccr, %%g0\n\t"
-                        "rd %%ccr, %%g0\n\t"
-                        "rd %%ccr, %%g0");
-#else
-    __asm __volatile__ ("rd %ccr, %g0\n\t"
-                        "rd %ccr, %g0\n\t"
-                        "rd %ccr, %g0");
-#endif  // defined(__SUNPRO_C)
-#elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__) // PowerPC
-    __asm__ __volatile__ ("or 27,27,27" ::: "memory");
-#elif defined(__SSE2__)  // AMD and Intel
+#elif defined(__SSE2__)
     _mm_pause();
-#else  // everything else.
-    asm volatile ("nop" ::: "memory");  // default operation - does nothing => Might lead to passive spinning.
+#else
+    __asm__ __volatile__("rep; nop" : : );
 #endif
 }
 

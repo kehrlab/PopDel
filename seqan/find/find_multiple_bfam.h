@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_FIND_MULTIPLE_BFAM_H
 #define SEQAN_HEADER_FIND_MULTIPLE_BFAM_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -110,6 +110,7 @@ public:
     {
     }
 
+#if defined(SEQAN_CXX11_STANDARD)
     template <typename TNeedle2>
     Pattern(TNeedle2 && ndl,
             SEQAN_CTOR_DISABLE_IF(IsSameType<typename std::remove_reference<TNeedle2>::type const &, Pattern const &>))
@@ -117,6 +118,14 @@ public:
         setHost(*this, std::forward<TNeedle2>(ndl));
         ignoreUnusedVariableWarning(dummy);
     }
+#else
+    template <typename TNeedle2>
+    Pattern(TNeedle2 const & ndl)
+    {
+        SEQAN_CHECKPOINT
+        setHost(*this, ndl);
+    }
+# endif  // SEQAN_CXX11_STANDARD
 
     ~Pattern()
     {}
@@ -125,8 +134,10 @@ public:
 private:
     Pattern(Pattern const& other);
     Pattern const & operator=(Pattern const & other);
+#if defined(SEQAN_CXX11_STANDARD)
     Pattern(Pattern && other);
     Pattern & operator=(Pattern && other);
+#endif  // SEQAN_CXX11_STANDARD
 //____________________________________________________________________________
 };
 
@@ -209,6 +220,7 @@ position(Pattern<TNeedle, MultiBfam<TAutomaton> > & me)
 template <typename TNeedle, typename TAutomaton>
 inline void _patternInit (Pattern<TNeedle, MultiBfam<TAutomaton> > & me)
 {
+SEQAN_CHECKPOINT
     me.position = 0;
     me.position_end = 0;
 }
@@ -256,6 +268,7 @@ template <typename TFinder, typename TAutomaton, typename TNeedle>
 inline bool find(TFinder & finder,
                  Pattern<TNeedle, MultiBfam<TAutomaton> > & me)
 {
+SEQAN_CHECKPOINT
     typedef typename Haystack<TFinder>::Type THaystack;
     typedef typename Iterator<THaystack, Standard>::Type THaystackIterator;
     typedef typename Value<TNeedle>::Type TKeyword;
@@ -360,6 +373,6 @@ VERIFY_NEXT:
 
 //////////////////////////////////////////////////////////////////////////////
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

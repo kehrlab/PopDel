@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_INDEX_QGRAM_H
 #define SEQAN_HEADER_INDEX_QGRAM_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 
@@ -225,6 +225,14 @@ struct Fibre< Index<TText, IndexQGram<TShapeSpec, TSpec> >, FibreBucketMap>
     typedef Nothing Type;
 };
 
+#ifdef PLATFORM_WINDOWS_VS
+#pragma warning( push )
+// Disable warning C4521 locally (multiple copy constructors).
+#pragma warning( disable: 4521 )
+// Disable warning C4522 locally (multiple assignment operators).
+#pragma warning( disable: 4522 )
+#endif  // PLATFORM_WINDOWS_VS
+
 template < typename TText_, typename TShapeSpec, typename TSpec >
 class Index<TText_, IndexQGram<TShapeSpec, TSpec> > {
 public:
@@ -248,19 +256,6 @@ public:
     TCargo            cargo;        // user-defined cargo
     TBucketMap        bucketMap;    // bucketMap table (used by open-addressing index)
     TSize            stepSize;    // store every <stepSize>'th q-gram in the index
-
-    /*!
-     * @fn IndexQGram::Index
-     * @brief Constructor
-     *
-     * @signature Index::Index();
-     * @signature Index::Index(index);
-     * @signature Index::Index(text[, shape]);
-     *
-     * @param[in] index Other Index object to copy from.
-     * @param[in] text  The text to be indexed.
-     * @param[in] shape The q gram @link Shape @endlink to be applied. (optional)
-     */
 
     Index():
     stepSize(1) {}
@@ -307,6 +302,11 @@ public:
     shape(_shape),
     stepSize(1) {}
 };
+
+#ifdef PLATFORM_WINDOWS_VS
+// Reset warning state to previous values for C4521, C4522.
+#pragma warning( pop )
+#endif  // PLATFORM_WINDOWS_VS
 
 template <typename TText, typename TShapeSpec, typename TSpec>
 SEQAN_CONCEPT_IMPL((Index<TText, IndexQGram<TShapeSpec, TSpec> >), (StringTrieConcept));
@@ -630,28 +630,28 @@ setStepSize(Index<TText, IndexQGram<TShapeSpec, TSpec> > &index, TSize stepSize)
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename TValue, typename TSpec>
-inline int64_t _fullDirLength(Shape<TValue, TSpec> const &shape)
+inline __int64 _fullDirLength(Shape<TValue, TSpec> const &shape)
 {
-    return _intPow((int64_t)ValueSize<TValue>::VALUE, weight(shape)) + 1;
+    return _intPow((__int64)ValueSize<TValue>::VALUE, weight(shape)) + 1;
 }
 
 template <typename TValue, typename TSpec>
-inline int64_t _fullDir2Length(Shape<TValue, TSpec> const &shape)
+inline __int64 _fullDir2Length(Shape<TValue, TSpec> const &shape)
 {
     return (_intPow(
-                    (int64_t)ValueSize<TValue>::VALUE,
+                    (__int64)ValueSize<TValue>::VALUE,
                     weight(shape) + 1) - 1)
     / ((unsigned)ValueSize<TValue>::VALUE - 1) + 1;
 }
 
 template <typename TIndex>
-inline int64_t _fullDirLength(TIndex const &index)
+inline __int64 _fullDirLength(TIndex const &index)
 {
     return _fullDirLength(indexShape(index));
 }
 
 template <typename TIndex>
-inline int64_t _fullDir2Length(TIndex const &index)
+inline __int64 _fullDir2Length(TIndex const &index)
 {
     return _fullDir2Length(indexShape(index));
 }
@@ -1021,6 +1021,7 @@ template < typename TDir, typename TBucketMap, typename TText, typename TShape, 
 inline void
 _qgramCountQGrams(TDir &dir, TBucketMap &bucketMap, TText const &text, TShape shape, TStepSize stepSize)
 {
+    SEQAN_CHECKPOINT
     typedef typename Iterator<TText const, Standard>::Type    TIterator;
     typedef typename Value<TDir>::Type                        TSize;
 
@@ -1047,6 +1048,7 @@ template < typename TDir, typename TBucketMap, typename TString, typename TSpec,
 inline void
 _qgramCountQGrams(TDir &dir, TBucketMap &bucketMap, StringSet<TString, TSpec> const &stringSet, TShape shape, TStepSize stepSize)
 {
+    SEQAN_CHECKPOINT
     typedef typename Iterator<TString const, Standard>::Type    TIterator;
     typedef typename Value<TDir>::Type                            TSize;
 
@@ -1101,6 +1103,7 @@ template < typename TDir, typename TWithConstraints >
 inline typename Value<TDir>::Type
 _qgramCummulativeSum(TDir &dir, TWithConstraints)
 {
+    SEQAN_CHECKPOINT
     typedef typename Iterator<TDir, Standard>::Type TDirIterator;
     typedef typename Value<TDir>::Type              TSize;
 
@@ -1132,6 +1135,7 @@ template < typename TDir, typename TWithConstraints >
 inline typename Value<TDir>::Type
 _qgramCummulativeSumAlt(TDir &dir, TWithConstraints const)
 {
+    SEQAN_CHECKPOINT
     typedef typename Iterator<TDir, Standard>::Type TDirIterator;
     typedef typename Value<TDir>::Type              TSize;
 
@@ -1176,6 +1180,7 @@ _qgramFillSuffixArray(
                       TStepSize stepSize,
                       TWithConstraints const)
 {
+    SEQAN_CHECKPOINT
     typedef typename Iterator<TText const, Standard>::Type    TIterator;
     typedef typename Value<TDir>::Type                        TSize;
 
@@ -1232,6 +1237,7 @@ _qgramFillSuffixArray(
                       TStepSize stepSize,
                       TWithConstraints const)
 {
+    SEQAN_CHECKPOINT
     typedef typename Iterator<TString const, Standard>::Type    TIterator;
     typedef typename Value<TDir>::Type                            TSize;
 
@@ -1297,6 +1303,7 @@ template < typename TDir >
 inline void
 _qgramPostprocessBuckets(TDir &dir)
 {
+    SEQAN_CHECKPOINT
     typedef typename Iterator<TDir, Standard>::Type            TDirIterator;
     typedef typename Value<TDir>::Type                        TSize;
 
@@ -1359,6 +1366,7 @@ _qgramRefineSuffixArray(TSA & sa, TText const & text, Shape<TValue, MinimizerSha
 template < typename TIndex >
 void createQGramIndex(TIndex &index)
 {
+    SEQAN_CHECKPOINT
     typename Fibre<TIndex, QGramText>::Type const &text      = indexText(index);
     typename Fibre<TIndex, QGramSA>::Type         &sa        = indexSA(index);
     typename Fibre<TIndex, QGramDir>::Type        &dir       = indexDir(index);
@@ -1412,6 +1420,7 @@ void createQGramIndex(
                       TShape &shape,
                       TStepSize stepSize)
 {
+    SEQAN_CHECKPOINT
 
     // 1. clear counters
     _qgramClearDir(dir, bucketMap);
@@ -1420,8 +1429,8 @@ void createQGramIndex(
     _qgramCountQGrams(dir, bucketMap, text, shape, stepSize);
 
     // 3. cumulative sum
-    int64_t res = _qgramCummulativeSum(dir, False());
-    SEQAN_ASSERT_EQ(res, static_cast<int64_t>(length(sa)));
+    __int64 res = _qgramCummulativeSum(dir, False());
+    SEQAN_ASSERT_EQ(res, static_cast<__int64>(length(sa)));
     ignoreUnusedVariableWarning(res);
 
     // 4. fill suffix array
@@ -1475,6 +1484,7 @@ void createQGramIndexSAOnly(
                             TShape &shape,
                             TStepSize stepSize)
 {
+    SEQAN_CHECKPOINT
     typedef typename Size<TSA>::Type TSize;
     typedef typename Iterator<TSA, Standard>::Type TIter;
 
@@ -1511,6 +1521,7 @@ void createQGramIndexSAOnly(
                             TShape &shape,
                             TStepSize stepSize)
 {
+    SEQAN_CHECKPOINT
     typedef typename Iterator<TSA, Standard>::Type    TIter;
     typedef typename Value<TSA>::Type                TValue;
     typedef typename Size<TString>::Type            TSize;
@@ -1559,6 +1570,7 @@ _refineQGramIndexBucket(
                         TSize1 oldQ,
                         TSize2 newQ)
 {
+    SEQAN_CHECKPOINT
     if (length(sa) <= 1)
         return;
 
@@ -1650,6 +1662,7 @@ void createQGramIndexDirOnly(
                              TShape &shape,
                              TStepSize stepSize)
 {
+    SEQAN_CHECKPOINT
 
     // 1. clear counters
     _qgramClearDir(dir, bucketMap);
@@ -1846,6 +1859,7 @@ typename TShapeSpec,
 typename TSpec >
 void createQGramIndexExt(Index<TText_, IndexQGram<TShapeSpec, TSpec> > &index)
 {
+    SEQAN_CHECKPOINT
     typedef Index<TText_, IndexQGram<TShapeSpec, TSpec> >       TIndex;
     typedef typename Fibre<TIndex, QGramText>::Type             TText;
     typedef typename Fibre<TIndex, QGramSA>::Type               TSA;
@@ -1946,6 +1960,7 @@ typename TShapeSpec,
 typename TSpec >
 void createQGramIndexExt(Index<StringSet<TString, TSSSpec>, IndexQGram<TShapeSpec, TSpec> > &index)
 {
+    SEQAN_CHECKPOINT
     typedef StringSet<TString, TSSSpec>                         TText_;
     typedef Index<TText_, IndexQGram<TShapeSpec, TSpec> >       TIndex;
     typedef typename Fibre<TIndex, QGramText>::Type             TText;
@@ -2119,6 +2134,7 @@ void createQGramIndexExt(Index<StringSet<TString, TSSSpec>, IndexQGram<TShapeSpe
 template < typename TIndex >
 void createQGramIndexExtSA(TIndex &index)
 {
+    SEQAN_CHECKPOINT
     typedef typename Fibre<TIndex, QGramText>::Type             TText;
     typedef typename Fibre<TIndex, QGramSA>::Type               TSA;
     typedef typename Fibre<TIndex, QGramDir>::Type              TDir;

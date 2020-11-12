@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -181,14 +181,8 @@ public:
     // Array Subscript Operator
     // -----------------------------------------------------------------------
 
-    inline typename Reference<Gaps>::Type
-    operator[](TPosition_ const clippedViewPos)
-    {
-        return value(*this, clippedViewPos);
-    }
-
-    inline typename Reference<Gaps const>::Type
-    operator[](TPosition_ const clippedViewPos) const
+    inline TValue_
+    operator[](TPosition_ clippedViewPos) const
     {
         return value(*this, clippedViewPos);
     }
@@ -213,8 +207,6 @@ void swap(Gaps<TSequence, ArrayGaps> & lhs, Gaps<TSequence, ArrayGaps> & rhs)
 // ============================================================================
 // Metafunctions
 // ============================================================================
-
-
 
 // ============================================================================
 // Functions
@@ -434,49 +426,7 @@ assignSource(Gaps<TSequence, ArrayGaps> & gaps, TSequence2 const & source)
 
 template <typename TSequence, typename TPosition>
 inline typename Position<TSequence>::Type
-toSourcePosition(Gaps<TSequence, ArrayGaps> const & gaps, TPosition const clippedViewPos, LeftOfViewPos const & /*tag*/)
-{
-    typedef Gaps<TSequence, ArrayGaps>         TGaps;
-    typedef typename Position<TGaps>::Type     TGapsPos;
-    typedef typename TGaps::TArrayPos_         TArrayPos;
-    typedef typename Position<TSequence>::Type TSourcePos;
-
-    // Translate from clipped view position to unclipped view position.
-    TGapsPos unclippedViewPos = clippedViewPos + clippedBeginPosition(gaps);
-
-    // Get index i of the according bucket and offset within bucket.
-    TSourcePos result = 0;
-    TArrayPos i = 1;
-    TSourcePos const iEnd = length(gaps._array);
-
-    if (unclippedViewPos < static_cast<TGapsPos>(gaps._array[0]))
-        return 0;
-
-    TSourcePos counter = unclippedViewPos - gaps._array[0];
-    for (; counter > TGapsPos(0) && i < iEnd; ++i)
-    {
-        if (counter < gaps._array[i])
-            break;
-
-        if (i % 2)  // character bucket
-            result += gaps._array[i];
-        counter -= gaps._array[i];
-    }
-    if (i % 2)  // character bucket.
-    {
-        if (i == length(gaps._array))  // We pointing behind the last bucket.
-            return --result;
-        result += counter;  // If maps into char bucket.
-        if (counter == gaps._array[i])
-            --result;
-        return result;
-    }
-    return --result;
-}
-
-template <typename TSequence, typename TPosition>
-inline typename Position<TSequence>::Type
-toSourcePosition(Gaps<TSequence, ArrayGaps> const & gaps, TPosition const clippedViewPos, RightOfViewPos const & /*tag*/)
+toSourcePosition(Gaps<TSequence, ArrayGaps> const & gaps, TPosition clippedViewPos)
 {
     typedef Gaps<TSequence, ArrayGaps>         TGaps;
     typedef typename Position<TGaps>::Type     TGapsPos;
@@ -490,7 +440,6 @@ toSourcePosition(Gaps<TSequence, ArrayGaps> const & gaps, TPosition const clippe
     TSourcePos result = 0;
     TArrayPos i = 0;
     TSourcePos const iEnd = length(gaps._array);
-
     for (TSourcePos counter = unclippedViewPos; counter > TGapsPos(0) && i < iEnd;)
     {
         if (counter > gaps._array[i])
@@ -503,7 +452,9 @@ toSourcePosition(Gaps<TSequence, ArrayGaps> const & gaps, TPosition const clippe
         else if (counter <= gaps._array[i])
         {
             if (i % 2)  // character bucket
+            {
                 result += counter;
+            }
             counter = 0;
         }
     }
@@ -636,6 +587,21 @@ insertGaps(Gaps<TSequence, ArrayGaps> & gaps, TPosition clippedViewPos, TCount c
 
     // Adjust clipping information.
     gaps._clippingEndPos += count;
+}
+
+// ----------------------------------------------------------------------------
+// Function value()
+// ----------------------------------------------------------------------------
+
+template <typename TSequence, typename TPosition>
+inline typename Value<Gaps<TSequence, ArrayGaps> >::Type
+value(Gaps<TSequence, ArrayGaps> const & gaps, TPosition clippedViewPos)
+{
+    if (isGap(gaps, clippedViewPos))
+        return '-';
+    else
+        return value(source(gaps), toSourcePosition(gaps, clippedViewPos));
+    return typename Value<Gaps<TSequence, ArrayGaps> >::Type();
 }
 
 // ----------------------------------------------------------------------------

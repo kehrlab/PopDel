@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,7 @@ template<typename TSequence,typename TValue,typename TSpec>
 typename Id<TSequence>::Type&
 sequenceId(Annotation<TSequence,TValue,TSpec> & me)
 {
+SEQAN_CHECKPOINT
     return me.data_seq_id;
 }
 
@@ -92,6 +93,7 @@ template<typename TSequence,typename TValue,typename TSpec>
 typename Position<TSequence>::Type&
 fragmentBegin(Annotation<TSequence,TValue,TSpec> & me)
 {
+SEQAN_CHECKPOINT
     return me.data_begin;
 }
 
@@ -99,6 +101,7 @@ template<typename TSequence,typename TValue,typename TSpec>
 typename Size<TSequence>::Type&
 fragmentLength(Annotation<TSequence,TValue,TSpec> & me)
 {
+SEQAN_CHECKPOINT
     return me.data_length;
 }
 
@@ -106,6 +109,7 @@ template<typename TSequence,typename TValue,typename TSpec>
 TValue
 label(Annotation<TSequence,TValue,TSpec> & me)
 {
+SEQAN_CHECKPOINT
     return me.data_label;
 }
 
@@ -130,6 +134,7 @@ _addAnnotationCuts(String<std::set<TValue> > &,
                    TValue,
                    Tag<TTagSpec>)
 {
+SEQAN_CHECKPOINT
     return;
 }
 
@@ -149,6 +154,7 @@ _addAnnotationCuts(String<std::set<TValue> > & all_nodes,
                    TValue min_fragment_len,
                    Tag<TTagSpec> tag)
 {
+SEQAN_CHECKPOINT
 
     //typedef typename Value<TAnnoString>::Type TAnnotation;
     typedef typename Iterator<TAnnoString,Standard>::Type TAnnoIter;
@@ -195,6 +201,7 @@ _addNodeAnnotation(TStringSet &,
                    TAliGraph & ali_g,
                    Tag<TTagSpec>)
 {
+SEQAN_CHECKPOINT
 
     resizeVertexMap(pm, ali_g);
 
@@ -249,6 +256,7 @@ _getRefinedAnnoScore(TAliGraph &,
              typename VertexDescriptor<TAliGraph>::Type vd2,
              TScore &)
 {
+SEQAN_CHECKPOINT
     typedef typename Value<TPropertyMap>::Type TProperty;
     //typedef typename Value<TProperty>::Type TChar;
     typedef typename Iterator<TProperty,Standard>::Type TIterator;
@@ -280,6 +288,7 @@ _getRefinedAnnoScore(TAliGraph &,
              typename VertexDescriptor<TAliGraph>::Type,
              TScore &)
 {
+SEQAN_CHECKPOINT
     return (typename Value<TScore>::Type) 1;
 }
 
@@ -295,6 +304,7 @@ matchRefinement(TAlignmentString & alis,
                 Score<TScoreValue,TScoreSpec> & score_type,
                 TOutGraph & ali_graph)
 {
+SEQAN_CHECKPOINT
     //min_fragment_len = 1   ==> Exact cutting
     matchRefinement(alis,seq,score_type,ali_graph,1,anno,ExactRefinement());
 }
@@ -310,6 +320,7 @@ matchRefinement(TAlignmentString & alis,
                 TOutGraph & ali_graph,
                 unsigned int min_frag_len)
 {
+SEQAN_CHECKPOINT
     if(min_frag_len > 1)
         matchRefinement(alis,seq,score_type,ali_graph,min_frag_len,anno,InexactRefinement());
     else
@@ -327,6 +338,7 @@ matchRefinement(TAlignmentString & alis,
                 TOutGraph & ali_graph,
                 unsigned int min_frag_len)
 {
+SEQAN_CHECKPOINT
 //    Score<int,FakeScore > fake_score;
     typename Cargo<TOutGraph>::Type fake_score = 1;
     if(min_frag_len > 1)
@@ -345,6 +357,7 @@ matchRefinement(TAlignmentString & alis,
                 StringSet<TSequence, TSetSpec> & seq,
                 TOutGraph & ali_graph)
 {
+SEQAN_CHECKPOINT
 //    Score<int,FakeScore > fake_score;
     typename Cargo<TOutGraph>::Type fake_score = 1;
     matchRefinement(alis,seq,fake_score,ali_graph,1,anno,ExactRefinement());

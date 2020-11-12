@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -255,6 +255,7 @@ _forwardAlgorithm(Graph<Hmm<TAlphabet, TProbability, TSpec> > const& hmm,
                    TSequence const& seq,
                    TForwardMatrix& fMat)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TProbability, TSpec> > TGraph;
     typedef typename Size<TGraph>::Type TSize;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
@@ -367,6 +368,7 @@ TProbability
 forwardAlgorithm(Graph<Hmm<TAlphabet, TProbability, TSpec> > const & hmm,
                  TSequence const & seq)
 {
+    SEQAN_CHECKPOINT
     String<TProbability> fMat;
     return _forwardAlgorithm(hmm, seq, fMat);
 }
@@ -381,6 +383,7 @@ _backwardAlgorithm(Graph<Hmm<TAlphabet, TProbability, TSpec> > const& hmm,
                     TSequence const& seq,
                     TBackwardMatrix& bMat)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TProbability, TSpec> > TGraph;
     typedef typename Size<TGraph>::Type TSize;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
@@ -532,6 +535,7 @@ TProbability
 backwardAlgorithm(Graph<Hmm<TAlphabet, TProbability, TSpec> > const & hmm,
                   TSequence const & seq)
 {
+    SEQAN_CHECKPOINT
     String<TProbability> bMat;
     return _backwardAlgorithm(hmm, seq, bMat);
 }
@@ -565,6 +569,7 @@ void generateSequence(TSequenceSet & sequences,
                       TSize numSeq,
                       TSize maxLength)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TProbability, TSpec> > TGraph;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
     typedef typename Iterator<TGraph, OutEdgeIterator>::Type TOutEdgeIterator;
@@ -573,8 +578,8 @@ void generateSequence(TSequenceSet & sequences,
 
     // TODO(holtgrew): It should be possible to use a per-call RNG.
     typedef typename GetDefaultRng<TGraph>::Type TRng;
-
-    std::uniform_real_distribution<double> pdf(0.0, 1.0);
+    typedef Pdf<Uniform<double> > TPdf;
+    TPdf pdf(0.0, 1.0);
     TRng & rng = defaultRng(TGraph());
 
     // Initialization
@@ -593,7 +598,7 @@ void generateSequence(TSequenceSet & sequences,
         bool stop = false;
         TSize pos = 0;
         while (pos < maxLength) {
-            TProbability prob = pdf(rng);
+            TProbability prob = pickRandomNumber(rng, pdf);
             TProbability compareProb = 0.0;
             TOutEdgeIterator itState(hmm, currentState);
             // Determine the next state
@@ -610,7 +615,7 @@ void generateSequence(TSequenceSet & sequences,
                     appendValue(stat, nextState);
                     if (!isSilent(hmm, nextState)) {
                         compareProb =0.0;
-                        prob = pdf(rng);
+                        prob = pickRandomNumber(rng, pdf);
                         for (TSize c=0;c<alphSize;++c){
                             compareProb += getEmissionProbability(hmm,targetVertex(hmm, value(itState)), TAlphabet(c));
                             if (prob <= compareProb) {
@@ -639,6 +644,7 @@ generateSequence(Graph<Hmm<TAlphabet, TProbability, TSpec> > const& hmm,
                  TSize numSeq,
                  TSize maxLength)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TProbability, TSpec> > TGraph;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
     StringSet<String<TVertexDescriptor> > states;
@@ -747,6 +753,7 @@ template<typename TAlphabet, typename TProbability, typename TSpec>
 inline void
 _fillHmmUniform(Graph<Hmm<TAlphabet, TProbability, TSpec> >& hmm)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TProbability, TSpec> > TGraph;
     typedef typename Size<TGraph>::Type TSize;
     typedef typename Iterator<TGraph, VertexIterator>::Type TVertexIterator;
@@ -774,13 +781,14 @@ inline void
 _fillHmmRandom(Graph<Hmm<TAlphabet, TProbability, TSpec> >& hmm,
                 TRNG & rng)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TProbability, TSpec> > TGraph;
     typedef typename Size<TGraph>::Type TSize;
     typedef typename Iterator<TGraph, VertexIterator>::Type TVertexIterator;
     typedef typename Iterator<TGraph, OutEdgeIterator>::Type TOutEdgeIterator;
 
     // Initialization
-    std::uniform_int_distribution<TSize> pdf(20, 99);
+    Pdf<Uniform<TSize> > pdf(20, 99);
     TSize alphSize = ValueSize<TAlphabet>::VALUE;
 
     // Iterate over all states
@@ -791,7 +799,7 @@ _fillHmmRandom(Graph<Hmm<TAlphabet, TProbability, TSpec> >& hmm,
             String<TSize> counts;
             TSize sum = 0;
             for(TSize i = 0;i<oD;++i) {
-                TSize rd = pdf(rng);
+                TSize rd = pickRandomNumber(rng, pdf);
                 sum += rd;
                 appendValue(counts, rd);
             }
@@ -803,7 +811,7 @@ _fillHmmRandom(Graph<Hmm<TAlphabet, TProbability, TSpec> >& hmm,
             String<TSize> counts;
             TSize sum = 0;
             for(TSize i = 0;i<alphSize;++i) {
-                TSize rd = pdf(rng);
+                TSize rd = pickRandomNumber(rng, pdf);
                 sum += rd;
                 appendValue(counts, rd);
             }
@@ -937,6 +945,7 @@ inline TProbability
 baumWelchAlgorithm(Graph<Hmm<TAlphabet, TProbability, TSpec > >& hmm,
                    StringSet<TSequence> const& seqSet)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TProbability, TSpec> > TGraph;
     typedef typename Size<TGraph>::Type TSize;
     TSize maxIter = 100;
@@ -960,6 +969,7 @@ _profileHmmCounter(Graph<Hmm<TAlphabet, TProbability, TSpec> >& pHmm,
                     TSize const& numRows,
                     TSize const& numCols)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TProbability, TSpec> > TGraph;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
     typedef typename EdgeDescriptor<TGraph>::Type TEdgeDescriptor;
@@ -1057,6 +1067,7 @@ inline void
 _createProfileHmm(Graph<Hmm<TAlphabet, TCargo, TSpec> >& pHmm,
                    TConsensus const& consensus)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TCargo, TSpec> > TGraph;
     typedef typename Size<TGraph>::Type TSize;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
@@ -1147,6 +1158,7 @@ msaToProfileHmm(String<TAlignmentChar> const& matr,
                 Graph<Hmm<TAlphabet, TProbability, TSpec> >& pHmm,
                 TSize nSeq)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TProbability, TSpec> > THmm;
 
     // Consensus

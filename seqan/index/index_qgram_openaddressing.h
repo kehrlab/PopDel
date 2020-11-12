@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_INDEX_QGRAM_OPENADRESSING_H
 #define SEQAN_HEADER_INDEX_QGRAM_OPENADRESSING_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
     struct OpenAddressing_;
@@ -81,6 +81,11 @@ namespace seqan
  * @var double OpenAddressingQGramIndex::alpha
  * @brief Load factor.  Controls space/time-tradeoff and must be greater 1.  Default value is 1.6.
  */
+#ifdef PLATFORM_WINDOWS_VS
+#pragma warning( push )
+// Disable warning C4521 locally (multiple copy constructors).
+#pragma warning( disable: 4521 )
+#endif  // PLATFORM_WINDOWS_VS
 
     template < typename TObject, typename TShapeSpec >
     class Index<TObject, IndexQGram<TShapeSpec, OpenAddressing> >
@@ -110,19 +115,6 @@ namespace seqan
         TSize            stepSize;    // store every <stepSize>'th q-gram in the index
 
         double            alpha;        // for m entries the hash map has at least size alpha*m
-
-        /*!
-         * @fn OpenAddressingQGramIndex::Index
-         * @brief Constructor
-         *
-         * @signature Index::Index();
-         * @signature Index::Index(index);
-         * @signature Index::Index(text[, shape]);
-         *
-         * @param[in] index Other Index object to copy from.
-         * @param[in] text  The text to be indexed.
-         * @param[in] shape The qgram @link Shape @endlink to be applied.
-         */
 
         Index():
             stepSize(1),
@@ -178,6 +170,10 @@ namespace seqan
             stepSize(1),
             alpha(defaultAlpha) {}
     };
+#ifdef PLATFORM_WINDOWS_VS
+// Enable warning C4521 again (multiple copy operators).
+#pragma warning( pop )
+#endif  // PLATFORM_WINDOWS_VS
 
 
     template < typename TObject, typename TShapeSpec >
@@ -304,7 +300,7 @@ namespace seqan
     }
 
     template <typename TObject, typename TShapeSpec>
-    inline int64_t _fullDirLength(Index<TObject, IndexQGram<TShapeSpec, OpenAddressing> > const &index)
+    inline __int64 _fullDirLength(Index<TObject, IndexQGram<TShapeSpec, OpenAddressing> > const &index)
     {
         typedef Index<TObject, IndexQGram<TShapeSpec, OpenAddressing> >    TIndex;
         typedef typename Fibre<TIndex, QGramDir>::Type                        TDir;
@@ -315,14 +311,14 @@ namespace seqan
 
         double num_qgrams = _qgramQGramCount(index) * index.alpha;
         double max_qgrams = pow((double)ValueSize<TTextValue>::VALUE, (double)weight(indexShape(index)));
-        int64_t qgrams;
+        __int64 qgrams;
 
         // compare size of open adressing with 1-1 mapping and use the smaller one
         if (num_qgrams * (sizeof(TDirValue) + sizeof(THashValue)) < max_qgrams * sizeof(TDirValue))
         {
-            qgrams = (int64_t)ceil(num_qgrams);
+            qgrams = (__int64)ceil(num_qgrams);
 #ifndef SEQAN_OPENADDRESSING_COMPACT
-            int64_t power2 = 1;
+            __int64 power2 = 1;
             while (power2 < qgrams)
                 power2 <<= 1;
             qgrams = power2;
@@ -330,7 +326,7 @@ namespace seqan
             resize(const_cast<TIndex &>(index).bucketMap.qgramCode, qgrams + 1, Exact());
         } else
         {
-            qgrams = (int64_t)ceil(max_qgrams);
+            qgrams = (__int64)ceil(max_qgrams);
             clear(const_cast<TIndex &>(index).bucketMap.qgramCode);    // 1-1 mapping, no bucket map needed
         }
 

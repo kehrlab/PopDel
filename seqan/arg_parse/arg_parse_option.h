@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -160,24 +160,24 @@ inline bool isStringArgument(ArgParseOption const & me)
 }
 
 // ----------------------------------------------------------------------------
-// Function isFlagOption()
+// Function isBooleanOption()
 // ----------------------------------------------------------------------------
 
 /*!
- * @fn ArgParseOption#isFlagOption
+ * @fn ArgParseOption#isBooleanOption
  * @headerfile <seqan/arg_parse.h>
- * @brief Returns whether an option is a flag.
+ * @brief Returns whether an option is a switch.
  *
- * @signature bool isFlagOption(option);
+ * @signature bool isBooleanOption(option);
  *
  * @param[in] option The ArgParseOption object to query.
  *
- * @return bool <tt>true</tt> if <tt>option</tt> is a flag/switch and <tt>false</tt> otherwise.
+ * @return bool <tt>true</tt> if <tt>option</tt> is a switch and <tt>false</tt> otherwise.
  *
  * Flags are given without arguments, e.g. the <tt>-l</tt> flag in the Unix <tt>ls</tt> command.
  */
 
-inline bool isFlagOption(ArgParseOption const & me)
+inline bool isBooleanOption(ArgParseOption const & me)
 {
     return me._isFlag;
 }
@@ -411,7 +411,7 @@ inline void setRequired(ArgParseOption & me, bool required)
 
 inline std::string const getArgumentLabel(ArgParseOption const & me)
 {
-    if (isFlagOption(me))
+    if (isBooleanOption(me))
         return "";
     else
         return getArgumentLabel(static_cast<ArgParseArgument>(me));

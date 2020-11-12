@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_INDEX_PIZZACHILI_FIND_H
 #define SEQAN_HEADER_INDEX_PIZZACHILI_FIND_H
 
-namespace seqan {
+namespace SEQAN_NAMESPACE_MAIN {
 
 struct PizzaChiliFinder_;
 
@@ -85,6 +85,7 @@ public:
     Finder(TIndex const& index) : TBase(index) { }
 
     ~Finder() {
+SEQAN_CHECKPOINT
         if (range.i1 != 0)
             std::free(range.i1);
     }
@@ -95,6 +96,7 @@ public:
 namespace impl {
     template <typename TPattern>
     inline uchar_t* getPizzaChiliString(TPattern const& pattern) {
+SEQAN_CHECKPOINT
         typedef
             typename RemoveConst_<
                 typename Value<TPattern>::Type
@@ -112,6 +114,7 @@ namespace impl {
     }
 
     inline uchar_t* getPizzaChiliString(char const* pattern) {
+SEQAN_CHECKPOINT
         return reinterpret_cast<uchar_t*>(const_cast<char*>(pattern));
     }
 } // namespace impl
@@ -124,6 +127,7 @@ inline void _findFirstIndex(
     TPattern const& pattern,
     PizzaChiliFinder const
 ) {
+SEQAN_CHECKPOINT
     typedef Index<TText, PizzaChili<TSpec> > TIndex;
     typedef typename PizzaChiliCodeProvider<TSpec>::Type TCodeProvider;
 
@@ -156,6 +160,6 @@ inline void _findFirstIndex(
     finder.range.i2 = occ + numocc;
 }
 
-} // namespace seqan
+} // namespace SEQAN_NAMESPACE_MAIN
 
 #endif // SEQAN_HEADER_INDEX_PIZZACHILI_FIND_H

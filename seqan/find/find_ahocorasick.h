@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 
 // TODO(holtgrew): Needles should be a StringSet<CharString>!
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -115,6 +115,7 @@ public:
     Pattern() : data_keywordIndex(0), data_needleLength(0)
     {}
 
+#ifdef SEQAN_CXX11_STANDARD
     template <typename TNeedle2>
     Pattern(TNeedle2 && ndl,
             SEQAN_CTOR_DISABLE_IF(IsSameType<typename std::remove_reference<TNeedle2>::type const &, Pattern const &>))
@@ -123,7 +124,14 @@ public:
         setHost(*this, std::forward<TNeedle2>(ndl));
         ignoreUnusedVariableWarning(dummy);
     }
+#else
 
+    template <typename TNeedle2>
+    Pattern(TNeedle2 const & ndl) : data_keywordIndex(0), data_needleLength(0)
+    {
+        setHost(*this, ndl);
+    }
+#endif  // SEQAN_CXX11_STANDARD
 //____________________________________________________________________________
 };
 
@@ -201,6 +209,7 @@ _createAcTrie(Pattern<TNeedle, AhoCorasick> & me)
 
 template <typename TNeedle>
 void _reinitPattern(Pattern<TNeedle, AhoCorasick> & me) {
+    SEQAN_CHECKPOINT;
     SEQAN_ASSERT_NOT(empty(needle(me)));
     clear(me.data_graph);
     clear(me.data_supplyMap);
@@ -230,6 +239,7 @@ void _reinitPattern(Pattern<TNeedle, AhoCorasick> & me) {
 template <typename TNeedle>
 inline void _patternInit (Pattern<TNeedle, AhoCorasick> & me)
 {
+SEQAN_CHECKPOINT
     clear(me.data_endPositions);
     me.data_keywordIndex = 0;
     me.data_lastState = getRoot(me.data_graph);
@@ -306,6 +316,6 @@ inline bool find(TFinder & finder, Pattern<TNeedle, AhoCorasick> & me) {
     return false;
 }
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_FIND_AHOCORASICK_H

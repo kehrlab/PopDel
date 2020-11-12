@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -171,7 +171,7 @@ readHeader(BamHeader & header,
         readHeader(header, context, iter, static_cast<typename TagSelector<TTagList>::Base const &>(format));
 }
 
-// convenient BamFile variant
+// convient BamFile variant
 template <typename TSpec>
 inline void
 readHeader(BamHeader & header, FormattedFile<Bam, Input, TSpec> & file)
@@ -233,7 +233,7 @@ readRecord(BamAlignmentRecord & record,
         readRecord(record, context, iter, static_cast<typename TagSelector<TTagList>::Base const &>(format));
 }
 
-// convenient BamFile variant
+// convient BamFile variant
 template <typename TSpec>
 inline void
 readRecord(BamAlignmentRecord & record, FormattedFile<Bam, Input, TSpec> & file)
@@ -251,6 +251,7 @@ readRecords(TRecords & records, FormattedFile<Bam, Input, TSpec> & file, TSize m
         resize(buffers, maxRecords, Exact());
     if (static_cast<TSize>(length(records)) < maxRecords)
         resize(records, maxRecords, Exact());
+
 
     TSize numRecords = 0;
     for (; numRecords < maxRecords && !atEnd(file.iter); ++numRecords)
@@ -295,7 +296,7 @@ write(TTarget & target,
         write(target, header, context, static_cast<typename TagSelector<TTagList>::Base const &>(format));
 }
 
-// convenient BamFile variant
+// convient BamFile variant
 template <typename TSpec>
 inline void
 writeHeader(FormattedFile<Bam, Output, TSpec> & file, BamHeader const & header)
@@ -356,6 +357,24 @@ writeRecords(FormattedFile<Bam, Output, TSpec> & file, TRecords const & records)
     }
     for (int i = 0; i < (int)length(records); ++i)
         write(file.iter, buffers[i]);
+}
+
+// ----------------------------------------------------------------------------
+// Function getFileExtensions()
+// ----------------------------------------------------------------------------
+// NOTE(h-2): this is overloaded so we get Bgzf in addition to other
+// compressions which is crucial for Bam
+
+template <typename TDirection, typename TSpec>
+static std::vector<std::string>
+getFileExtensions(FormattedFile<Bam, TDirection, TSpec> const &)
+{
+    std::vector<std::string> extensions;
+    _getCompressionExtensions(extensions,
+                              typename FormattedFile<Bam, TDirection, TSpec>::TFileFormats(),
+                              CompressedFileTypes(),
+                              false);
+    return extensions;
 }
 
 }  // namespace seqan

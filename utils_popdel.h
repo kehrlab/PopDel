@@ -706,16 +706,16 @@ inline void setNoDataSamples(Call & currentCall, const String<bool> & lowCoverag
 // Return true if so, false otherwise.
 inline bool checkSampleNumber(const String<bool> & lowCoverageSamples, const double & threshold)
 {
+    SEQAN_ASSERT(!empty(lowCoverageSamples));
     unsigned total = length(lowCoverageSamples);
     unsigned dataSample = total;
     for (unsigned  i = 0; i < total; ++i)
         if (lowCoverageSamples[i])
             --dataSample;
-    if (static_cast<double>(dataSample) / total < threshold)
-        return false;
-    else
-        return true;
+
+    return static_cast<double>(dataSample) / total >= threshold;
 }
+
 inline int32_t max(const String<int32_t> & s)
 {
     int32_t currentMax = 0;
@@ -746,18 +746,43 @@ void printStatus(std::ostringstream & message)
     printStatus(toCString(msg));
 }
 // =======================================================================================
+// Function getIndexFileName()
+// =======================================================================================
+// Check if the alignment file is a BAM or CRAM file and append .bai or .crai accoordingly.
+inline String<char> getIndexFileName(const HtsFile & file)
+{
+    const htsFormat & format = file.fp->format;
+    String<char> indexFileName = file.filename;
+    if (format.format == htsExactFormat::bam)
+    {
+        append(indexFileName, ".bai");
+    }
+    else if (format.format == htsExactFormat::cram)
+    {
+        append(indexFileName, ".crai");
+    }
+    else
+    {
+        std::ostringstream msg;
+        msg << "[PopDel] Could not determine file type from file name for \'" << file.filename << "\'."
+            <<  " Please make sure that the file name ends with \'.bam\' or \'.cram\'. Terminating.";
+        SEQAN_THROW(IOError(toCString(msg.str())));
+    }
+    return indexFileName;
+}
+
+// =======================================================================================
 // Function loadBai()
 // =======================================================================================
-// Load the BAI-file belonging to the given BAM-file.
+// Load the index belonging to the given BAM/CRAM-file
 // Return false on errors, true otherwise.
-template<typename TString>
-inline bool loadBai(BamIndex<Bai> & bai, TString filename)
+inline bool loadBaiCrai(HtsFileIn & infile)
 {
-    filename += ".bai";
-    if (!open(bai, toCString(filename)))
+    String<char> indexPathIn = getIndexFileName(infile);
+    if (!loadIndex(infile, toCString(indexPathIn)))
     {
-        CharString message = "[PopDel] ERROR: Could not load the BAI file \'";
-        message += filename;
+        CharString message = "[PopDel] ERROR: Could not load the index file \'";
+        message += indexPathIn;
         message += "\'.";
         SEQAN_THROW(IOError(toCString(message)));
         return false;
@@ -891,7 +916,7 @@ void loadFilenames(String<CharString> & files)
 // =======================================================================================
 // Extract the read-group encoded in tags.
 // Return the read-group as a CharString.
-inline CharString getReadGroup(const CharString & tags)
+inline CharString getReadGroup(CharString & tags)
 {
     BamTagsDict dict(tags);                                          // TODO: Catch if RG tag doen't exist. Error message.
     unsigned key = 0;
@@ -902,7 +927,7 @@ inline CharString getReadGroup(const CharString & tags)
 }
 // Extract the read-group encoded in tags
 // Return its rank in the header by extracting it from in the map of read groups.
-inline unsigned getReadGroup(const CharString & tags,
+inline unsigned getReadGroup(CharString & tags,
                              const std::map<CharString, unsigned> & readGroups,
                              bool merge = false)
 {
@@ -913,29 +938,64 @@ inline unsigned getReadGroup(const CharString & tags,
     SEQAN_ASSERT_NEQ(readGroups.count(rg), 0u);
     return readGroups.at(rg);
 }
+inline bool getRgIdFromKstring(CharString & id, const kstring_t & k)
+{
+    SEQAN_ASSERT(empty(id));
+    SEQAN_ASSERT_GT(k.l, 7u);
+    SEQAN_ASSERT_EQ(k.s[0], '@');
+    SEQAN_ASSERT_EQ(k.s[1], 'R');
+    SEQAN_ASSERT_EQ(k.s[2], 'G');
+    SEQAN_ASSERT_EQ(k.s[3], '\t');
+    SEQAN_ASSERT_EQ(k.s[4], 'I');
+    SEQAN_ASSERT_EQ(k.s[5], 'D');
+    SEQAN_ASSERT_EQ(k.s[6], ':');
+    unsigned i = 7;
+    while (i < k.l && k.s[i] != '\t')
+    {
+        appendValue(id, k.s[i]);
+        ++i;
+    }
+    return !empty(id);
+}
 // =======================================================================================
 // Function _getReadGroups()
 // =======================================================================================
 // Extract all read group IDs and their rank in the header and write them to map.
 // Return the number of read groups in the header.
-inline unsigned getReadGroups(std::map<CharString, unsigned> & readGroups, const BamHeader & header, bool merge = false)
+inline unsigned getReadGroups(std::map<CharString, unsigned> & readGroups, HtsFile & file, bool merge = false)
 {
-    typedef Iterator<const BamHeader>::Type THeaderIter;
     readGroups.clear();
-    unsigned k = 0;
-    THeaderIter itEnd = end(header);
-    for (THeaderIter it = begin(header); it != itEnd; ++it)
+    int good = 0;
+    int pos = 0;
+    while (true)
     {
-        if ((*it).type == BAM_HEADER_READ_GROUP)
+        kstring_t kstring = KS_INITIALIZE;
+        good = sam_hdr_find_line_pos(file.hdr, "RG", pos, &kstring);
+        if (good == 0)
         {
-            unsigned idx = 0;
-            findTagKey(idx, "ID", *it);                        //Find the read-Group ID-tag...
-            CharString rg = "";
-            getTagValue(rg, idx, *it);                          //... and get the read-group-ID stored in ID-tag
-            readGroups[rg] = k;                                 //Write ID and rank of this read group in header to map
-            if (!merge)
-                ++k;
+            CharString id = "";
+            if (getRgIdFromKstring(id, kstring))
+            {
+                if (merge)
+                    readGroups[id] = 0u;
+                else
+                    readGroups[id] = static_cast<unsigned>(pos);
+
+                ++pos;
+            }
+            else
+            {
+                std::ostringstream msg;
+                msg << "[PopDel] Error while trying to parse ID from @RG tag. Terminating";
+                SEQAN_THROW(ParseError(toCString(msg.str())));
+            }
         }
+        else
+        {
+            ks_free(&kstring);
+            break;
+        }
+        ks_free(&kstring);
     }
     return readGroups.size();
 }
@@ -947,22 +1007,23 @@ inline unsigned getReadGroups(std::map<CharString, unsigned> & readGroups, const
 // =======================================================================================
 // Append start and end positions + sequence names of all contigs/chromosomes and store them in String of GenomicRegion.
 // Return total length of all intervals
-inline unsigned getWholeGenomeIntervals(String<GenomicRegion> & intervals, const BamHeader & header)
+inline unsigned getWholeGenomeIntervals(String<GenomicRegion> & intervals, const HtsFile & infile)
 {
-    typedef Iterator<const BamHeader>::Type THeaderIter;
+    String<String<char> > contigNames;
+    String<int> contigLengths;
+    getContigNames(contigNames, infile);
+    getContigLengths(contigLengths, infile);
+    SEQAN_ASSERT_EQ(length(contigNames), length(contigLengths));
     unsigned totalLength = 0;
-    THeaderIter itEnd = end(header);
-    for (THeaderIter it = begin(header); it != itEnd; ++it)
+    auto lenIt = begin(contigLengths);
+    for (auto it = begin(contigNames); it != end(contigNames); ++it, ++lenIt)
     {
-        if ((*it).type == BAM_HEADER_REFERENCE)                         //Reference Sequence Dictionary (@SQ)
-        {
-            GenomicRegion itv;
-            itv.seqName = (*it).tags[0].i2;                             //Store chromosome/contig name of region
-            itv.beginPos = 0;
-            lexicalCastWithException(itv.endPos, (*it).tags[1].i2);     //Get the end position of the interval
-            appendValue(intervals, itv);                                //Append new interval to list of intervals
-            totalLength += itv.endPos;                                  //Increase total length of sum of intervals
-        }
+        GenomicRegion itv;
+        itv.seqName = *it;                                          //Store chromosome/contig name of region
+        itv.beginPos = 0;
+        itv.endPos = *lenIt;                                        //Get the end position of the interval
+        appendValue(intervals, itv);                                //Append new interval to list of intervals
+        totalLength += itv.endPos;                                  //Increase total length of sum of intervals
     }
     return totalLength;
 }
@@ -988,24 +1049,8 @@ inline bool lowerGenomicRegion(const GenomicRegion & r1, const GenomicRegion & r
 // =======================================================================================
 // Function _fillInvalidPositions()
 // =======================================================================================
-// Replace invalid values of GeomicRegions object with processable values.
+// Replace invalid values of GenomicRegions object with processable values.
 // Use 0 for start position. Use end position of sequence for end position of interval.
-inline void fillInvalidPositions(GenomicRegion & itv, const BamHeader & header)
-{
-    typedef Iterator<const BamHeader>::Type THeaderIter;
-    if (itv.beginPos == GenomicRegion::INVALID_POS)
-        itv.beginPos = 0;
-    if (itv.endPos == GenomicRegion::INVALID_POS)
-    {
-        THeaderIter itEnd = end(header);
-        for (THeaderIter it = begin(header); it != itEnd; ++it)
-        {
-            if ((*it).type == BAM_HEADER_REFERENCE && (*it).tags[0].i2 == itv.seqName)
-                lexicalCastWithException(itv.endPos, (*it).tags[1].i2);
-        }
-    }
-}
-// Overload working with a list of contig names and lengths instead of BAM header. Used for popdel view.
 inline void fillInvalidPositions(GenomicRegion & itv,
                                  const String<String<char> > & contigNames,
                                  const String<int32_t> & contigLengths)
@@ -1144,26 +1189,30 @@ void createRegularIntervals(String<GenomicRegion> & intervals,
 // Load genomic intervals from a file and store them in a string of GenomicRegion objects.
 inline void readIntervals(String<GenomicRegion> & intervals,
                           const CharString & filename,
-                          const BamHeader & header,
+                          const HtsFile & infile,
                           const String<GenomicRegion> & rois,
                           const CharString & referenceVersion)
 {
     if (filename != "")
     {
         size_t initialLength = length(intervals);
-        std::ifstream infile(toCString(filename));
-        if (!infile.is_open())
+        std::ifstream intervalFile(toCString(filename));
+        if (!intervalFile.is_open())
         {
             std::ostringstream msg;
             msg << "[PopDel] Could not open interval file \'" << filename << "\' for reading.";
             SEQAN_THROW(IOError(toCString(msg.str())));
         }
+        String<String<char> > contigNames;
+        String<int> contigLengths;
+        getContigNames(contigNames, infile);
+        getContigLengths(contigLengths, infile);
         std::string word;
         GenomicRegion itv;
-        while (infile >> word)
+        while (intervalFile >> word)
         {
             parseGenomicRegion(itv, word);                                                           //rIDs will not be set
-            fillInvalidPositions(itv, header);
+            fillInvalidPositions(itv, contigNames, contigLengths);
             appendValue(intervals, itv);
         }
         std::ostringstream msg;
@@ -1192,7 +1241,6 @@ inline void expandIntervals(String<GenomicRegion> & intervals, const int & maxDe
         ++it;
     }
 }
-
 // =======================================================================================
 // Function parseIntervals()
 // =======================================================================================
@@ -1202,10 +1250,12 @@ inline void parseIntervals(String<GenomicRegion> & intervals,
                            const CharString & bamfile)
 {
     typedef std::vector<std::string>::const_iterator TIter;
-    BamFileIn infile;
+    HtsFileIn infile;
     open(infile, toCString(bamfile));
-    BamHeader header;
-    readHeader(header, infile);
+    String<CharString> contigNames;
+    String<int> contigLengths;
+    getContigNames(contigNames, infile);
+    getContigLengths(contigLengths, infile);
     TIter it = intervalStrings.begin();
     TIter itEnd = intervalStrings.end();
     GenomicRegion itv;
@@ -1217,7 +1267,7 @@ inline void parseIntervals(String<GenomicRegion> & intervals,
             msg << "[PopDel] Error while parsing genomic region \'" << *it << "\'. Terminating.";
             SEQAN_THROW(ParseError(toCString(msg.str())));
         }
-        fillInvalidPositions(itv, header);
+        fillInvalidPositions(itv, contigNames, contigLengths);
         appendValue(intervals, itv);
         ++it;
     }
@@ -1286,19 +1336,29 @@ inline void mergeOverlappingIntervals(String<GenomicRegion> & intervals, int max
     SEQAN_ASSERT_LEQ(length(mergedIntervals), length(intervals));
     intervals = mergedIntervals;
 }
+
+
 // =======================================================================================
 // Function _setRIDs()
 // =======================================================================================
 // Check if the seqName of each interval is also present in the BAM-file. If so, set the rID of the interval.
 // If not, set rID to INVALID_REFID.
-inline void setRIDs(String<GenomicRegion> & intervals, const BamFileIn & infile)
+inline void setRIDs(String<GenomicRegion> & intervals, const HtsFile & infile)
 {                                                   //TODO: Check if regions without valid ID is realy skipped lateron
     typedef Iterator<String<GenomicRegion> >::Type TItvIter;
+    std::map<CharString, int32_t> contigNameMap;
+    getContigNameToIDMap(contigNameMap, infile);
+    SEQAN_ASSERT_GT(contigNameMap.size(), 0u);
     TItvIter itv = begin(intervals);
     TItvIter itvEnd = end(intervals);
     while (itv != itvEnd)
     {
-        if (!getIdByName((*itv).rID, contigNamesCache(context(infile)), (*itv).seqName))
+        auto it = contigNameMap.find(toCString(itv->seqName));
+        if (it != contigNameMap.end())
+        {
+            itv->rID = it->second;
+        }
+        else
         {
             (*itv).rID = BamAlignmentRecord::INVALID_REFID;
             CharString itvStr;

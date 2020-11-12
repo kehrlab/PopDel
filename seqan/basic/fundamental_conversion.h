@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -111,7 +111,7 @@ struct Convert
 // NOTE(doering): Can copy or reinterpret, depending on Convert::Type
 
 template <typename TTarget, typename T, typename TSource>
-inline typename Convert<TTarget, TSource>::Type
+SEQAN_HOST_DEVICE inline typename Convert<TTarget, TSource>::Type
 convertImpl(Convert<TTarget, T> const,
             TSource const & source)
 {
@@ -143,7 +143,7 @@ convertImpl(Convert<TTarget, T> const,
  */
 
 template <typename TTarget, typename TSource>
-inline typename Convert<TTarget, TSource>::Type
+SEQAN_HOST_DEVICE inline typename Convert<TTarget, TSource>::Type
 convert(TSource const & source)
 {
     return convertImpl(Convert<TTarget, TSource>(), source);

@@ -57,7 +57,7 @@ struct DeltaRecord;
 // Tags, Classes, Enums
 // ============================================================================
 
-enum class DeltaEndType : uint8_t
+enum class DeltaEndType : __uint8
 {
     IS_RIGHT = 1,   // 0x01
     IS_LEFT  = 2,   // 0x10

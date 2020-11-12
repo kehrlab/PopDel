@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -168,7 +168,7 @@ namespace seqan {
  *
  * @section Tutorial
  *
- * Also see the <a href="http://seqan.readthedocs.io/en/develop/Tutorial/Algorithms/SeedExtension.html">Seed-and-Extend Tutorial</a>
+ * Also see the <a href="http://seqan.readthedocs.org/en/develop/Tutorial/SeedAndExtend.html">Seed-and-Extend Tutorial</a>
  *
  * @section Reference
  *

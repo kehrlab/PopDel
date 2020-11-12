@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -107,17 +107,20 @@ public:
 
     String(THost & host) : _length(0)
     {
+        SEQAN_CHECKPOINT;
         setHost(*this, host);
     }
 
     String(String const & other) : _length(0)
     {
+        SEQAN_CHECKPOINT;
         set(*this, other);
     }
 
     template <typename TString>
     String(TString const & other) : _length(0)
     {
+        SEQAN_CHECKPOINT;
         assign(*this, other);
     }
 
@@ -131,6 +134,7 @@ public:
     template <typename TString>
     String & operator=(TString const & other)
     {
+        SEQAN_CHECKPOINT;
         assign(*this, other);
         return *this;
     }
@@ -138,12 +142,14 @@ public:
     typename Reference<String>::Type
     operator[](TPosition pos)
     {
+        SEQAN_CHECKPOINT;
         return value(*this, pos);
     }
 
     typename Reference<String const>::Type
     operator[](TPosition pos) const
     {
+        SEQAN_CHECKPOINT;
         return value(*this, pos);
     }
 };
@@ -373,6 +379,7 @@ inline
 TStream &
 operator<<(TStream & stream, String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & s)
 {
+    SEQAN_CHECKPOINT;
     typedef String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > TString;
     typedef typename TString::TJournalEntries TJournalEntries;
     typedef typename Iterator<TJournalEntries const, Standard>::Type TIterator;
@@ -440,6 +447,7 @@ inline void
 assign(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & target,
        TSource const & source)
 {
+    SEQAN_CHECKPOINT;
     clear(target);
     replace(target, 0, length(target), source);
 }
@@ -449,6 +457,7 @@ inline void
 assign(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & target,
        TSource & source)
 {
+    SEQAN_CHECKPOINT;
     assign(target, static_cast<TSource const &>(source));
 }
 
@@ -464,6 +473,7 @@ void
 set(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & target,
     String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & source)
 {
+    SEQAN_CHECKPOINT;
     assign(target._holder, source._holder);
     assign(target._insertionBuffer, source._insertionBuffer);
     assign(target._journalEntries, source._journalEntries);
@@ -476,6 +486,7 @@ void
 set(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & target,
     String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & source)
 {
+    SEQAN_CHECKPOINT;
     typedef String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > TJournaledString;
     set(target, static_cast<TJournaledString const &>(source));
 }
@@ -486,6 +497,7 @@ void
 set(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & target,
     TSource const & source)
 {
+    SEQAN_CHECKPOINT;
     assign(target, source);
 }
 
@@ -503,6 +515,7 @@ set(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & target,
  * @param[in]     str The string to set as the host.
  */
 
+#ifdef SEQAN_CXX11_STANDARD
 template <typename TValue, typename THostSpec, typename TJournalSpec, typename TBufferSpec, typename TSequence2>
 inline
 void
@@ -513,6 +526,18 @@ setHost(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journ
     journaledString._length = length(str);
     reinit(journaledString._journalEntries, length(str));
 }
+#else
+template <typename TValue, typename THostSpec, typename TJournalSpec, typename TBufferSpec, typename TSequence2>
+inline
+void
+setHost(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journaledString, TSequence2 & str)
+{
+    SEQAN_CHECKPOINT;
+    setValue(journaledString._holder, str);
+    journaledString._length = length(str);
+    reinit(journaledString._journalEntries, length(str));
+}
+#endif  // SEQAN_CXX11_STANDARD
 
 // ----------------------------------------------------------------------------
 // Function host
@@ -534,6 +559,7 @@ inline
 typename Host<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > >::Type &
 host(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journaledString)
 {
+    SEQAN_CHECKPOINT;
     return value(journaledString._holder);
 }
 
@@ -542,6 +568,7 @@ inline
 typename Host<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > >::Type const &
 host(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & journaledString)
 {
+    SEQAN_CHECKPOINT;
     return value(journaledString._holder);
 }
 
@@ -563,6 +590,7 @@ template <typename TValue, typename THostSpec, typename TJournalSpec, typename T
 inline void
 clear(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journaledString)
 {
+    SEQAN_CHECKPOINT;
     reinit(journaledString._journalEntries, length(host(journaledString)));
     clear(journaledString._insertionBuffer);
     _setLength(journaledString, length(host(journaledString)));
@@ -647,6 +675,7 @@ erase(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journal
       TBeginPos pos,
       TEndPos posEnd)
 {
+    SEQAN_CHECKPOINT;
     SEQAN_ASSERT_GEQ(static_cast<TBeginPos>(journaledString._length), pos);
     SEQAN_ASSERT_GEQ(static_cast<TEndPos>(journaledString._length), posEnd);
     SEQAN_ASSERT_GEQ(static_cast<TBeginPos>(journaledString._length), static_cast<TBeginPos>(posEnd - pos));
@@ -661,6 +690,7 @@ inline void
 erase(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journaledString,
       TPos pos)
 {
+    SEQAN_CHECKPOINT;
     SEQAN_ASSERT_GEQ(journaledString._length, 1u);
     erase(journaledString, pos, pos + 1);
 }
@@ -675,6 +705,7 @@ insert(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journa
        TPos pos,
        TString const & seq)
 {
+    SEQAN_CHECKPOINT;
     journaledString._length += length(seq);
     TPos beginPos = length(journaledString._insertionBuffer);
     append(journaledString._insertionBuffer, seq);
@@ -691,6 +722,7 @@ insertValue(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & j
             TPos pos,
             TValue2 const & value)
 {
+    SEQAN_CHECKPOINT;
     journaledString._length += 1;
     TPos beginPos = length(journaledString._insertionBuffer);
     appendValue(journaledString._insertionBuffer, value);
@@ -710,6 +742,7 @@ assignInfix(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & j
             TEndPos endPos,
             TSequence2 const & valueString)
 {
+    SEQAN_CHECKPOINT;
     erase(journaledString, beginPos, endPos);
     insert(journaledString, beginPos, valueString);
 }
@@ -724,6 +757,7 @@ assignValue(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & j
             TPos pos,
             TValue2 const & value)
 {
+    SEQAN_CHECKPOINT;
     erase(journaledString, pos);
     insertValue(journaledString, pos, value);
 }
@@ -745,6 +779,7 @@ inline
 typename Value<TSequence>::Type const &
 front(String...<TSequence, TJournalSpec> const & journaledString)
 {
+    SEQAN_XXXCHECKPOINT;
     typedef SequenceJournal<TSequence, TJournalSpec> TString;
     typedef typename TString::TNode TNode;
     TNode frontNode = front(journaledString._journalEntries);
@@ -762,6 +797,7 @@ inline
 TValue const &
 back(SequenceJournal<TSequence, TJournalSpec> const & journaledString)
 {
+    SEQAN_XXXCHECKPOINT;
     typedef SequenceJournal<TSequence, TJournalSpec> TString;
     typedef typename TString::TNode TNode;
     TNode backNode = back(journaledString._journalEntries);
@@ -783,6 +819,7 @@ inline
 typename Size<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > >::Type
 length(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & journaledString)
 {
+    SEQAN_CHECKPOINT;
     return journaledString._length;
 }
 
@@ -802,6 +839,7 @@ typename Reference<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec
 value(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & me,
       TPos pos)
 {
+    SEQAN_CHECKPOINT;
 
     return *iter(me, pos, Standard());
 }
@@ -812,6 +850,7 @@ typename Reference<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec
 value(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & me,
       TPos pos)
 {
+    SEQAN_CHECKPOINT;
 
     return *iter(me, pos, Standard());
 }
@@ -836,6 +875,7 @@ typename GetValue<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec>
 getValue(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & journaledString,
          typename Position<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > >::Type pos)
 {
+    SEQAN_CHECKPOINT;
     typedef String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const TJournaledString;
     typedef typename TJournaledString::TJournalEntry TJournalEntry;
     typedef typename Position<TJournaledString>::Type TPos;
@@ -874,6 +914,7 @@ typename Position<String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec>
 virtualToHostPosition(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & journaledString,
                       TPos pos)
 {
+    SEQAN_CHECKPOINT;
     // TODO(holtgrew): With a better journal entries datastructure, we could solve the main problem here. At the moment, we delegate completely.
     return virtualToHostPosition(journaledString._journalEntries, pos);
 }
@@ -916,6 +957,7 @@ bool
 isGapInHost(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & journaledString,
             TPos pos)
 {
+    SEQAN_CHECKPOINT;
     // TODO(holtgrew): With a better journal entries datastructure, we could solve the main problem here. At the moment, we delegate completely.
     return isGapInHost(journaledString._journalEntries, pos);
 }
@@ -930,6 +972,7 @@ void
 _setLength(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journaledString,
            size_t newLength)
 {
+    SEQAN_CHECKPOINT;
     journaledString._length = newLength;
 }
 
@@ -963,6 +1006,7 @@ replace(String<TTargetValue, Journaled<TTargetHostSpec, TTargetJournalSpec, TTar
         TSource const & source,
         Tag<TExpand> /*tag*/)
 {
+    SEQAN_CHECKPOINT;
     assignInfix(target, posBegin, posEnd, source);
 }
 
@@ -995,6 +1039,7 @@ replace(String<TTargetValue, Journaled<TTargetHostSpec, TTargetJournalSpec, TTar
         TSourceValue const * source,
         Tag<TExpand> /*tag*/)
 {
+    SEQAN_CHECKPOINT;
     assignInfix(target, posBegin, posEnd, source);
 }
 
@@ -1028,6 +1073,7 @@ inline
 const void *
 getObjectId(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > & journaledString)
 {
+    SEQAN_CHECKPOINT;
     return getObjectId(value(journaledString._holder));
 }
 
@@ -1036,6 +1082,7 @@ inline
 const void *
 getObjectId(String<TValue, Journaled<THostSpec, TJournalSpec, TBufferSpec> > const & journaledString)
 {
+    SEQAN_CHECKPOINT;
     return getObjectId(value(journaledString._holder));
 }
 
@@ -1058,6 +1105,7 @@ template <typename TValue, typename THostSpec, typename TJournalSpec, typename T
 inline bool
 isFlat(String<TValue, Journaled<THostSpec, TJournalSpec, TBuffSpec> > & journaledString)
 {
+    SEQAN_CHECKPOINT;
     typedef String<TValue, Journaled<THostSpec, TJournalSpec, TBuffSpec> > TJournalString;
     typedef typename JournalType<TJournalString>::Type TJournalEntries;
     typedef typename Iterator<TJournalEntries const, Standard>::Type TIteraror;
@@ -1077,6 +1125,7 @@ template <typename TValue, typename THostSpec, typename TJournalSpec, typename T
 inline bool
 isFlat(String<TValue, Journaled<THostSpec, TJournalSpec, TBuffSpec> > const & journaledString)
 {
+    SEQAN_CHECKPOINT;
     typedef String<TValue, Journaled<THostSpec, TJournalSpec, TBuffSpec> > TJournalString;
     typedef typename JournalType<TJournalString>::Type TJournalEntries;
     typedef typename Iterator<TJournalEntries const, Standard>::Type TIteraror;

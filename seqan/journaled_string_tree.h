@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2013, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,8 @@
 // Prerequisites.
 // ===========================================================================
 
+#ifdef SEQAN_CXX11_STANDARD
+
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/modifier.h>
@@ -51,7 +53,6 @@
 
 // TODO(rrahn): Might put this to basic.
 #include <seqan/journaled_string_tree/observable.h>
-#include <seqan/journaled_string_tree/stack_observer.h>
 
 // ===========================================================================
 // Delta Map.
@@ -78,16 +79,5 @@
 #include <seqan/journaled_string_tree/journaled_string_tree_traverser_util.h>
 #include <seqan/journaled_string_tree/journaled_string_tree_traverser.h>
 
-// ===========================================================================
-// Journaled String Tree Find.
-// ===========================================================================
-
-#include <seqan/find.h>
-
-#include <seqan/journaled_string_tree/jst_extension_base.h>
-#include <seqan/journaled_string_tree/jst_extension_horspool.h>
-#include <seqan/journaled_string_tree/jst_extension_shiftand.h>
-#include <seqan/journaled_string_tree/jst_extension_shiftor.h>
-#include <seqan/journaled_string_tree/jst_extension_myers_ukkonen.h>
-
+#endif // SEQAN_CXX11_STANDARD
 #endif // INCLUDE_SEQAN_JOURNALED_STRING_TREE_H_

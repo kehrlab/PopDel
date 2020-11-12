@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ TScoreValue globalAlignment(String<TValue, Journaled<THostSpec, TJournalSpec, TB
     DPScoutState_<Default> dpScoutState;
     // We need to do that in order to build journal strings from two simple sequences.
     TScoreValue res = _setUpAndRunAlignment(traceSegments, dpScoutState, reference, source, scoringScheme, TDPConfig(),
-                                            typename SubstituteAlgoTag_<TAlgoTag>::Type());
+                                            IsSameType<TAlgoTag, NeedlemanWunsch>());
     _adaptTraceSegmentsTo(journaledString, reference, source, traceSegments);
     return res;
 }
@@ -179,7 +179,7 @@ TScoreValue globalAlignment(String<TValue, Journaled<THostSpec, TJournalSpec, TB
     // We need to do that in order to build journal strings from two simple sequences.
     TScoreValue res = _setUpAndRunAlignment(traceSegments, dpScoutState, reference, source, scoringScheme,
                                             TDPConfig(lowerDiag, upperDiag),
-                                            typename SubstituteAlgoTag_<TAlgoTag>::Type());
+                                            IsSameType<TAlgoTag, NeedlemanWunsch>());
     _adaptTraceSegmentsTo(journaledString, reference, source, traceSegments);
     return res;
 }

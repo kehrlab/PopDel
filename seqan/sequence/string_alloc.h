@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -131,6 +131,7 @@ public:
         SEQAN_ASSERT_LEQ_MSG(data_begin, data_end, "String end is before begin!");
     }
 
+#ifdef SEQAN_CXX11_STANDARD
     String(String && source, Move const &)
         : data_begin(0),
           data_end(0),
@@ -139,6 +140,7 @@ public:
         move(*this, source);
         SEQAN_ASSERT_LEQ_MSG(data_begin, data_end, "String end is before begin!");
     }
+#endif
 
     template <typename TSource, typename TSize>
     String(TSource & source, TSize limit)
@@ -191,14 +193,14 @@ public:
     // ----------------------------------------------------------------------
 
     template <typename TPos>
-    inline typename Reference<String>::Type
+    SEQAN_HOST_DEVICE inline typename Reference<String>::Type
     operator[] (TPos pos)
     {
         return value(*this, pos);
     }
 
     template <typename TPos>
-    inline typename Reference<String const>::Type
+    SEQAN_HOST_DEVICE inline typename Reference<String const>::Type
     operator[] (TPos pos) const
     {
         return value(*this, pos);
@@ -264,14 +266,14 @@ swap(String<TValue, Alloc<TSpec> > & a,
 // ----------------------------------------------------------------------------
 
 template <typename TValue, typename TSpec>
-inline typename Iterator<String<TValue, Alloc<TSpec> >, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<String<TValue, Alloc<TSpec> >, Standard>::Type
 begin(String<TValue, Alloc<TSpec> > & me,
       Standard)
 {
     return me.data_begin;
 }
 template <typename TValue, typename TSpec>
-inline typename Iterator<String<TValue, Alloc<TSpec> > const, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<String<TValue, Alloc<TSpec> > const, Standard>::Type
 begin(String<TValue, Alloc<TSpec> > const & me,
       Standard)
 {
@@ -283,14 +285,14 @@ begin(String<TValue, Alloc<TSpec> > const & me,
 // ----------------------------------------------------------------------------
 
 template <typename TValue, typename TSpec>
-inline typename Iterator<String<TValue, Alloc<TSpec> >, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<String<TValue, Alloc<TSpec> >, Standard>::Type
 end(String<TValue, Alloc<TSpec> > & me,
     Standard const &)
 {
     return me.data_end;
 }
 template <typename TValue, typename TSpec>
-inline typename Iterator<String<TValue, Alloc<TSpec> > const, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<String<TValue, Alloc<TSpec> > const, Standard>::Type
 end(String<TValue, Alloc<TSpec> > const & me,
     Standard const & )
 {
@@ -353,11 +355,9 @@ inline typename Value<String<TValue, Alloc<TSpec> > >::Type *
 _allocateStorage(String<TValue, Alloc<TSpec> > & me,
                  TSize new_capacity)
 {
-    typedef typename If<IsSameType<TSpec, OverAligned>, TagAllocateAlignedMalloc, TagAllocateStorage>::Type AllocTag;
-
     typename Size<String<TValue, Alloc<TSpec> > >::Type size = _computeSizeForCapacity(me, new_capacity);
     typename Value<String<TValue, Alloc<TSpec> > >::Type * _returnValue = me.data_begin;
-    allocate(me, me.data_begin, size, AllocTag());
+    allocate(me, me.data_begin, size, TagAllocateStorage());
     me.data_capacity = new_capacity;
     return _returnValue;
 }
@@ -372,10 +372,8 @@ _deallocateStorage(String<TValue, Alloc<TSpec> > & me,
                    TPtr * ptr,
                    TSize capacity)
 {
-    typedef typename If<IsSameType<TSpec, OverAligned>, TagAllocateAlignedMalloc, TagAllocateStorage>::Type AllocTag;
-
     typename Size<String<TValue, Alloc<TSpec> > >::Type size = _computeSizeForCapacity(me, capacity);
-    deallocate(me, ptr, size, AllocTag());
+    deallocate(me, ptr, size, TagAllocateStorage());
 }
 
 // ----------------------------------------------------------------------------

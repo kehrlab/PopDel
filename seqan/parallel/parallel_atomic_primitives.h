@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -38,9 +38,9 @@
 #ifndef SEQAN_PARALLEL_PARALLEL_ATOMIC_PRIMITIVES_H_
 #define SEQAN_PARALLEL_PARALLEL_ATOMIC_PRIMITIVES_H_
 
-#if defined(STDLIB_VS)
+#if defined(PLATFORM_WINDOWS) && !defined(PLATFORM_WINDOWS_MINGW)
 #include <intrin.h>
-#endif  // #if defined(STDLIB_VS)
+#endif  // #if defined(PLATFORM_WINDOWS) && !defined(PLATFORM_WINDOWS_MINGW)
 
 namespace seqan {
 
@@ -56,12 +56,23 @@ namespace seqan {
 // Metafunctions
 // ============================================================================
 
+#ifdef SEQAN_CXX11_STL
 
 template <typename T>
 struct Atomic
 {
     typedef std::atomic<T> Type;
 };
+
+#else
+
+template <typename T>
+struct Atomic
+{
+    typedef T Type;
+};
+
+#endif
 
 // ============================================================================
 // Functions
@@ -225,19 +236,15 @@ struct Atomic
 #define SEQAN_CACHE_LINE_SIZE 128
 #endif
 
-#if defined(STDLIB_VS)
+#if defined(PLATFORM_WINDOWS) && !defined(PLATFORM_WINDOWS_MINGW)
 
 // ----------------------------------------------------------------------------
 // Implementation in MSVC
 // ----------------------------------------------------------------------------
 
-// NOTE(marehr): clang/c2 v3.7 doesn't know #pragma intrinsic.
-#if !defined(COMPILER_CLANG)
-#pragma intrinsic(_InterlockedOr, _InterlockedXor, _InterlockedCompareExchange)
-#endif
-
 // We break the standard code layout here since we only wrap compiler
 // intrinsics and it's easier to see things with one glance this way.
+#pragma intrinsic(_InterlockedOr, _InterlockedXor, _InterlockedCompareExchange)
 
 template <typename T, typename S>
 inline T _atomicOr(T volatile &x, ConstInt<sizeof(char)>, S y) { return _InterlockedOr8(reinterpret_cast<char volatile *>(&x), y); }
@@ -260,11 +267,7 @@ inline T _atomicCas(T volatile &x, ConstInt<sizeof(short)>, S cmp, U y) { return
 template <typename T>
 inline T _atomicInc(T volatile &x, ConstInt<sizeof(LONG)>) { return InterlockedIncrement(reinterpret_cast<LONG volatile *>(&x)); }
 template <typename T>
-inline T* _atomicInc(T* volatile &x, ConstInt<sizeof(LONG)>) { InterlockedExchangeAdd(reinterpret_cast<LONG volatile *>(&x), sizeof(LONG)); return x; }
-template <typename T>
 inline T _atomicDec(T volatile &x, ConstInt<sizeof(LONG)>) { return InterlockedDecrement(reinterpret_cast<LONG volatile *>(&x)); }
-template <typename T>
-inline T* _atomicDec(T* volatile &x, ConstInt<sizeof(LONG)>) { InterlockedExchangeAdd(reinterpret_cast<LONG volatile *>(&x), -sizeof(LONG)); return x; }
 template <typename T, typename S>
 inline T _atomicAdd(T volatile &x, ConstInt<sizeof(LONG)>, S y) { return InterlockedExchangeAdd(reinterpret_cast<LONG volatile *>(&x), y); }
 template <typename T, typename S>
@@ -278,19 +281,15 @@ inline T _atomicCas(T volatile &x, ConstInt<sizeof(long)>, S cmp, U y) { return 
 template <typename T>
 inline T _atomicInc(T volatile &x, ConstInt<sizeof(LONGLONG)>) { return InterlockedIncrement64(reinterpret_cast<LONGLONG volatile *>(&x)); }
 template <typename T>
-inline T* _atomicInc(T* volatile &x, ConstInt<sizeof(LONGLONG)>) { InterlockedExchangeAdd64(reinterpret_cast<LONGLONG volatile *>(&x), sizeof(LONGLONG)); return x; }
-template <typename T>
 inline T _atomicDec(T volatile &x, ConstInt<sizeof(LONGLONG)>) { return InterlockedDecrement64(reinterpret_cast<LONGLONG volatile *>(&x)); }
-template <typename T>
-inline T* _atomicDec(T* volatile &x, ConstInt<sizeof(LONGLONG)>) { InterlockedExchangeAdd64(reinterpret_cast<LONGLONG volatile *>(&x), -sizeof(LONGLONG)); return x; }
 template <typename T, typename S>
 inline T _atomicAdd(T volatile &x, ConstInt<sizeof(LONGLONG)>, S y) { return InterlockedExchangeAdd64(reinterpret_cast<LONGLONG volatile *>(&x), y); }
 template <typename T, typename S>
-inline T _atomicOr(T volatile &x, ConstInt<sizeof(int64_t)>, S y) { return _InterlockedOr64(reinterpret_cast<int64_t volatile *>(&x), y); }
+inline T _atomicOr(T volatile &x, ConstInt<sizeof(__int64)>, S y) { return _InterlockedOr64(reinterpret_cast<__int64 volatile *>(&x), y); }
 template <typename T, typename S>
-inline T _atomicXor(T volatile &x, ConstInt<sizeof(int64_t)>, S y) { return _InterlockedXor64(reinterpret_cast<int64_t volatile *>(&x), y); }
+inline T _atomicXor(T volatile &x, ConstInt<sizeof(__int64)>, S y) { return _InterlockedXor64(reinterpret_cast<__int64 volatile *>(&x), y); }
 template <typename T, typename S, typename U>
-inline T _atomicCas(T volatile &x, ConstInt<sizeof(int64_t)>, S cmp, U y) { return _InterlockedCompareExchange64(reinterpret_cast<int64_t volatile *>(&x), y, cmp); }
+inline T _atomicCas(T volatile &x, ConstInt<sizeof(__int64)>, S cmp, U y) { return _InterlockedCompareExchange64(reinterpret_cast<__int64 volatile *>(&x), y, cmp); }
 #endif  // #ifdef _WIN64
 
 template <typename T>
@@ -314,7 +313,7 @@ template <typename T>
 inline T atomicPostDec(T volatile & x) { return atomicDec(x) + 1; }
 
 
-#else  // #if defined(STDLIB_VS)
+#else  // #if defined(PLATFORM_WINDOWS) && !defined(PLATFORM_WINDOWS_MINGW)
 
 // ----------------------------------------------------------------------------
 // Implementation in GCC (LLVM is GCC compatible)
@@ -412,7 +411,7 @@ inline T1 * atomicAdd(T1 * volatile & x, T2 y)
     return (T1 *) __sync_add_and_fetch((size_t volatile *)&x, y * sizeof(T2));
 }
 
-#endif  // #if defined(STDLIB_VS)
+#endif  // #if defined(PLATFORM_WINDOWS) && !defined(PLATFORM_WINDOWS_MINGW)
 
 
 // ----------------------------------------------------------------------------
@@ -445,6 +444,7 @@ template <typename T1, typename T2>   inline T1 atomicAdd(T1 volatile & x, T2 y,
 
 // C++11 atomic wrappers
 
+#ifdef SEQAN_CXX11_STL
 template <typename T>   inline T atomicInc(std::atomic<T>        & x     )        { return ++x;                    }
 template <typename T>   inline T atomicPostInc(std::atomic<T>    & x     )        { return x++;                    }
 template <typename T>   inline T atomicDec(std::atomic<T>        & x     )        { return --x;                    }
@@ -455,7 +455,8 @@ template <typename T>   inline T atomicCas(std::atomic<T>        & x, T cmp, T y
 template <typename T>   inline T atomicCas(std::atomic<T>        & x, T cmp, T y, Parallel) { x.compare_exchange_weak(cmp, y); return cmp; }
 template <typename T>   inline bool atomicCasBool(std::atomic<T> & x, T    , T y, Serial)   { x = y; return true;                          }
 template <typename T>   inline bool atomicCasBool(std::atomic<T> & x, T cmp, T y, Parallel) { return x.compare_exchange_weak(cmp, y);      }
+#endif  // #ifdef SEQAN_CXX11_STL
 
 } // namespace seqan
 
-#endif  // #if defined(STDLIB_VS)
+#endif  // #if defined(PLATFORM_WINDOWS) && !defined(PLATFORM_WINDOWS_MINGW)

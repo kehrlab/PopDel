@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -371,6 +371,7 @@ bool
 operator==(Iter<TJournaledString, JournaledStringIterSpec<CommonSegmentIterator> > const & a,
            Iter<TJournaledString, JournaledStringIterSpec<CommonSegmentIterator> > const & b)
 {
+    SEQAN_CHECKPOINT;
     if (a._journalEntriesIterator != b._journalEntriesIterator)
         return false;
     if (a._currentSegmentIt != b._currentSegmentIt)

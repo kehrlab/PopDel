@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 
 //////////////////////////////////////////////////////////////////////////////
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -344,7 +344,7 @@ _findBeginInit(TPattern & pattern, TNeedle & needle_)
  * @param[in,out] finder  The Finder object to search through.
  * @param[in,out] pattern The Pattern object to search for.  This must be a pattern for approximate string matching.
  * @param[in]     limit   The score limit.  The default is the limit used during the last <tt>find</tt> call, see
- *                        <tt>getScore</tt>.  All occurrences that score at least <tt>limit</tt> are reported.
+ *                        <tt>getScore</tt>.  All occurences that score at least <tt>limit</tt> are reported.
  *
  * @return bool <tt>true</tt> indicates a match, <tt>false</tt> indicates no match.
  *
@@ -395,6 +395,6 @@ getBeginScore(TPattern & pattern)
 
 //////////////////////////////////////////////////////////////////////////////
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

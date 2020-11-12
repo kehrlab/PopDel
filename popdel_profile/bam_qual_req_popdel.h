@@ -31,7 +31,7 @@ struct BamQualReq
 // Function getAlignScore()
 // ---------------------------------------------------------------------------------------
 // Return the extracted the alignment score             // TODO: Check if a method without BamTagsDict is faster.
-inline unsigned getAlignScore(const CharString & tags, int & index)
+inline unsigned getAlignScore(CharString & tags, int & index)
 {
     unsigned score = 0;
     BamTagsDict dict(tags);
@@ -82,7 +82,7 @@ inline bool isReverseRead(const BamAlignmentRecord & record)
 // =======================================================================================
 // Perform checks if all requirements are met by the record.
 // Return true if all checks are passed, false otherwise.
-inline bool meetsRequirements(const BamAlignmentRecord & record, BamQualReq & qualReq)
+inline bool meetsRequirements(BamAlignmentRecord & record, BamQualReq & qualReq)
 {
     if ((record.flag & qualReq.flagsUnset) != 0)                        // Check if the -F specified flags are unset
         return false;
@@ -93,7 +93,7 @@ inline bool meetsRequirements(const BamAlignmentRecord & record, BamQualReq & qu
     if (record.mapQ < qualReq.minMappingQual)                           // Check mapping quality.
         return false;
     SEQAN_ASSERT_GT(length(record.cigar), 0u);
-    unsigned fullLenght = length(record.seq);
+    unsigned fullLenght = record._l_qseq;
     unsigned leftClip = 0;                                              // Number of clipped bases at 5' end.
     unsigned rightClip = 0;                                             // Number of clipped bases at 3' end
     if (record.cigar[0].operation == 'S')

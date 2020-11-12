@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_PIPE_EDIT_ENVIRONMENT_H
 #define SEQAN_HEADER_PIPE_EDIT_ENVIRONMENT_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //namespace SEQAN_NAMESPACE_PIPELINING
@@ -209,7 +209,6 @@ namespace seqan
 
             case INSERT_EOS_:
                 state = INSERT_;
-                SEQAN_FALLTHROUGH
             case INSERT_:
             case INSERT_LAST_:
                 // before INSERT_ (prev=orig, ++in; tmp=prev) holds
@@ -245,7 +244,6 @@ namespace seqan
                     }
                     assignValue(tmp.i2, errorPos, (TValue) 0);
                 }
-                break;
             default:;
             }
             return *this;
@@ -339,7 +337,7 @@ namespace seqan
         unsigned alphabetSize = ValueSize< typename Value<TTuple>::Type >::VALUE;
         unsigned seqs = countSequences(me.in);
         // TODO: We run into problems when one sequence contains 1 or less tuples
-        // length should be omitted in future, but Pools or the skew algorithm needs to know the stream length
+        // length should be ommitted in future, but Pools or the skew algorithm needs to know the stream length
         if (length(me.in) >= seqs)
             return
                   (length(me.in) / STEP_SIZE)     * (1 + length(me.tmp.i2) * (alphabetSize - 1)) +            // substitutions and original

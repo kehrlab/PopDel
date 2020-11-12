@@ -11,11 +11,11 @@ using namespace seqan;
 // =======================================================================================
 // Struct BamWindowIterator
 // =======================================================================================
+// Actually not only for BAM files, but also for CRAM files.
 struct BamWindowIterator
 {
-    typedef std::map<CharString, unsigned> TReadGroups;
-    BamFileIn infile;                                      // The input BAM-file.
-    BamIndex<Bai> bai;                                     // Necessary for jumping in bam file.
+    typedef std::map<CharString, unsigned> TReadGroups;    // Mapping of ReadGroupID:Index
+    HtsFileIn infile;                                      // The input BAM/CRAM-file.
     TReadGroups readGroups;                                // Map of read group IDs and their rank (order of apperance).
     BamQualReq qualReqFwd;                                 // Quality requirements for forward reads.
     BamQualReq qualReqRev;                                 // Quality requirements for reverse reads.
@@ -34,6 +34,31 @@ struct BamWindowIterator
     Iterator<String<GenomicRegion> >::Type currentReadingInterval; //
     Iterator<String<GenomicRegion> >::Type currentWindowInterval;  //
     bool mergeRG;
+
+    BamWindowIterator(const CharString & filename, const CharString & referenceFile)
+    {
+        if(!open(infile, toCString(filename), referenceFile == "" ? NULL : toCString(referenceFile)))
+            SEQAN_THROW(IOError("Could not open sequence file."));
+
+        if (infile.fp->fn_aux)
+        {
+            if (infile.fp->is_cram)
+            {
+                std::ostringstream msg;
+                msg << "Using \'" << referenceFile << "\' as reference file instead of header entries.";
+                printStatus(msg);
+            }
+            else
+            {
+                std::ostringstream msg;
+                msg << "Warning: Sequence file is not in CRAM format but a reference file has been specified. The reference file will be ignored.";
+                printStatus(msg);
+            }
+        }
+
+        if(!loadBaiCrai(infile))
+            SEQAN_THROW(IOError("Could not open index file."));
+    }
 };
 // ---------------------------------------------------------------------------------------
 // Function posToWindow()
@@ -103,17 +128,23 @@ inline int processRecord(BamWindowIterator & bwi)
     }
     return true;
 }
-
-inline void tryReadRecod(BamAlignmentRecord & record, BamFileIn & infile)
+// ---------------------------------------------------------------------------------------
+// Function tryReadRecord()
+// ---------------------------------------------------------------------------------------
+// Try to read the next record in the set region. Do not read the sequence or qualities.
+// Return true on sucess and false if EOF has been reached.
+inline bool tryReadRecord(BamAlignmentRecord & record, HtsFileIn & infile)
 {
+            bool ret = false;
             try
             {
-                readRecord(record, infile);
+                ret = seqFreeReadRegion(record, infile);
             }
             catch (Exception const & e)
             {
                 SEQAN_THROW(IOError("Could no read record in BAM-File."));
             }
+            return ret;
 }
 // ---------------------------------------------------------------------------------------
 // Function goToInterval()
@@ -122,13 +153,13 @@ inline void tryReadRecod(BamAlignmentRecord & record, BamFileIn & infile)
 inline void goToInterval(BamWindowIterator & bwi)
 {
     GenomicRegion const & itv = *bwi.currentReadingInterval;
-    bool hasAlignments;
-    jumpToRegion(bwi.infile, hasAlignments, itv.rID, itv.beginPos + 1, itv.endPos, bwi.bai);
+    setRegion(bwi.infile, toCString(itv.seqName), itv.beginPos + 4, itv.endPos);
+    bool notAtEnd = true;
     do
     {
-        tryReadRecod(bwi.nextRecord, bwi.infile);
+        notAtEnd = tryReadRecord(bwi.nextRecord, bwi.infile);
     }
-    while (bwi.nextRecord.rID == itv.rID && bwi.nextRecord.beginPos < itv.beginPos);
+    while (bwi.nextRecord.rID == itv.rID && bwi.nextRecord.beginPos < itv.beginPos && notAtEnd);
 }
 // ---------------------------------------------------------------------------------------
 // Function goToNextReverseRecord()
@@ -138,24 +169,28 @@ inline void goToInterval(BamWindowIterator & bwi)
 // Return false if end of file is reached.
 inline bool goToNextReverseRecord(BamWindowIterator & bwi)
 {
-    while (!atEnd(bwi.infile))
+
+    while(bwi.currentReadingInterval != end(bwi.intervals))
     {
-        tryReadRecod(bwi.nextRecord, bwi.infile);
-        while (bwi.nextRecord.rID > (*bwi.currentReadingInterval).rID) // Is record still in current interval?
+        while (tryReadRecord(bwi.nextRecord, bwi.infile))
         {
-            ++bwi.currentReadingInterval;
-            if (bwi.currentReadingInterval >= end(bwi.intervals))
+
+            int pr = processRecord(bwi);
+            if (pr == 0)                                        // Only good reverse records cannot be completely processed.
             {
-                return false;                               // Last interval has been processed.
+                return true;
             }
-            goToInterval(bwi);
+            else if (pr < 0 && bwi.goodFwdReads.empty())        // Record is outside of interval.
+            {   // TODO Check if this can still happen.
+                ++bwi.currentReadingInterval;
+                if (bwi.currentReadingInterval >= end(bwi.intervals))
+                {
+                    return false;                               // Last interval has been processed.
+                }
+                goToInterval(bwi);
+            }
         }
-        int pr = processRecord(bwi);
-        if (pr == 0)                                        // Only good reverse records cannot be completely processed.
-        {
-            return true;
-        }
-        else if (pr < 0 && bwi.goodFwdReads.empty())        // Record is outside of interval.
+        if (bwi.currentReadingInterval != end(bwi.intervals)) // Check the next interval
         {
             ++bwi.currentReadingInterval;
             if (bwi.currentReadingInterval >= end(bwi.intervals))
@@ -165,7 +200,6 @@ inline bool goToNextReverseRecord(BamWindowIterator & bwi)
             goToInterval(bwi);
         }
     }
-    bwi.currentReadingInterval = end(bwi.intervals);
     return false;                                           // End of file reached.
 }
 // ---------------------------------------------------------------------------------------
@@ -176,12 +210,11 @@ inline bool goToNextReverseRecord(BamWindowIterator & bwi)
 // Return true if a good rev. read with a good mate was found whose processing needs to wait until window is reached.
 // Return false end of file is reached.
 // Call _goToNextReverseRecord, if no good reverse record can be found in the first try.
-inline bool goToFirstReverseRecord(BamWindowIterator & bwi, CharString & filename)
+inline bool goToFirstReverseRecord(BamWindowIterator & bwi)
 {
     setRIDs(bwi.intervals, bwi.infile);
     // Initialize the first interval and read the first record after the interval's begin from infile
     bwi.currentReadingInterval = begin(bwi.intervals);
-    loadBai(bwi.bai, filename);
     goToInterval(bwi);
     while (bwi.nextRecord.rID > (*bwi.currentReadingInterval).rID)  // Is record in current interval?
     {
@@ -340,7 +373,6 @@ inline void calculateMaxInsertSizes(BamWindowIterator & bwi,
 // =======================================================================================
 // Initialize all parameters for the window iterator, open BAM file and set window to the first good interval.
 void initialize(BamWindowIterator & bwi,
-                CharString & filename,
                 std::map<CharString, unsigned> & readGroups,
                 String<GenomicRegion> & intervals,
                 BamQualReq & qualReq,
@@ -377,11 +409,7 @@ void initialize(BamWindowIterator & bwi,
     bwi.qualReqRev.flagsSet &= ~BAM_FLAG_NEXT_RC;
     bwi.qualReqRev.flagsUnset &= ~BAM_FLAG_RC;
     // Open the input bam file, read the header and go to the reverse read of the first good read pair in infile.
-    if(!open(bwi.infile, toCString(filename)))
-        SEQAN_THROW(IOError("Could not open BAM file."));
-    BamHeader header;
-    readHeader(header, bwi.infile);
-    if (!goToFirstReverseRecord(bwi, filename))
+    if (!goToFirstReverseRecord(bwi))
         SEQAN_THROW(IOError("[PopDel] No BAM records meet the requirements."));
     // Initialize windows.
     int maxInsertSize = max(bwi.maxInsertSizes);    //TODO: Check if this works out and replace max with parameter.

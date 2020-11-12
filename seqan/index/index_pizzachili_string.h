@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -39,12 +39,10 @@
 
 #include <seqan/index/pizzachili_api.h>
 
-namespace seqan {
+namespace SEQAN_NAMESPACE_MAIN {
 
 /*!
  * @class PizzaChiliString Pizza &amp; Chili String
- *
- * @deprecated Module is outdated and is not maintained anymore. Will presumably be removed in the next major release.
  *
  * @extends String
  *
@@ -91,6 +89,7 @@ public:
     String(TText& other)
         : index_handle(0), owned(true), data_begin(0), data_end(0)
     {
+SEQAN_CHECKPOINT
         assign(*this, other);
     }
 
@@ -100,22 +99,26 @@ public:
     String(String& other)
         : index_handle(0), owned(true), data_begin(0), data_end(0)
     {
+SEQAN_CHECKPOINT
         assign(*this, other);
     }
 
     String(String const& other)
         : index_handle(0), owned(true), data_begin(0), data_end(0)
     {
+SEQAN_CHECKPOINT
         assign(*this, other);
     }
 
     String& operator =(String const& other) {
+SEQAN_CHECKPOINT
         if (this != &other)
             assign(*this, other);
         return *this;
     }
 
     ~String() {
+SEQAN_CHECKPOINT
         clear(*this);
     }
 
@@ -123,11 +126,13 @@ public:
 
     template <typename TPos>
     inline TValue& operator [](TPos index) {
+SEQAN_CHECKPOINT
         return value(*this, index);
     }
 
     template <typename TPos>
     inline TValue operator [](TPos index) const {
+SEQAN_CHECKPOINT
         return value(*this, index);
     }
 };
@@ -196,6 +201,7 @@ struct DefaultOverflowImplicit<String<TValue, PizzaChili<TSpec> > > {
 template <typename TValue, typename TSpec>
 inline void
 clear(String<TValue, PizzaChili<TSpec> >& me) {
+SEQAN_CHECKPOINT
     me.index_handle = 0;
     if (me.owned) {
         _deallocateStorage(me, me.data_begin, me.data_end - me.data_begin);
@@ -254,6 +260,7 @@ _pizzaChiliAllocate(
     String<TValue, PizzaChili<TSpec> >& me,
     typename Size<String<TValue, PizzaChili<TSpec> > >::Type new_capacity
 ) {
+SEQAN_ CHECKPOINT
     TValue* old = me.data_begin;
     me.data_begin = static_cast<TValue*>(std::malloc(new_capacity));
     return old == me.data_begin ? 0 : old;
@@ -266,6 +273,7 @@ _pizzaChiliReallocate(
     String<TValue, PizzaChili<TSpec> >& me,
     typename Size<String<TValue, PizzaChili<TSpec> > >::Type new_capacity
 ) {
+SEQAN_CHECKPOINT
     if (new_capacity <= capacity(me))
         return 0;
 
@@ -282,6 +290,7 @@ _pizzaChiliReallocate(
 template <typename TValue>
 inline void
 _pizzaChiliDeallocate(TValue* begin) {
+SEQAN_CHECKPOINT
     if (begin != 0)
         std::free(begin);
 }
@@ -294,15 +303,18 @@ struct AllocHelper_ {
 
     /*
     static pointer_type allocate(string_type& me, size_type new_capacity) {
+SEQAN_ CHECKPOINT
         return _pizzaChiliAllocate(me, new_capacity);
     }
     */
 
     static pointer_type reallocate(string_type& me, size_type new_capacity) {
+SEQAN_CHECKPOINT
         return _pizzaChiliReallocate(me, new_capacity);
     }
 
     static void deallocate(pointer_type begin) {
+SEQAN_CHECKPOINT
         _pizzaChiliDeallocate(begin);
     }
 };
@@ -317,6 +329,7 @@ struct AllocHelper_<TValue, PizzaChiliFM> {
     typedef typename Size<string_type>::Type size_type;
 
     static size_type real_capacity(size_type new_capacity) {
+SEQAN_CHECKPOINT
         typedef typename PizzaChiliCodeProvider<TSpec>::Type TCodeProvider;
         // The numerical constant values are taken from the fm_build.c example
         // in th FM library folder.
@@ -325,15 +338,18 @@ struct AllocHelper_<TValue, PizzaChiliFM> {
 
     /*
     static pointer_type allocate(string_type& me, size_type new_capacity) {
+SEQAN_ CHECKPOINT
         return _pizzaChiliAllocate(me, real_capacity(new_capacity));
     }
     */
 
     static pointer_type reallocate(string_type& me, size_type new_capacity) {
+SEQAN_CHECKPOINT
         return _pizzaChiliReallocate(me, real_capacity(new_capacity));
     }
 
     static void deallocate(pointer_type begin) {
+SEQAN_CHECKPOINT
         _pizzaChiliDeallocate(begin);
     }
 };
@@ -345,6 +361,7 @@ _allocateStorage(
     String<TValue, PizzaChili<TSpec> >& me,
     typename Size<String<TValue, PizzaChili<TSpec> > >::Type new_capacity
 ) {
+SEQAN_ CHECKPOINT
     return AllocHelper_<TValue, TSpec>::allocate(me, new_capacity);
 }
 */
@@ -356,6 +373,7 @@ _reallocateStorage(
     typename Size<String<TValue, PizzaChili<TSpec> > >::Type new_capacity,
     Exact
 ) {
+SEQAN_CHECKPOINT
     return AllocHelper_<TValue, TSpec>::reallocate(me, new_capacity);
 }
 
@@ -366,6 +384,7 @@ _deallocateStorage(
    TValue* begin,
    typename Size<String<TValue, PizzaChili<TSpec> > >::Type /*count*/
 ) {
+SEQAN_CHECKPOINT
     AllocHelper_<TValue, TSpec>::deallocate(begin);
 }
 
@@ -374,12 +393,15 @@ _deallocateStorage(
 template <typename TValue, typename TSpec>
 inline typename Size<String<TValue, PizzaChili<TSpec> > >::Type
 length(String<TValue, PizzaChili<TSpec> > const& me) {
+SEQAN_CHECKPOINT
     typedef typename PizzaChiliCodeProvider<TSpec>::Type TCodeProvider;
 
     if (me.data_begin != 0) {
+SEQAN_CHECKPOINT
         return me.data_end - me.data_begin;
     }
     else if (me.index_handle != 0) {
+SEQAN_CHECKPOINT
         impl::ulong_t len;
         impl::error_t e =
             TCodeProvider::get_length(me.index_handle, &len);
@@ -401,6 +423,7 @@ _setLength(
     String<TValue, PizzaChili<TSpec> >& me,
     size_t new_length
 ) {
+SEQAN_CHECKPOINT
     me.data_end = me.data_begin + new_length;
 }
 
@@ -410,16 +433,20 @@ namespace impl {
     template <typename TValue, typename TSpec>
     inline void
     queryText(String<TValue, PizzaChili<TSpec> > const& me) {
+SEQAN_CHECKPOINT
         typedef typename PizzaChiliCodeProvider<TSpec>::Type TCodeProvider;
         if (me.data_begin != 0) {
+SEQAN_CHECKPOINT
             return;
         }
         if (me.index_handle == 0) {
+SEQAN_CHECKPOINT
             me.data_begin = static_cast<TValue*>(std::malloc(1));
             me.data_begin[0] = '\0';
             me.data_end = me.data_begin;
         }
         else {
+SEQAN_CHECKPOINT
             impl::uchar_t* snippet;
             impl::ulong_t len;
             impl::error_t e =
@@ -451,6 +478,7 @@ begin(
     String<TValue, PizzaChili<TSpec> >& me,
     Tag<TTag> const
 ) {
+SEQAN_CHECKPOINT
     impl::queryText(me);
     return me.data_begin;
 }
@@ -461,6 +489,7 @@ begin(
     String<TValue, PizzaChili<TSpec> > const& me,
     Tag<TTag> const
 ) {
+SEQAN_CHECKPOINT
     impl::queryText(me);
     return me.data_begin;
 }
@@ -471,6 +500,7 @@ end(
     String<TValue, PizzaChili<TSpec> >& me,
     Tag<TTag> const
 ) {
+SEQAN_CHECKPOINT
     impl::queryText(me);
     return me.data_end;
 }
@@ -481,6 +511,7 @@ end(
     String<TValue, PizzaChili<TSpec> > const& me,
     Tag<TTag> const
 ) {
+SEQAN_CHECKPOINT
     impl::queryText(me);
     return me.data_end;
 }
@@ -510,14 +541,17 @@ namespace impl {
 
         static inline TResult
         infix(TString& me, TPos begin, TPos end) {
+SEQAN_CHECKPOINT
             TResult ret;
 
             if (me.data_begin != 0) {
+SEQAN_CHECKPOINT
                 ret.owned = false;
                 ret.data_begin = me.data_begin + begin;
                 ret.data_end = me.data_begin + end;
             }
             else if (me.index_handle != 0) {
+SEQAN_CHECKPOINT
                 impl::uchar_t* snippet;
                 impl::ulong_t len;
                 impl::error_t e =
@@ -544,27 +578,32 @@ namespace impl {
 
         static inline TConstResult
         infix(TString const& me, TPos begin, TPos end) {
+SEQAN_CHECKPOINT
             // This cast is safe as the content is never written to.
             return infix(const_cast<TString&>(me), begin, end);
         }
 
         static inline TResult
         prefix(TString& me, TPos end) {
+SEQAN_CHECKPOINT
             return infix(me, 0, end);
         }
 
         static inline TConstResult
         prefix(TString const& me, TPos end) {
+SEQAN_CHECKPOINT
             return infix(me, 0, end);
         }
 
         static inline TResult
         suffix(TString& me, TPos begin) {
+SEQAN_CHECKPOINT
             return infix(me, begin, length(me));
         }
 
         static inline TConstResult
         suffix(TString const& me, TPos begin) {
+SEQAN_CHECKPOINT
             return infix(me, begin, length(me));
         }
     }; // substringHelperPizzaChili
@@ -588,6 +627,7 @@ namespace impl {
 
         static inline TResult
         infix(TString& /*me*/, TPos begin, TPos end) {
+SEQAN_CHECKPOINT
             // Iterators were used, therefore it's safe to assume that the
             // string is already in memory.
             TResult ret;
@@ -599,28 +639,33 @@ namespace impl {
 
         static inline TConstResult
         infix(TString const& me, TPos begin, TPos end) {
+SEQAN_CHECKPOINT
             // This cast is safe as the content is never written to.
             return infix(const_cast<TString&>(me), begin, end);
         }
 
         static inline TResult
         prefix(TString& me, TPos end) {
+SEQAN_CHECKPOINT
             return infix(me, begin(me), end);
         }
 
         static inline TConstResult
         prefix(TString const& me, TPos end) {
+SEQAN_CHECKPOINT
             // This cast is safe as the content is never written to.
             return infix(me, begin(const_cast<TString&>(me)), end);
         }
 
         static inline TResult
         suffix(TString& me, TPos begin) {
+SEQAN_CHECKPOINT
             return infix(me, begin, end(me));
         }
 
         static inline TConstResult
         suffix(TString const& me, TPos begin) {
+SEQAN_CHECKPOINT
             // This cast is safe as the content is never written to.
             return infix(me, begin, end(const_cast<TString&>(me)));
         }
@@ -660,6 +705,7 @@ namespace impl {
 
         static inline TConstResult
         infix(TString const& me, TPos begin, TPos end) {
+SEQAN_CHECKPOINT
             // This cast is safe as the content is never written to.
             return TBase::infix(
                 me,
@@ -670,11 +716,13 @@ namespace impl {
 
         static inline TConstResult
         prefix(TString const& me, TPos end) {
+SEQAN_CHECKPOINT
             return infix(me, begin(me), end);
         }
 
         static inline TConstResult
         suffix(TString const& me, TPos begin) {
+SEQAN_CHECKPOINT
             return infix(me, begin, end(me));
         }
     };
@@ -690,6 +738,7 @@ infix(
     TPosBegin begin,
     TPosEnd end
 ) {
+SEQAN_CHECKPOINT
     return impl::substringHelperPizzaChili<TValue, TSpec, TPosBegin>::infix(me, begin, end);
 }
 
@@ -700,6 +749,7 @@ infix(
     TPosBegin begin,
     TPosEnd end
 ) {
+SEQAN_CHECKPOINT
     return impl::substringHelperPizzaChili<TValue, TSpec, TPosBegin>::infix(me, begin, end);
 }
 
@@ -711,6 +761,7 @@ prefix(
     String<TValue, PizzaChili<TSpec> > const& me,
     TPos end
 ) {
+SEQAN_CHECKPOINT
     return impl::substringHelperPizzaChili<TValue, TSpec, TPos>::prefix(me, end);
 }
 
@@ -720,6 +771,7 @@ prefix(
     String<TValue, PizzaChili<TSpec> >& me,
     TPos end
 ) {
+SEQAN_CHECKPOINT
     return impl::substringHelperPizzaChili<TValue, TSpec, TPos>::prefix(me, end);
 }
 
@@ -731,6 +783,7 @@ suffix(
     String<TValue, PizzaChili<TSpec> > const& me,
     TPos begin
 ) {
+SEQAN_CHECKPOINT
     return impl::substringHelperPizzaChili<TValue, TSpec, TPos>::suffix(me, begin);
 }
 
@@ -740,11 +793,12 @@ suffix(
     String<TValue, PizzaChili<TSpec> >& me,
     TPos begin
 ) {
+SEQAN_CHECKPOINT
     return impl::substringHelperPizzaChili<TValue, TSpec, TPos>::suffix(me, begin);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-} // namespace seqan
+} // namespace SEQAN_NAMESPACE_MAIN
 
 #endif // SEQAN_HEADER_INDEX_PIZZACHILI_STRING_H

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 #define SEQAN_HEADER_SEGMENT_PREFIX_H
 
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -120,13 +120,14 @@ public:
         return *this;
     }
 
+#if defined(SEQAN_CXX11_STANDARD) && (!defined(_MSC_VER) || _MSC_VER >= 1800)
     template<typename T> explicit operator T () const
     {
         T temp_copy;
         assign(temp_copy, *this);
         return temp_copy;
     }
-
+#endif
 //____________________________________________________________________________
 
 public:
@@ -158,16 +159,18 @@ public:
 // }
 
 template <typename THost_>
-inline typename Parameter_<THost_>::Type
+SEQAN_HOST_DEVICE inline typename Parameter_<THost_>::Type
 host(Segment<THost_, PrefixSegment> & me)
 {
+SEQAN_CHECKPOINT
     return _toParameter<THost_>(me.data_host);
 }
 
 template <typename THost_>
-inline typename Parameter_<THost_>::Type
+SEQAN_HOST_DEVICE inline typename Parameter_<THost_>::Type
 host(Segment<THost_, PrefixSegment> const & me)
 {
+SEQAN_CHECKPOINT
     return _toParameter<THost_>(me.data_host);
 }
 
@@ -177,6 +180,7 @@ template <typename THost_>
 inline void
 setHost(Segment<THost_, PrefixSegment> & me, typename Parameter_<THost_>::Type _host)
 {
+SEQAN_CHECKPOINT
     me.data_host = _toPointer(_host);
 }
 
@@ -184,13 +188,14 @@ template <typename THost_>
 inline void
 setHost(Segment<THost_ const, PrefixSegment> & me, typename Parameter_<THost_>::Type _host)
 {
+SEQAN_CHECKPOINT
     me.data_host = _toPointer(_host);
 }
 
 //____________________________________________________________________________
 
 template <typename THost_>
-inline typename Iterator<Segment<THost_, PrefixSegment>, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<Segment<THost_, PrefixSegment>, Standard>::Type
 begin(Segment<THost_, PrefixSegment> & me,
     Standard)
 {
@@ -199,7 +204,7 @@ begin(Segment<THost_, PrefixSegment> & me,
     return begin(tmpHost, Standard());
 }
 template <typename THost_>
-inline typename Iterator<Segment<THost_, PrefixSegment> const, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<Segment<THost_, PrefixSegment> const, Standard>::Type
 begin(Segment<THost_, PrefixSegment> const & me,
     Standard)
 {
@@ -210,15 +215,17 @@ begin(Segment<THost_, PrefixSegment> const & me,
 //____________________________________________________________________________
 
 template <typename THost_>
-inline typename Position<Segment<THost_, PrefixSegment> const>::Type
+SEQAN_HOST_DEVICE inline typename Position<Segment<THost_, PrefixSegment> const>::Type
 beginPosition(Segment<THost_, PrefixSegment> const & /*me*/)
 {
+SEQAN_CHECKPOINT
     return 0;
 }
 template <typename THost_>
-inline typename Position<Segment<THost_, PrefixSegment> >::Type
+SEQAN_HOST_DEVICE inline typename Position<Segment<THost_, PrefixSegment> >::Type
 beginPosition(Segment<THost_, PrefixSegment> & /*me*/)
 {
+SEQAN_CHECKPOINT
     return 0;
 }
 
@@ -233,17 +240,19 @@ setBegin(Segment<THost_, PrefixSegment> &, TIterator)
 //____________________________________________________________________________
 
 template <typename THost_>
-inline typename Iterator<Segment<THost_, PrefixSegment>, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<Segment<THost_, PrefixSegment>, Standard>::Type
 end(Segment<THost_, PrefixSegment> & me,
     Standard)
 {
+SEQAN_CHECKPOINT
     return begin(host(me), Standard()) + me.data_end_position;
 }
 template <typename THost_>
-inline typename Iterator<Segment<THost_, PrefixSegment> const, Standard>::Type
+SEQAN_HOST_DEVICE inline typename Iterator<Segment<THost_, PrefixSegment> const, Standard>::Type
 end(Segment<THost_, PrefixSegment> const & me,
     Standard)
 {
+SEQAN_CHECKPOINT
     return begin(host(me), Standard()) + me.data_end_position;
 }
 
@@ -254,6 +263,7 @@ template <typename THost_, typename TPosition>
 inline void
 setEndPosition(Segment<THost_, PrefixSegment> & me, TPosition new_end)
 {
+SEQAN_CHECKPOINT
     me.data_end_position = new_end;
 }
 
@@ -261,6 +271,7 @@ template <typename THost_, typename TIterator>
 inline void
 setEnd(Segment<THost_, PrefixSegment> & me, TIterator new_end)
 {
+    SEQAN_CHECKPOINT;
     // me.data_end_position = new_end - begin(host(me));//, Standard());
     me.data_end_position = new_end - TIterator(begin(host(me)));
 }
@@ -269,6 +280,7 @@ template <typename THost_>
 inline void
 setEnd(typename Iterator<Segment<THost_, PrefixSegment>, Rooted>::Type new_end)
 {
+SEQAN_CHECKPOINT
     container(new_end).data_end_position = hostIterator(new_end) - begin(host(container(new_end)));//, Standard());
 }
 
@@ -280,21 +292,24 @@ _setLength(
     Segment<THost_, PrefixSegment> & me,
     TSize new_length)
 {
+SEQAN_CHECKPOINT
     me.data_end_position = new_length;
 }
 
 //____________________________________________________________________________
 
 template <typename THost_>
-inline typename Position<Segment<THost_, PrefixSegment> >::Type
+SEQAN_HOST_DEVICE inline typename Position<Segment<THost_, PrefixSegment> >::Type
 endPosition(Segment<THost_, PrefixSegment> & me)
 {
+SEQAN_CHECKPOINT
     return me.data_end_position;
 }
 template <typename THost_>
-inline typename Position<Segment<THost_, PrefixSegment> const>::Type
+SEQAN_HOST_DEVICE inline typename Position<Segment<THost_, PrefixSegment> const>::Type
 endPosition(Segment<THost_, PrefixSegment> const & me)
 {
+SEQAN_CHECKPOINT
     return me.data_end_position;
 }
 
@@ -333,14 +348,6 @@ template <typename THost>
 struct Prefix<THost &>:
     Prefix<THost> {};
 
-// ----------------------------------------------------------------------------
-// Metafunction PrefixOnValue
-// ----------------------------------------------------------------------------
-
-template <typename T>
-struct PrefixOnValue :
-    Prefix<T>{};
-
 //////////////////////////////////////////////////////////////////////////////
 
 template <typename THost, typename TPosition>
@@ -349,6 +356,7 @@ set(Segment<THost, PrefixSegment> & me,
     THost & host_,
     TPosition end_)
 {
+SEQAN_CHECKPOINT
     setHost(me, host_);
     setEndPosition(me, end_);
 }
@@ -359,6 +367,7 @@ inline void
 set(Segment<THost, PrefixSegment> & me,
     THost & host_)
 {
+SEQAN_CHECKPOINT
     setHost(me, host_);
     setEnd(me, end(host_));
 }
@@ -370,6 +379,7 @@ inline void
 set(Segment<THost, PrefixSegment> & me,
     Segment<THost, TSpec> & source)
 {
+SEQAN_CHECKPOINT
     setHost(me, host(source));
     setEndPosition(me, endPosition(source));
 }
@@ -379,6 +389,7 @@ inline void
 set(Segment<THost, PrefixSegment> & me,
     Segment<THost, TSpec> const & source)
 {
+SEQAN_CHECKPOINT
     setHost(me, host(source));
     setEndPosition(me, endPosition(source));
 }
@@ -389,6 +400,7 @@ template <typename THost>
 inline bool
 atBegin(Segment<THost, PrefixSegment> const & segment)
 {
+SEQAN_CHECKPOINT
     return (endPosition(segment) == length(host(segment)));
 }
 
@@ -398,6 +410,7 @@ template <typename THost>
 inline bool
 atEnd(Segment<THost, PrefixSegment> const & segment)
 {
+SEQAN_CHECKPOINT
     return (endPosition(segment) == 0);
 }
 
@@ -408,6 +421,7 @@ inline void
 goBegin(Segment<THost, PrefixSegment> & segment,
         THost &)
 {
+SEQAN_CHECKPOINT
     goBegin(segment);
 }
 
@@ -425,6 +439,7 @@ inline void
 goEnd(Segment<THost, PrefixSegment> & segment,
       THost &)
 {
+SEQAN_CHECKPOINT
     goEnd(segment);
 }
 
@@ -484,6 +499,7 @@ template <typename T, typename TPosEnd>
 inline typename Prefix<Segment<T, PrefixSegment> >::Type
 prefix(Segment<T, PrefixSegment> & t, TPosEnd pos_end)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, PrefixSegment> >::Type (
         host(t),
         beginPosition(t) + pos_end);
@@ -492,6 +508,7 @@ template <typename T, typename TPosEnd>
 inline typename Prefix<Segment<T, PrefixSegment> const>::Type
 prefix(Segment<T, PrefixSegment> const & t, TPosEnd pos_end)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, PrefixSegment> const>::Type (
         host(t),
         beginPosition(t) + pos_end);
@@ -503,6 +520,7 @@ template <typename T, typename TPosEnd>
 inline typename Prefix<Segment<T, InfixSegment> >::Type
 prefix(Segment<T, InfixSegment> & t, TPosEnd pos_end)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, InfixSegment> >::Type (
         host(t),
         beginPosition(t),
@@ -512,6 +530,7 @@ template <typename T, typename TPosEnd>
 inline typename Prefix<Segment<T, InfixSegment> const>::Type
 prefix(Segment<T, InfixSegment> const & t, TPosEnd pos_end)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, InfixSegment> const>::Type (
         host(t),
         beginPosition(t),
@@ -525,6 +544,7 @@ template <typename T, typename TPosEnd>
 inline typename Prefix<Segment<T, SuffixSegment> >::Type
 prefix(Segment<T, SuffixSegment> & t, TPosEnd pos_end)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, SuffixSegment> >::Type (
         host(t),
         beginPosition(t),
@@ -534,6 +554,7 @@ template <typename T, typename TPosEnd>
 inline typename Prefix<Segment<T, SuffixSegment> const>::Type
 prefix(Segment<T, SuffixSegment> const & t, TPosEnd pos_end)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, SuffixSegment> const>::Type (
         host(t),
         beginPosition(t),
@@ -549,6 +570,7 @@ inline typename Prefix<T>::Type
 prefix(T & t,
        Iter<Segment<T, PrefixSegment>, TIterSpec> const & iterEnd)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<T>::Type(t, iterEnd);
 }
 template <typename T, typename TIterSpec>
@@ -556,6 +578,7 @@ inline typename Prefix<T const>::Type
 prefix(T const & t,
        Iter<Segment<T, PrefixSegment>, TIterSpec> const & iterEnd)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<T const>::Type(t, iterEnd);
 }
 
@@ -564,6 +587,7 @@ inline typename Prefix<T *>::Type
 prefix(T * t,
        Iter<Segment<T, PrefixSegment>, TIterSpec> const & iterEnd)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<T *>::Type (t, iterEnd);
 }
 
@@ -574,6 +598,7 @@ inline typename Prefix<Segment<T, PrefixSegment> >::Type
 prefix(Segment<T, PrefixSegment> & t,
        Iter<Segment<T, PrefixSegment>, TIterSpec> const & iterEnd)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, PrefixSegment> >::Type (
         host(t),
         iterEnd);
@@ -583,6 +608,7 @@ inline typename Prefix<Segment<T, PrefixSegment> const>::Type
 prefix(Segment<T, PrefixSegment> const & t,
        Iter<Segment<T, PrefixSegment> const, TIterSpec> const & iterEnd)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, PrefixSegment> const>::Type (
         host(t),
         iterEnd);
@@ -595,6 +621,7 @@ inline typename Prefix<Segment<T, InfixSegment> >::Type
 prefix(Segment<T, InfixSegment> & t,
        Iter<Segment<T, InfixSegment>, TIterSpec> const & iterEnd)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, InfixSegment> >::Type (
         host(t),
         begin(t),
@@ -605,6 +632,7 @@ inline typename Prefix<Segment<T, InfixSegment> const>::Type
 prefix(Segment<T, InfixSegment> const & t,
        Iter<Segment<T, InfixSegment> const, TIterSpec> const & iterEnd)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, InfixSegment> const>::Type (
         host(t),
         begin(t),
@@ -619,6 +647,7 @@ inline typename Prefix<Segment<T, SuffixSegment> >::Type
 prefix(Segment<T, SuffixSegment> & t,
        Iter<Segment<T, SuffixSegment> const, TIterSpec> const & iterEnd)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, SuffixSegment> >::Type (
         host(t),
         begin(t),
@@ -629,6 +658,7 @@ inline typename Prefix<Segment<T, SuffixSegment> const>::Type
 prefix(Segment<T, SuffixSegment> const & t,
        Iter<Segment<T, SuffixSegment> const, TIterSpec> const & iterEnd)
 {
+SEQAN_CHECKPOINT
     return typename Prefix<Segment<T, SuffixSegment> const>::Type (
         host(t),
         begin(t),
@@ -637,6 +667,6 @@ prefix(Segment<T, SuffixSegment> const & t,
 
 //////////////////////////////////////////////////////////////////////////////
 
-} //namespace seqan
+} //namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

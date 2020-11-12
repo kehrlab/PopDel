@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,6 @@ class LocalAlignmentEnumerator;
  * @tparam TScore The type of the @link Score @endlink to use for the local alignment.
  * @tparam TSpec  The tag to use for specializing the enumerator.
  *
- * This is an abstract class that will only be instantiated through its subclasses.
  * See the documentation of the specializations for examples.
  *
  * @section References

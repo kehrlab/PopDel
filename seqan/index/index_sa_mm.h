@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_INDEX_SA_MM_H
 #define SEQAN_HEADER_INDEX_SA_MM_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
     struct ManberMyers {};
@@ -193,6 +193,7 @@ namespace seqan
         ManberMyers const &alg,
         TSize maxLCP)
     {
+        SEQAN_CHECKPOINT;
         createSuffixArrayPart(SA, s, alg, maxLCP, ValueSize< typename Value<TText>::Type >::VALUE);
     }
 }

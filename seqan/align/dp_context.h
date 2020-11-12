@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -103,7 +103,7 @@ struct GetDPScoreMatrix<DPContext<TScoreValue, TGapCosts> const >
 template <typename TScoreValue, typename TGapCosts>
 struct GetDPTraceMatrix<DPContext<TScoreValue, TGapCosts> >
 {
-    typedef typename TraceBitMap_<TScoreValue>::Type TTraceValue_;
+    typedef typename TraceBitMap_::TTraceValue TTraceValue_;
     typedef DPMatrix_<TTraceValue_, FullDPMatrix> TDPScoreMatrix_;
 
     typedef typename Host<TDPScoreMatrix_>::Type Type;
@@ -112,7 +112,7 @@ struct GetDPTraceMatrix<DPContext<TScoreValue, TGapCosts> >
 template <typename TScoreValue, typename TGapCosts>
 struct GetDPTraceMatrix<DPContext<TScoreValue, TGapCosts> const >
 {
-    typedef typename TraceBitMap_<TScoreValue>::Type TTraceValue_;
+    typedef typename TraceBitMap_::TTraceValue TTraceValue_;
     typedef DPMatrix_<TTraceValue_, FullDPMatrix> TDPScoreMatrix_;
 
     typedef typename Host<TDPScoreMatrix_>::Type const Type;

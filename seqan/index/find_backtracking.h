@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -174,13 +174,19 @@ public:
 
     Pattern() {}
 
+#ifdef SEQAN_CXX11_STANDARD
     Pattern(TNeedle && needle,
             SEQAN_CTOR_DISABLE_IF(IsSameType<typename std::remove_reference<TNeedle>::type const &, Pattern const &>))
     {
-        ignoreUnusedVariableWarning(dummy);
+        ignoreUnusedVaraiableWarning(dummy);
         setHost(*this, std::forward<TNeedle>(needle));
     }
-
+#else
+    Pattern(TNeedle const & needle)
+    {
+        setHost(*this, needle);
+    }
+#endif  // SEQAN_CXX11_STANDARD
     ~Pattern()
     {
         // Empty stack
@@ -234,6 +240,7 @@ public:
     Pattern() {}
 
 
+#ifdef SEQAN_CXX11_STANDARD
     Pattern(TIndex && index, TSize depth) :
         data_host(std::forward<TIndex>(index)),
         index_iterator(index),
@@ -242,6 +249,23 @@ public:
         setHost(*this, std::forward<TIndex>(index));
     }
 
+#else
+    Pattern(TIndex & index, TSize depth) :
+        data_host(index),
+        index_iterator(index),
+        depth(depth)
+    {
+        setHost(*this, index);
+    }
+
+    Pattern(TIndex const & index, TSize depth) :
+        data_host(index),
+        index_iterator(index),
+        depth(depth)
+    {
+        setHost(*this, index);
+    }
+#endif  // SEQAN_CXX11_STANDARD
     ~Pattern()
     {
 #ifdef SEQAN_DEBUG

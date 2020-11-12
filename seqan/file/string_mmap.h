@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -48,14 +48,14 @@
  *
  * relation to file_format_mmap.h unclear
  *
- * relation to string_external unclear, what benefit does string_mmap provide?
+ * relation to string_external unclear, what benifit does string_mmap provide?
  *
  */
 
 
 //////////////////////////////////////////////////////////////////////////////
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 /*!
@@ -242,6 +242,7 @@ namespace seqan
         Standard)
     {
 //IOREV
+SEQAN_CHECKPOINT
         return me.data_begin;
     }
     template < typename TValue, typename TConfig >
@@ -250,6 +251,7 @@ namespace seqan
         Standard)
     {
 //IOREV
+SEQAN_CHECKPOINT
         return me.data_begin;
     }
 
@@ -261,6 +263,7 @@ namespace seqan
         Standard)
     {
 //IOREV
+SEQAN_CHECKPOINT
         return me.data_end;
     }
     template < typename TValue, typename TConfig >
@@ -269,6 +272,7 @@ namespace seqan
         Standard)
     {
 //IOREV
+SEQAN_CHECKPOINT
         return me.data_end;
     }
 
@@ -279,6 +283,7 @@ namespace seqan
     capacity(String<TValue, MMap<TConfig> > const & me)
     {
 //IOREV
+SEQAN_CHECKPOINT
         return length(me.mapping) / sizeof(TValue);
     }
 
@@ -291,6 +296,7 @@ namespace seqan
         size_t new_length)
     {
 //IOREV
+SEQAN_CHECKPOINT
         me.data_end = me.data_begin + new_length;
     }
 
@@ -481,12 +487,12 @@ namespace seqan
     inline bool
     _remap(String<TValue, MMap<TConfig> > &me, TCapSize new_capacity)
     {
-        typedef typename Size<String<TValue, MMap<TConfig> > >::Type    TSize SEQAN_UNUSED_TYPEDEF;
-        typedef typename Size<typename TConfig::TFile>::Type            TFileSize SEQAN_UNUSED_TYPEDEF;
+        typedef typename Size<String<TValue, MMap<TConfig> > >::Type    TSize;
+        typedef typename Size<typename TConfig::TFile>::Type            TFileSize;
 
         bool result = true;
 
-#ifndef STDLIB_VS
+#ifndef PLATFORM_WINDOWS
         // Windows doesn't allow to resize the file while having a mapped file segment
         // Thus, the following part is only supported on Linux/BSD/Mac OS
         TSize old_capacity = capacity(me);
@@ -707,6 +713,6 @@ namespace seqan
 
 
 
-} //namespace seqan
+} //namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

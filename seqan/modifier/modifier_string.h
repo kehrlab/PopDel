@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -130,6 +130,8 @@ public:
         ignoreUnusedVariableWarning(dummy);
     }
 
+#ifdef SEQAN_CXX11_STANDARD
+
     // Constructor for an inner host type; forward host to hosted type.
     template <typename THost_>
     explicit
@@ -142,6 +144,31 @@ public:
     {
         ignoreUnusedVariableWarning(dummy);
     }
+
+#else // SEQAN_CXX11_STANDARD
+
+    // Constructor for an inner host type; forward host to hosted type.
+    template <typename THost_>
+    explicit
+    ModifiedString(THost_ & host,
+                   SEQAN_CTOR_ENABLE_IF(IsAnInnerHost<THost, THost_>)) :
+            _host(host),
+            _cargo()
+    {
+        ignoreUnusedVariableWarning(dummy);
+    }
+
+    template <typename THost_>
+    explicit
+    ModifiedString(THost_ const & host,
+                   SEQAN_CTOR_ENABLE_IF(IsAnInnerHost<THost, THost_ const>)) :
+            _host(host),
+            _cargo()
+    {
+        ignoreUnusedVariableWarning(dummy);
+    }
+
+#endif // SEQAN_CXX11_STANDARD
 
     template <typename TPos>
     inline typename Reference<ModifiedString>::Type
@@ -483,14 +510,14 @@ _toPointer(ModifiedString<THost, TSpec> const & me)
 // --------------------------------------------------------------------------
 
 template <typename THost, typename TSpec>
-inline typename Parameter_<ModifiedString<THost, TSpec> >::Type
+SEQAN_HOST_DEVICE inline typename Parameter_<ModifiedString<THost, TSpec> >::Type
 _toParameter(ModifiedString<THost, TSpec> & me)
 {
     return me;
 }
 
 template <typename THost, typename TSpec>
-inline typename Parameter_<ModifiedString<THost, TSpec> const >::Type
+SEQAN_HOST_DEVICE inline typename Parameter_<ModifiedString<THost, TSpec> const >::Type
 _toParameter(ModifiedString<THost, TSpec> const & me)
 {
     return me;
@@ -883,14 +910,6 @@ save(StringSet<ModifiedString<THost, TSpec>, Owner<ConcatDirect<TSpec2> > > cons
 {
     return true; // NOOP; this has to be done manually right now
 }
-
-// --------------------------------------------------------------------------
-// Function clear()
-// --------------------------------------------------------------------------
-
-template <typename THost, typename TSpec >
-inline void clear(ModifiedString<THost, TSpec> &)
-{}
 
 }  // namespace seqan
 

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@ _getOtherSequenceAndProject(Align<TSource,TSpec> & segment,
                            TId2 & seq_j_id,
                            TPos2 & node_j)
 {
+SEQAN_CHECKPOINT
 
     if(seg_num == 0)
     {
@@ -81,6 +82,7 @@ _getOtherSequenceAndProject(Align<TSource,TSpec> & segment,
 //            Align<TSource,TSpec> & segment,
 //            TValue seq_i)
 //{
+//SEQAN_CHECKPOINT
 //    return seq_map[getObjectId(source(row(segment,seq_i)))];
 //}
 //
@@ -125,6 +127,7 @@ _getRefinedMatchScore(Score<TScoreValue,TScoreSpec> & score_type,
          TValue len,
          TValue)
 {
+SEQAN_CHECKPOINT
     typedef Align<TAliSource,TAliSpec> TAlign;
     typedef typename Row<TAlign>::Type TRow;
 //    typedef typename Iterator<TRow,GapsIterator<ArrayGaps> >::Type TIterator;
@@ -162,6 +165,7 @@ _getRefinedMatchScore(Score<TScoreValue,TScoreSpec> & score_type,
 //         TValue len1,
 //         TValue len2)
 //{
+//SEQAN_CHECKPOINT
 //    typedef Align<TAliSource,TAliSpec> TAlign;
 //    typedef typename Row<TAlign>::Type TRow;
 //    typedef typename Iterator<TRow>::Type TIterator;

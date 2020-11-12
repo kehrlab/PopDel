@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -83,22 +83,6 @@ struct Value<Score<TValue, TSpec> > {
     typedef TValue Type;
 };
 
-/*!
- * @mfn Score#Spec
- * @brief Return the specialization type of the scoring scheme.
- *
- * @signature Spec<TScore>::Type;
- *
- * @tparam TScore The Score specialization.
- *
- * @return Type The score specialization type of the scoring scheme.
- */
-
-template <typename TValue, typename TSpec>
-struct Spec<Score<TValue, TSpec> > {
-    typedef TSpec Type;
-};
-
 // --------------------------------------------------------------------------
 // Metafunction ConsensusScoreSequenceEntry
 // --------------------------------------------------------------------------
@@ -178,6 +162,7 @@ scoreGapOpenHorizontal(
     TSeqHValue const & /*seqHVal*/,
     TSeqVValue const & /*seqHVal*/)
 {
+    SEQAN_CHECKPOINT;
     return scoreGapOpen(me);
 }
 
@@ -205,6 +190,7 @@ scoreGapOpenVertical(
     TSeqHValue const & /*seqHVal*/,
     TSeqVValue const & /*seqHVal*/)
 {
+    SEQAN_CHECKPOINT;
     return scoreGapOpen(me);
 }
 
@@ -232,6 +218,7 @@ scoreGapExtendHorizontal(
     TSeqHValue const & /*seqHVal*/,
     TSeqVValue const & /*seqHVal*/)
 {
+    SEQAN_CHECKPOINT;
     return scoreGapExtend(me);
 }
 
@@ -259,6 +246,7 @@ scoreGapExtendVertical(
     TSeqHValue const & /*seqHVal*/,
     TSeqVValue const & /*seqHVal*/)
 {
+    SEQAN_CHECKPOINT;
     return scoreGapExtend(me);
 }
 
@@ -286,6 +274,7 @@ scoreGapHorizontal(
     TSeqHValue const & /*seqHVal*/,
     TSeqVValue const & /*seqHVal*/)
 {
+    SEQAN_CHECKPOINT;
     return scoreGap(me);
 }
 
@@ -313,6 +302,7 @@ scoreGapVertical(
     TSeqHValue const & /*seqHVal*/,
     TSeqVValue const & /*seqHVal*/)
 {
+    SEQAN_CHECKPOINT;
     return scoreGap(me);
 }
 
@@ -333,12 +323,13 @@ scoreGapVertical(
 template <typename TValue, typename TSpec, typename TSeqHVal, typename TSeqVVal>
 inline TValue
 score(Score<TValue, TSpec> const & me, TSeqHVal valH, TSeqVVal valV) {
+    SEQAN_CHECKPOINT;
     if (valH == valV)
         return scoreMatch(me);
     else
         return scoreMismatch(me);
 }
 
-}  // namespace seqan
+}  // namespace SEQAN_NAMESPACE_MAIN
 
 #endif  // SEQAN_SSCORE_BASE_H_

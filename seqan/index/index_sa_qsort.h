@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_INDEX_SA_QSORT_H
 #define SEQAN_HEADER_INDEX_SA_QSORT_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
     struct SAQSort {};
@@ -144,6 +144,7 @@ namespace seqan
         TText &text,
         TSize lcp)
     {
+    SEQAN_CHECKPOINT
         // sort bucket with quicksort
         std::sort(
             begin(sa, Standard()),
@@ -158,6 +159,7 @@ namespace seqan
         TText const &s,
         SAQSort const &)
     {
+    SEQAN_CHECKPOINT
         typedef typename Size<TSA>::Type TSize;
         typedef typename Iterator<TSA, Standard>::Type TIter;
 
@@ -182,10 +184,10 @@ namespace seqan
         StringSet< TString, TSSetSpec > const &s,
         SAQSort const &)
     {
+    SEQAN_CHECKPOINT
         typedef StringSet< TString, TSSetSpec > TText;
         typedef typename Size<TSA>::Type TSize;
         typedef typename Iterator<TSA, Standard>::Type TIter;
-        typedef typename Value<TSA>::Type              TSAValue;
 
         // 1. Fill suffix array with a permutation (the identity)
         TIter it = begin(SA, Standard());
@@ -193,14 +195,14 @@ namespace seqan
         {
             TSize len = length(s[j]);
             for(TSize i = 0; i < len; ++i, ++it)
-                *it = TSAValue(j, i);
+                *it = Pair<unsigned, TSize>(j, i);
         }
 
         // 2. Sort suffix array with quicksort
         std::sort(
             begin(SA, Standard()),
             end(SA, Standard()),
-            SuffixLess_<TSAValue, TText const>(s));
+            SuffixLess_<typename Value<TSA>::Type, TText const>(s));
     }
 
     // Fill suffix array with permutation (i, 0)

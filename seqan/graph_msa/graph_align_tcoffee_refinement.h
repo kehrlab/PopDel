@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 #ifndef SEQAN_HEADER_GRAPH_ALIGN_TCOFFEE_REFINEMENT_H
 #define SEQAN_HEADER_GRAPH_ALIGN_TCOFFEE_REFINEMENT_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -511,6 +511,6 @@ msaRefinement(Graph<Alignment<TStringSet, TCargo, TSpec> >& gAlign,
     convertAlignment(mat, gAlign);
 }
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

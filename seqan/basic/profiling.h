@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -86,8 +86,8 @@ namespace seqan
 
 #endif
 
-#ifdef STDLIB_VS
-    typedef int64_t   ProfileInt_; //IOREV _notio_
+#ifdef PLATFORM_WINDOWS
+    typedef __int64   ProfileInt_; //IOREV _notio_
 #else
     typedef int64_t ProfileInt_; //IOREV _notio_
 #endif
@@ -241,7 +241,7 @@ namespace seqan
  * @see cpuTime
  */
 
-    #ifdef STDLIB_VS
+    #ifdef PLATFORM_WINDOWS
 //        inline _proFloat sysTime() { return GetTickCount() * 1e-3; }
         inline _proFloat sysTime() { return ( (_proFloat) clock() ) / CLOCKS_PER_SEC; }
     #else

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -191,6 +191,7 @@ template <typename TCargo>
 typename Iterator<JournalEntries<TCargo, SortedArray>, Standard>::Type
 begin(JournalEntries<TCargo, SortedArray> & journalTree, Standard const &)
 {
+    SEQAN_CHECKPOINT;
     return begin(journalTree._journalNodes, Standard());
 }
 
@@ -199,6 +200,7 @@ template <typename TCargo>
 typename Iterator<JournalEntries<TCargo, SortedArray> const, Standard>::Type
 begin(JournalEntries<TCargo, SortedArray> const & journalTree, Standard const &)
 {
+    SEQAN_CHECKPOINT;
     return begin(journalTree._journalNodes, Standard());
 }
 
@@ -207,6 +209,7 @@ template <typename TCargo>
 typename Iterator<JournalEntries<TCargo, SortedArray>, Standard>::Type
 end(JournalEntries<TCargo, SortedArray> & journalTree, Standard const &)
 {
+    SEQAN_CHECKPOINT;
     return end(journalTree._journalNodes, Standard());
 }
 
@@ -215,6 +218,7 @@ template <typename TCargo>
 typename Iterator<JournalEntries<TCargo, SortedArray> const, Standard>::Type
 end(JournalEntries<TCargo, SortedArray> const & journalTree, Standard const &)
 {
+    SEQAN_CHECKPOINT;
     return end(journalTree._journalNodes, Standard());
 }
 
@@ -224,6 +228,7 @@ inline
 void reinit(JournalEntries<TCargo, SortedArray> & tree,
             typename Size<TCargo>::Type originalStringLength)
 {
+    SEQAN_CHECKPOINT;
     clear(tree._journalNodes);
     appendValue(tree._journalNodes, TCargo(SOURCE_ORIGINAL, 0, 0, 0, originalStringLength));
     tree._originalStringLength = originalStringLength;

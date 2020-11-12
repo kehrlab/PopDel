@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_CONSENSUS_LIBRARY_H
 #define SEQAN_HEADER_CONSENSUS_LIBRARY_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -49,6 +49,7 @@ _getAlignmentStatistics(Nothing&,
                          TCargo1,
                          TCargo2)
 {
+    SEQAN_CHECKPOINT
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -62,6 +63,7 @@ _getAlignmentStatistics(String<TValue, TSpec>& dist,
                          TCargo1,
                          TCargo2 quality)
 {
+    SEQAN_CHECKPOINT
     dist[i*nseq + j] = (TValue) (100 - quality);
 }
 
@@ -76,6 +78,7 @@ _getAlignmentStatistics(Graph<Undirected<TCargo, TSpec> >& dist,
                          TCargo1,
                          TCargo2 quality)
 {
+    SEQAN_CHECKPOINT
     addEdge(dist, i, j, (TCargo) (100 - quality));
 }
 
@@ -569,6 +572,6 @@ appendSegmentMatches(StringSet<TString, TSpec> const & str,
     }
 }
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

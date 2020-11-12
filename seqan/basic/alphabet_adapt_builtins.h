@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 // Author: Andreas Gogol-Döring <andreas.doering@mdc-berlin.de>
 // ==========================================================================
 // Adaptions of builting types such as bool, int, but also "builtin-level"
-// user defined types such as wchar_t, int64_t, uint64_t to the alphabet
+// user defined types such as wchar_t, __int64, __uint64 to the alphabet
 // concepts they are in.
 // ==========================================================================
 
@@ -181,20 +181,32 @@ supremumValueImpl(T *)
 inline long double const &
 supremumValueImpl(long double *)
 {
+#ifdef PLATFORM_WINDOWS
     static long double const _value = std::numeric_limits<long double>::infinity( );
+#else
+    static long double const _value = 1.7976931348623157e+308;
+#endif
     return _value;
 }
 
 inline double const &
 supremumValueImpl(double *)
 {
+#ifdef PLATFORM_WINDOWS
     static double const _value = std::numeric_limits<double>::infinity( );
+#else
+    static double const _value = 1.7976931348623157e+308;
+#endif
     return _value;
 }
 inline float const &
 supremumValueImpl(float *)
 {
+#ifdef PLATFORM_WINDOWS
     static float const _value = std::numeric_limits<float>::infinity( );
+#else
+    static float const _value = 3.40282347e+38F;
+#endif
     return _value;
 }
 
@@ -213,21 +225,33 @@ infimumValueImpl(T *)
 inline float const &
 infimumValueImpl(float *)
 {
+#ifdef PLATFORM_WINDOWS
     static float const _value = -std::numeric_limits<float>::infinity( );
+#else
+    static float const _value = -3.40282347e+38F;
+#endif
     return _value;
 }
 
 inline double const &
 infimumValueImpl(double *)
 {
+#ifdef PLATFORM_WINDOWS
     static double const _value = -std::numeric_limits<double>::infinity( );
+#else
+    static double const _value = -1.7976931348623157e+308;
+#endif
     return _value;
 }
 
 inline long double const &
 infimumValueImpl(long double *)
 {
+#ifdef PLATFORM_WINDOWS
     static long double const _value = -std::numeric_limits<long double>::infinity( );
+#else
+    static long double const _value = -1.7976931348623157e+308;
+#endif
     return _value;
 }
 

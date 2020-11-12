@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -94,6 +94,7 @@ inline typename Convert<TTarget, THost>::Type
 convertImpl(Convert<TTarget, T> const convert_,
             ModifiedAlphabet<THost, TSpec> const & source_)
 {
+    SEQAN_CHECKPOINT;
     return convertImpl(convert_, static_cast<THost const &>(source_));
 }
 
@@ -102,6 +103,7 @@ convertImpl(Convert<TTarget, T> const convert_,
 template <typename THost, typename TSpec>
 inline unsigned ordValue(ModifiedAlphabet<THost,TSpec> const &c)
 {
+    SEQAN_CHECKPOINT;
     return ordValue(static_cast<THost const &>(c));
 }
 
@@ -132,6 +134,7 @@ inline bool
 operator==(ModifiedAlphabet<THost, TSpec> const & left_,
            TRight const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
     return convert<TCompareType>(left_) == convert<TCompareType>(right_);
@@ -142,6 +145,7 @@ inline bool
 operator==(TLeft const & left_,
            ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
     return convert<TCompareType>(left_) == convert<TCompareType>(right_);
@@ -152,6 +156,7 @@ inline bool
 operator==(ModifiedAlphabet<TLeftHost, TLeftSpec> const & left_,
            ModifiedAlphabet<TRightHost, TRightSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<TLeftHost, TLeftSpec> TLeft;
     typedef ModifiedAlphabet<TRightHost, TRightSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -163,6 +168,7 @@ inline bool
 operator==(ModifiedAlphabet<THost, TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     return ordValue(left_) == ordValue(right_);
 }
 
@@ -173,6 +179,7 @@ inline bool
 operator==(SimpleType<TValue, TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef SimpleType<TValue, TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -183,6 +190,7 @@ inline bool
 operator==(ModifiedAlphabet<THost, TSpec2> const & left_,
            SimpleType<TValue, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef SimpleType<TValue, TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -196,6 +204,7 @@ inline bool
 operator==(Proxy<TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef Proxy<TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -206,6 +215,7 @@ inline bool
 operator==(ModifiedAlphabet<THost, TSpec2> const & left_,
              Proxy<TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef Proxy<TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -220,6 +230,7 @@ inline bool
 operator!=(ModifiedAlphabet<THost, TSpec> const & left_,
            TRight const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
     return convert<TCompareType>(left_) != convert<TCompareType>(right_);
@@ -230,6 +241,7 @@ inline bool
 operator!=(TLeft const & left_,
            ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
     return convert<TCompareType>(left_) != convert<TCompareType>(right_);
@@ -240,6 +252,7 @@ inline bool
 operator!=(ModifiedAlphabet<TLeftHost, TLeftSpec> const & left_,
              ModifiedAlphabet<TRightHost, TRightSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<TLeftHost, TLeftSpec> TLeft;
     typedef ModifiedAlphabet<TRightHost, TRightSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -251,6 +264,7 @@ inline bool
 operator!=(ModifiedAlphabet<THost, TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     return ordValue(left_) != ordValue(right_);
 }
 
@@ -261,6 +275,7 @@ inline bool
 operator!=(SimpleType<TValue, TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef SimpleType<TValue, TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -271,6 +286,7 @@ inline bool
 operator!=(ModifiedAlphabet<THost, TSpec2> const & left_,
            SimpleType<TValue, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef SimpleType<TValue, TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -284,6 +300,7 @@ inline bool
 operator!=(Proxy<TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef Proxy<TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -294,6 +311,7 @@ inline bool
 operator!=(ModifiedAlphabet<THost, TSpec2> const & left_,
            Proxy<TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef Proxy<TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -308,6 +326,7 @@ inline bool
 operator<=(ModifiedAlphabet<THost, TSpec> const & left_,
            TRight const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
     return convert<TCompareType>(left_) <= convert<TCompareType>(right_);
@@ -318,6 +337,7 @@ inline bool
 operator<=(TLeft const & left_,
            ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
     return convert<TCompareType>(left_) <= convert<TCompareType>(right_);
@@ -328,6 +348,7 @@ inline bool
 operator<=(ModifiedAlphabet<TLeftHost, TLeftSpec> const & left_,
              ModifiedAlphabet<TRightHost, TRightSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<TLeftHost, TLeftSpec> TLeft;
     typedef ModifiedAlphabet<TRightHost, TRightSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -339,6 +360,7 @@ inline bool
 operator<=(ModifiedAlphabet<THost, TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     return ordValue(left_) <= ordValue(right_);
 }
 
@@ -349,6 +371,7 @@ inline bool
 operator<=(SimpleType<TValue, TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef SimpleType<TValue, TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -359,6 +382,7 @@ inline bool
 operator<=(ModifiedAlphabet<THost, TSpec2> const & left_,
            SimpleType<TValue, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef SimpleType<TValue, TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -372,6 +396,7 @@ inline bool
 operator<=(Proxy<TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef Proxy<TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -382,6 +407,7 @@ inline bool
 operator<=(ModifiedAlphabet<THost, TSpec2> const & left_,
            Proxy<TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef Proxy<TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -396,6 +422,7 @@ inline bool
 operator<(ModifiedAlphabet<THost, TSpec> const & left_,
           TRight const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
     return convert<TCompareType>(left_) < convert<TCompareType>(right_);
@@ -406,6 +433,7 @@ inline bool
 operator<(TLeft const & left_,
           ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
     return convert<TCompareType>(left_) < convert<TCompareType>(right_);
@@ -416,6 +444,7 @@ inline bool
 operator<(ModifiedAlphabet<TLeftHost, TLeftSpec> const & left_,
           ModifiedAlphabet<TRightHost, TRightSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<TLeftHost, TLeftSpec> TLeft;
     typedef ModifiedAlphabet<TRightHost, TRightSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -427,6 +456,7 @@ inline bool
 operator<(ModifiedAlphabet<THost, TSpec> const & left_,
           ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     return ordValue(left_) < ordValue(right_);
 }
 
@@ -437,6 +467,7 @@ inline bool
 operator<(SimpleType<TValue, TSpec> const & left_,
           ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef SimpleType<TValue, TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -447,6 +478,7 @@ inline bool
 operator<(ModifiedAlphabet<THost, TSpec2> const & left_,
           SimpleType<TValue, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef SimpleType<TValue, TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -460,6 +492,7 @@ inline bool
 operator<(Proxy<TSpec> const & left_,
           ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef Proxy<TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -470,6 +503,7 @@ inline bool
 operator<(ModifiedAlphabet<THost, TSpec2> const & left_,
           Proxy<TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef Proxy<TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -484,6 +518,7 @@ inline bool
 operator>=(ModifiedAlphabet<THost, TSpec> const & left_,
            TRight const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
     return convert<TCompareType>(left_) >= convert<TCompareType>(right_);
@@ -494,6 +529,7 @@ inline bool
 operator>=(TLeft const & left_,
            ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
     return convert<TCompareType>(left_) >= convert<TCompareType>(right_);
@@ -504,6 +540,7 @@ inline bool
 operator>=(ModifiedAlphabet<TLeftHost, TLeftSpec> const & left_,
            ModifiedAlphabet<TRightHost, TRightSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<TLeftHost, TLeftSpec> TLeft;
     typedef ModifiedAlphabet<TRightHost, TRightSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -515,6 +552,7 @@ inline bool
 operator>=(ModifiedAlphabet<THost, TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     return ordValue(left_) >= ordValue(right_);
 }
 
@@ -525,6 +563,7 @@ inline bool
 operator>=(SimpleType<TValue, TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef SimpleType<TValue, TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -535,6 +574,7 @@ inline bool
 operator>=(ModifiedAlphabet<THost, TSpec2> const & left_,
            SimpleType<TValue, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef SimpleType<TValue, TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -548,6 +588,7 @@ inline bool
 operator>=(Proxy<TSpec> const & left_,
            ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef Proxy<TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -558,6 +599,7 @@ inline bool
 operator>=(ModifiedAlphabet<THost, TSpec2> const & left_,
            Proxy<TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef Proxy<TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -572,6 +614,7 @@ inline bool
 operator>(ModifiedAlphabet<THost, TSpec> const & left_,
           TRight const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
     return convert<TCompareType>(left_) > convert<TCompareType>(right_);
@@ -582,6 +625,7 @@ inline bool
 operator>(TLeft const & left_,
           ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
     return convert<TCompareType>(left_) > convert<TCompareType>(right_);
@@ -592,6 +636,7 @@ inline bool
 operator>(ModifiedAlphabet<TLeftHost, TLeftSpec> const & left_,
           ModifiedAlphabet<TRightHost, TRightSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<TLeftHost, TLeftSpec> TLeft;
     typedef ModifiedAlphabet<TRightHost, TRightSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -603,6 +648,7 @@ inline bool
 operator>(ModifiedAlphabet<THost, TSpec> const & left_,
           ModifiedAlphabet<THost, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     return ordValue(left_) > ordValue(right_);
 }
 
@@ -613,6 +659,7 @@ inline bool
 operator>(SimpleType<TValue, TSpec> const & left_,
           ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef SimpleType<TValue, TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -623,6 +670,7 @@ inline bool
 operator>(ModifiedAlphabet<THost, TSpec2> const & left_,
           SimpleType<TValue, TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef SimpleType<TValue, TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -636,6 +684,7 @@ inline bool
 operator>(Proxy<TSpec> const & left_,
           ModifiedAlphabet<THost, TSpec2> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef Proxy<TSpec> TLeft;
     typedef ModifiedAlphabet<THost, TSpec> TRight;
     typedef typename CompareType<TRight, TLeft>::Type TCompareType;
@@ -646,6 +695,7 @@ inline bool
 operator>(ModifiedAlphabet<THost, TSpec2> const & left_,
           Proxy<TSpec> const & right_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, TSpec> TLeft;
     typedef Proxy<TSpec> TRight;
     typedef typename CompareType<TLeft, TRight>::Type TCompareType;
@@ -660,6 +710,7 @@ inline void
 _initializeAlphabetConversionTable(TTarget *,
                                    TSource const &)
 {
+    SEQAN_CHECKPOINT;
     //default: do nothing (because this array is not used)
     //define this function for each conversion table
 }
@@ -673,6 +724,7 @@ public:
     static TTarget * table;
     static TTarget * initialize()
     {
+        SEQAN_CHECKPOINT;
         static TTarget table_store[SIZE];
         static bool _is_initialized = false;
         if (! _is_initialized)
@@ -695,6 +747,7 @@ inline void
 _initializeAlphabetOrdTable(TTarget *,
                             TSource const &)
 {
+    SEQAN_CHECKPOINT;
     //default: do nothing (because this array is not used)
     //define this function for each conversion table
 }
@@ -708,6 +761,7 @@ public:
     static unsigned * table;
     static unsigned * initialize()
     {
+        SEQAN_CHECKPOINT;
         static unsigned table_store[SIZE];
         static bool _is_initialized = false;
         if (! _is_initialized)

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 #ifndef SEQAN_HEADER_MODIFIER_ALPHABET_EXPANSION_H
 #define SEQAN_HEADER_MODIFIER_ALPHABET_EXPANSION_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -128,43 +128,53 @@ public:
     template <typename TValue>
     operator TValue() const
     {
+SEQAN_CHECKPOINT
         return convert<TValue>(*this);
     }
 */
     operator long() const
     {
+SEQAN_CHECKPOINT
         return convert<long>(*this);
     }
     operator unsigned long() const
     {
+SEQAN_CHECKPOINT
         return convert<unsigned long>(*this);
     }
     operator int() const
     {
+SEQAN_CHECKPOINT
         return convert<int>(*this);
     }
     operator unsigned int() const
     {
+SEQAN_CHECKPOINT
         return convert<unsigned int>(*this);
     }
     operator short() const
     {
+SEQAN_CHECKPOINT
         return convert<short>(*this);
     }
     operator unsigned short() const
     {
+SEQAN_CHECKPOINT
         return convert<unsigned short>(*this);
     }
     operator char() const
     {
+SEQAN_CHECKPOINT
         return convert<char>(*this);
     }
     operator signed char() const
     {
+SEQAN_CHECKPOINT
         return convert<signed char>(*this);
     }
     operator unsigned char() const
     {
+SEQAN_CHECKPOINT
         return convert<unsigned char>(*this);
     }
 };
@@ -326,6 +336,7 @@ inline typename Convert<ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> >, Simple
 convertImpl(Convert<ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> >, T> const,
             SimpleType<TSourceValue, TSourceSpec> const & source_)
 {
+SEQAN_CHECKPOINT
     typedef ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> > TTarget;
     typedef SimpleType<TSourceValue, TSourceSpec> TSource;
     return AlphabetConversionTable_<TTarget, TSource>::table[_internalOrdValue(source_)];
@@ -338,6 +349,7 @@ inline typename Convert<ModifiedAlphabet<SimpleType<TSourceValue, TSourceSpec>, 
 convertImpl(Convert<ModifiedAlphabet<SimpleType<TSourceValue, TSourceSpec>, ModExpand<CHAR, TSpec> >, T> const,
             SimpleType<TSourceValue, TSourceSpec> const & source_)
 {
+    SEQAN_CHECKPOINT;
     typedef SimpleType<TSourceValue, TSourceSpec> TSource;
     typedef ModifiedAlphabet<TSource, ModExpand<CHAR, TSpec> > TTarget;
 
@@ -353,6 +365,7 @@ inline typename Convert<ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> >, Proxy<
 convertImpl(Convert<ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> >, T> const,
             Proxy<TSpec2> const & source_)
 {
+SEQAN_CHECKPOINT
     typedef ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> > TTarget;
     return convert<TTarget>(getValue(source_));
 }
@@ -409,6 +422,7 @@ inline typename Convert<TTarget, ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> 
 convertImpl(Convert<TTarget, T> const,
             ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> > const & source_)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> > TSource;
     return AlphabetConversionTable_<TTarget, TSource>::table[_internalOrdValue(source_)];
 }
@@ -420,6 +434,7 @@ inline typename Convert<SimpleType<TTargetValue, TTargetSpec>, ModifiedAlphabet<
 convertImpl(Convert<SimpleType<TTargetValue, TTargetSpec>, ModifiedAlphabet<SimpleType<TTargetValue, TTargetSpec>, ModExpand<CHAR, TSpec> > > const,
             ModifiedAlphabet<SimpleType<TTargetValue, TTargetSpec>, ModExpand<CHAR, TSpec> > const & source_)
 {
+    SEQAN_CHECKPOINT;
     typedef SimpleType<TTargetValue, TTargetSpec> TTarget;
     TTarget target;
     if (source_.data == InternalValueSize_<TTarget>::VALUE)
@@ -472,6 +487,7 @@ template <typename THost, char CHAR, typename TSpec>
 inline unsigned
 ordValue(ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> > const & c)
 {
+    SEQAN_CHECKPOINT;
     typedef ModifiedAlphabet<THost, ModExpand<CHAR, TSpec> > TSource;
     return AlphabetOrdTable_<TSource>::table[_internalOrdValue(c)];
 }

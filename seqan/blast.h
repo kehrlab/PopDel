@@ -39,7 +39,7 @@
 
 #include <seqan/platform.h>
 
-#ifndef COMPILER_MSVC
+#ifdef SEQAN_CXX11_COMPLETE
 
 #include <cinttypes>
 #include <cmath>
@@ -66,8 +66,11 @@
 #include "blast/blast_tabular_out.h"
 #include "blast/blast_report_out.h"
 
-#else
-#error Due to a bug in Microsoft Visual Studio 2015 the BLAST module is deactivated.
-#endif
+#else //SEQAN_CXX11_COMPLETE
+
+#error The blast module requires C++11 support. \
+If your compiler supports C++11, please define SEQAN_CXX11_STANDARD
+
+#endif //SEQAN_CXX11_COMPLETE
 
 #endif

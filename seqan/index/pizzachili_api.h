@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 
 #include <seqan/basic.h>
 
-namespace seqan {
+namespace SEQAN_NAMESPACE_MAIN {
 
 namespace impl {
     typedef unsigned char uchar_t;
@@ -69,8 +69,6 @@ struct PizzaChiliCodeProvider {
  *
  * @tag PizzaChiliIndexTags#PizzaChiliSada
  *
- * @deprecated Module is outdated and is not maintained anymore. Will presumably be removed in the next major release.
- *
  * @brief the compressed suffix array index.
  *
  * @section Remarks
@@ -79,13 +77,9 @@ struct PizzaChiliCodeProvider {
  *
  * @tag PizzaChiliIndexTags#PizzaChiliAF
  *
- * @deprecated Module is outdated and is not maintained anymore. Will presumably be removed in the next major release.
- *
  * @brief The alphabet-friendly FM index.
  *
  * @tag PizzaChiliIndexTags#PizzaChiili_RSA
- *
- * @deprecated Module is outdated and is not maintained anymore. Will presumably be removed in the next major release.
  *
  * @brief The repair suffix array index.
  *
@@ -95,8 +89,6 @@ struct PizzaChiliCodeProvider {
  *
  * @tag PizzaChiliIndexTags#PizzaChiliSA
  *
- * @deprecated Module is outdated and is not maintained anymore. Will presumably be removed in the next major release.
- *
  * @brief The simple suffix array index.
  *
  * @section Remarks
@@ -105,13 +97,9 @@ struct PizzaChiliCodeProvider {
  *
  * @tag PizzaChiliIndexTags#PizzaChiliFM
  *
- * @deprecated Module is outdated and is not maintained anymore. Will presumably be removed in the next major release.
- *
  * @brief The FM (full-text in minute space) index.
  *
  * @tag PizzaChiliIndexTags#PizzaChiliCcsa
- *
- * @deprecated Module is outdated and is not maintained anymore. Will presumably be removed in the next major release.
  *
  * @brief The compressed compact suffix array index.
  */
@@ -217,6 +205,6 @@ SEQAN_MAKE_PIZZACHILI_PROVIDER(Test)
 
 #undef SEQAN_MAKE_PIZZACHILI_PROVIDER
 
-} // namespace seqan
+} // namespace SEQAN_NAMESPACE_MAIN
 
 #endif // SEQAN_HEADER_PIZZACHILI_API_H

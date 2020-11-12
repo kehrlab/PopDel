@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -247,6 +247,7 @@ template <typename TContainer, typename TSpec>
 inline typename Reference<Iter<TContainer, TSpec> >::Type
 operator*(Iter<TContainer, TSpec> & me)
 {
+    SEQAN_CHECKPOINT;
     return value(me);
 }
 
@@ -254,6 +255,7 @@ template <typename TContainer, typename TSpec>
 inline typename Reference<Iter<TContainer, TSpec> const>::Type
 operator*(Iter<TContainer, TSpec> const & me)
 {
+    SEQAN_CHECKPOINT;
     return value(me);
 }
 
@@ -265,6 +267,7 @@ template <typename TContainer, typename TSpec>
 inline Iter<TContainer, TSpec> const &
 operator++(Iter<TContainer, TSpec> & me)
 {
+    SEQAN_CHECKPOINT;
     goNext(me);
     return me;
 }
@@ -273,6 +276,7 @@ template <typename TContainer, typename TSpec>
 inline Iter<TContainer, TSpec>
 operator++(Iter<TContainer, TSpec> & me, int)
 {
+    SEQAN_CHECKPOINT;
     Iter<TContainer, TSpec> temp_(me);
     goNext(me);
     return temp_;
@@ -286,6 +290,7 @@ template <typename TContainer, typename TSpec>
 inline Iter<TContainer, TSpec> const &
 operator--(Iter<TContainer, TSpec> & me)
 {
+    SEQAN_CHECKPOINT;
     goPrevious(me);
     return me;
 }
@@ -294,6 +299,7 @@ template <typename TContainer, typename TSpec>
 inline Iter<TContainer, TSpec>
 operator--(Iter<TContainer, TSpec> & me, int)
 {
+    SEQAN_CHECKPOINT;
     Iter<TContainer, TSpec> temp_(me);
     goPrevious(me);
     return temp_;
@@ -307,6 +313,7 @@ template <typename TContainer, typename TSpec, typename TSize>
 inline Iter<TContainer, TSpec>
 operator+(Iter<TContainer, TSpec> const & me, TSize size)
 {
+    SEQAN_CHECKPOINT;
     Iter<TContainer, TSpec> temp_(me);
     goFurther(temp_, size);
     return temp_;
@@ -320,6 +327,7 @@ template <typename TContainer, typename TSpec, typename TSize>
 inline Iter<TContainer, TSpec> const &
 operator+=(Iter<TContainer, TSpec> & me, TSize size)
 {
+    SEQAN_CHECKPOINT;
     goFurther(me, size);
     return me;
 }
@@ -335,6 +343,7 @@ template <typename TContainer, typename TSpec, typename TSize>
 inline Iter<TContainer, TSpec>
 operator - (Iter<TContainer, TSpec> & me, TSize size)
 {
+SEQAN_CHECKPOINT
     Iter<TContainer, TSpec> temp_(me);
     goFurther(temp_, -size);
     return temp_;
@@ -344,6 +353,7 @@ template <typename TContainer, typename TSpec, typename TSize>
 inline Iter<TContainer, TSpec>
 operator - (Iter<TContainer, TSpec> const & me, TSize size)
 {
+SEQAN_CHECKPOINT
     Iter<TContainer, TSpec> temp_(me);
     goFurther(temp_, -size);
     return temp_;
@@ -353,6 +363,7 @@ template <typename TContainer, typename TSpec, typename TSize>
 inline Iter<TContainer, TSpec> const &
 operator -= (Iter<TContainer, TSpec> & me, TSize size)
 {
+SEQAN_CHECKPOINT
     goFurther(me, -size);
     return me;
 }
@@ -363,10 +374,11 @@ operator -= (Iter<TContainer, TSpec> & me, TSize size)
 // ----------------------------------------------------------------------------
 
 template <typename TContainer, typename TSpec, typename TContainer2>
-inline typename Position<Iter<TContainer, TSpec> const>::Type
+inline SEQAN_HOST_DEVICE typename Position<Iter<TContainer, TSpec> const>::Type
 position(Iter<TContainer, TSpec> const & me,
          TContainer2 const &)
 {
+    SEQAN_CHECKPOINT;
     return position(me);
 }
 

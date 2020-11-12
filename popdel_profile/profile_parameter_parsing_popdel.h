@@ -32,9 +32,10 @@ struct PopDelProfileParameters
     unsigned indexRegionSize;                             // Size of regions for which file offsets are stored in profile index.
     bool mergeRG;
     CharString referenceVersion;
+    CharString referenceFile;
 
     PopDelProfileParameters() :
-    outfile("*BAM-FILE*.profile"),
+    outfile("*BAM/CRAM-FILE*.profile"),
     intervalFile(""),
     maxDeletionSize(10000),
     windowSize(256),
@@ -42,7 +43,8 @@ struct PopDelProfileParameters
     minSampling(50000),
     indexRegionSize(10000),
     mergeRG(false),
-    referenceVersion("GRCh38")
+    referenceVersion("GRCh38"),
+    referenceFile("")
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -56,6 +58,7 @@ void setHiddenOptions(ArgumentParser & parser, bool hide, const PopDelProfilePar
     hideOption(parser, "F",  hide);
     hideOption(parser, "mq", hide);
     hideOption(parser, "u",  hide);
+    hideOption(parser, "R",  hide);
     hideOption(parser, "s",  hide);
 }
 // ---------------------------------------------------------------------------------------
@@ -68,6 +71,7 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelProfileParameters & p
     addOption(parser, ArgParseOption("F",  "flags-unset",      "Only use reads with all bits of NUM unset in the bam flag.",                 ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("ir", "index-region-size", "Size of the index region intervals.",                                       ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("mq", "min-mapping-qual", "Only use reads with a mapping quality above NUM.",                           ArgParseArgument::INTEGER, "NUM"));
+    addOption(parser, ArgParseOption("R", "reference-file",    "FASTA file of the reference genome. Only required for CRAM files whose header entries point to the wrong file.", ArgParseArgument::STRING, "FILE"));
     addOption(parser, ArgParseOption("s",  "min-align-score",  "Only use reads with an alignment score relative to read length above NUM.",  ArgParseArgument::DOUBLE,  "NUM"));
     addOption(parser, ArgParseOption("u",  "min-unclipped",    "Only use reads of which at least NUM bases are not clipped.",                ArgParseArgument::INTEGER, "NUM"));
 
@@ -85,17 +89,17 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelProfileParameters & p
 // Set up the argument parser.
 void setupParser(ArgumentParser & parser, const PopDelProfileParameters & params)
 {
-    setShortDescription(parser, "Profile creation from BAM-file");
+    setShortDescription(parser, "Profile creation from BAM/CRAM file");
     setVersion(parser, VERSION);
     setDate(parser, DATE);
-    addUsageLine(parser, "[\\fIOPTIONS\\fP] \\fIBAM-FILE\\fP");
-    addUsageLine(parser, "[\\fIOPTIONS\\fP] \\fIBAM-FILE\\fP \\fICHROM:BEGIN-END\\fP [\\fICHROM:BEGIN-END\\fP ...]");
-    addDescription(parser, "Iterates over (user definied regions of) a bam file in tiling windows of 256 bp. For "
+    addUsageLine(parser, "[\\fIOPTIONS\\fP] \\fIBAM/CRAM-FILE\\fP");
+    addUsageLine(parser, "[\\fIOPTIONS\\fP] \\fIBAM/CRAM-FILE\\fP \\fICHROM:BEGIN-END\\fP [\\fICHROM:BEGIN-END\\fP ...]");
+    addDescription(parser, "Iterates over (user definied regions of) a BAM or CRAM file in tiling windows of 256 bp. For "
     " each window, PopDel promotes all read pairs whose ends pass the quality checks."
-    " PopDel saves their insert size deviation form the mean together with their position in \'*BAM-FILE*.profile\',"
+    " PopDel saves their insert size deviation form the mean together with their position in \'*BAM/CRAM-FILE*.profile\',"
     " together with the insert sizes distribution of each read group."
     " Only insert sizes up to a maximum length (option --max-deletion-size) are considered.");
-    // Require a bam file as argument and optionally a list of genomic intervals.
+    // Require a bam/cram file as argument and optionally a list of genomic intervals.
     addArgument(parser, ArgParseArgument(ArgParseArgument::STRING, "INPUT", true));
     // Add visible options.
     addOption(parser, ArgParseOption("H", "fullHelp",          "Displays full list of options."));
@@ -171,6 +175,7 @@ void getParameterValues(PopDelProfileParameters & params, const ArgumentParser &
     getOptionValue(params.qualReq.minUnclippedLength, parser, "min-unclipped");
     getOptionValue(params.qualReq.minRelAlignScore,   parser, "min-align-score");
     getOptionValue(params.indexRegionSize,            parser, "index-region-size");
+    getOptionValue(params.referenceFile,              parser, "reference-file");
     parseReferenceGenome(params.referenceVersion,     parser);
     params.mergeRG = isSet(                           parser, "merge-read-groups");
 }

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@ typedef Tag<Equidistant_> Equidistant;
  * to parallelize large for-loops that iterate over a contiguous range of elements.  The interval and the number of
  * subintervals can be set in the constructor @link Splitter::Splitter @endlink.  @link Splitter#length @endlink and
  * @link Splitter#resize @endlink can be used to retrieve or change the number of subintervals later.  In contrast to
- * other containers the Splitter allows one to access one more element than its length would imply to allow to retrieve the
+ * other containers the Splitter allows to access one more element than its length would imply to allow to retrieve the
  * right boundary of each subinterval (see example code below).
  *
  * @section Examples

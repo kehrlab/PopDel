@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2013, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -89,14 +89,14 @@ public:
 template <typename TScoreValue>
 struct HasTerminationCriterium_<AlignExtend_<XDrop_<TScoreValue> > > : True {};
 
-template <typename TScoreValue, typename TSpec>
-struct ScoutSpecForAlignmentAlgorithm_<AlignExtend_<XDrop_<TScoreValue> >, DPScoutState_<TSpec> >
+template <typename TScoreValue>
+struct ScoutSpecForAlignmentAlgorithm_<AlignExtend_<XDrop_<TScoreValue> > >
 {
     typedef Terminator_<XDrop_<TScoreValue> > Type;
 };
 
-template <typename TScoreValue, typename TSpec>
-struct ScoutSpecForAlignmentAlgorithm_<AlignExtend_<XDrop_<TScoreValue> > const, DPScoutState_<TSpec> >
+template <typename TScoreValue>
+struct ScoutSpecForAlignmentAlgorithm_<AlignExtend_<XDrop_<TScoreValue> > const>
 {
     typedef Terminator_<XDrop_<TScoreValue> > Type;
 };

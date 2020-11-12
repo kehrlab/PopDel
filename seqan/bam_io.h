@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -73,24 +73,29 @@
 // Easy BAM / SAM I/O.
 // ===========================================================================
 
-#include <seqan/bam_io/bam_file.h>
+//#include <seqan/bam_io/bam_file.h>
 
 // ===========================================================================
 // Utility Routines.
 // ===========================================================================
 
-#include <seqan/bam_io/bam_alignment_record_util.h>
+#include <seqan/bam_io/bam_alignment_record_util.h> 
 
 // Not included by default, requires C++11
-//#include <seqan/bam_io/bam_scanner_cache.h>
+// #include <seqan/bam_io/bam_scanner_cache.h>
 
 // ===========================================================================
 // BAM Index Related.
 // ===========================================================================
 
+#include <seqan/hts_io.h>
+
 // BAM indices are only available when ZLIB is available.
-#if SEQAN_HAS_ZLIB
-#include <seqan/bam_io/bam_index_bai.h>
-#endif  // #if SEQAN_HAS_ZLIB
+// #if SEQAN_HAS_ZLIB
+// #include <seqan/bam_io/bam_index_bai.h>
+// #endif  // #if SEQAN_HAS_ZLIB*/
+
+
+
 
 #endif  // INCLUDE_SEQAN_BAM_IO_H_

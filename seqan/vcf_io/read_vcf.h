@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -64,38 +64,21 @@ typedef Tag<Vcf_> Vcf;
 // Function readRecord()                                            [VcfHeader]
 // ----------------------------------------------------------------------------
 
-template <typename TNameStore, typename TNameStoreCache, typename TStorageSpec, typename TString>
 inline void
-_readVcfContig(VcfIOContext<TNameStore, TNameStoreCache, TStorageSpec> & context, TString const & headerValue)
+_parseVcfContig(CharString & chromName, CharString const & headerValue)
 {
-    typedef OrFunctor<EqualsChar<','>, EqualsChar<'>'> >            IsCommaOrGt;
-    typedef typename DirectionIterator<TString const, Input>::Type  TIter;
+    if (length(headerValue) < 3u)
+        return;
 
-    TIter headerIter = directionIterator(headerValue, Input());
-    CharString &buffer = context.buffer;
-
-    skipOne(headerIter, EqualsChar<'<'>());
-
-    // Seek contig ID key.
-    while (!atEnd(headerIter))
+    CharString tmp = infix(headerValue, 1, length(headerValue) - 2);
+    StringSet<CharString> tmp2;
+    strSplit(tmp2, tmp, EqualsChar<','>());
+    for (unsigned i = 0; i < length(tmp2); ++i)
     {
-        clear(buffer);
-        readUntil(buffer, headerIter, EqualsChar<'='>());
-        if (buffer == "ID") break;
-        skipUntil(headerIter, IsCommaOrGt());
-        skipOne(headerIter);
+        if (!startsWith(tmp2[i], "ID="))
+            continue;
+        chromName = suffix(tmp2[i], 3);
     }
-
-    if (atEnd(headerIter))
-        SEQAN_THROW(ParseError("Contig ID key not found in header."));
-
-    // Read contig ID value.
-    clear(buffer);
-    skipOne(headerIter, EqualsChar<'='>());
-    readUntil(buffer, headerIter, IsCommaOrGt());
-    if (empty(buffer))
-        SEQAN_THROW(ParseError("Contig ID value not found in header."));
-    appendName(contigNamesCache(context), buffer);
 }
 
 template <typename TForwardIter, typename TNameStore, typename TNameStoreCache, typename TStorageSpec>
@@ -106,7 +89,7 @@ readHeader(VcfHeader & header,
            Vcf const & /*tag*/)
 {
     clear(header);
-    CharString &buffer = context.buffer;
+    CharString buffer;
     VcfHeaderRecord record;
 
     while (!atEnd(iter) && value(iter) == '#')
@@ -132,24 +115,27 @@ readHeader(VcfHeader & header,
 
             // Parse out name if headerRecord is a contig field.
             if (record.key == "contig")
-                _readVcfContig(context, record.value);
+            {
+                _parseVcfContig(buffer, record.value);
+                appendName(contigNamesCache(context), buffer);
+            }
         }
         else
         {
             // Is line "#CHROM\t...".
             readLine(buffer, iter);
             if (!startsWith(buffer, "CHROM"))
-                SEQAN_THROW(ParseError("Invalid line with samples."));
+                ParseError("Invalid line with samples.");
 
             // Split line, get sample names.
-            StringSet<CharString> fields;
-            strSplit(fields, buffer, IsTab());
-            if (length(fields) < 9u)
-                SEQAN_THROW(ParseError("Not enough fields."));
+            //StringSet<CharString> fields;
+            //strSplit(fields, buffer, IsTab());
+            //if (length(fields) < 9u)
+                //ParseError("Not enough fields.");
 
             // Get sample names.
-            for (unsigned i = 9; i < length(fields); ++i)
-                appendName(sampleNamesCache(context), fields[i]);
+            //for (unsigned i = 9; i < length(fields); ++i)
+                //appendName(sampleNamesCache(context), fields[i]);
         }
     }
 }
@@ -184,7 +170,7 @@ readRecord(VcfRecord & record,
     readUntil(buffer, iter, NextEntry());
     if (empty(buffer))
         SEQAN_THROW(EmptyFieldError("POS"));
-    record.beginPos = lexicalCast<int32_t>(buffer) - 1; // Translate from 1-based to 0-based.
+    record.beginPos = lexicalCast<__int32>(buffer) - 1; // Translate from 1-based to 0-based.
     skipOne(iter);
 
     // ID
@@ -261,7 +247,7 @@ readRecord(VcfRecord & record,
         if (empty(buffer))
         {
             char buffer[30];    // == 9 (GENOTYPE_) + 20 (#digits in MIN_INT64) + 1 (trailing zero)
-            snprintf(buffer, 30, "GENOTYPE_%u", i + 1);
+            sprintf(buffer, "GENOTYPE_%u", i + 1);
             SEQAN_THROW(EmptyFieldError(buffer));
         }
         appendValue(record.genotypeInfos, buffer);

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // Copyright (c) 2013 NVIDIA Corporation
 // All rights reserved.
 //
@@ -38,14 +38,30 @@
 #ifndef SEQAN_HEADER_SEQUENCE_FORWARDS_H
 #define SEQAN_HEADER_SEQUENCE_FORWARDS_H
 
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) || _MSC_VER <= 1600
 
 //SEQAN_NO_GENERATED_FORWARDS: no forwards are generated for this file
 
 //////////////////////////////////////////////////////////////////////////////
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
+
+// TODO(holtgrew): Still required since we dropped support for VS2003?
+// Workaround (copied from generated forwards) for VS 2003.
+#if defined(_MSC_VER) && (_MSC_VER < 1400)
+template <unsigned int SPACE > struct Block;        // "include/seqan/sequence\string_stack.h"(48)
+template <typename THostspec > struct Packed;           // "include/seqan/sequence\string_packed.h"(33)
+template <typename TValue, typename TSpec > class String;           // "include/seqan/sequence\string_base.h"(54)
+template <typename TString, typename TSpec > class StringSet;           // "include/seqan/sequence\sequence_multiple.h"(98)
+
+template <typename TValue, typename THostspec, typename TTag> inline typename Iterator<String<TValue, Packed<THostspec> >, Tag<TTag> const>::Type end(String<TValue, Packed<THostspec> > & me, Tag<TTag> const tag_);           // "include/seqan/sequence\string_packed.h"(470)
+template <typename TValue, typename THostspec, typename TTag> inline typename Iterator<String<TValue, Packed<THostspec> > const, Tag<TTag> const>::Type end(String<TValue, Packed<THostspec> > const & me, Tag<TTag> const tag_);           // "include/seqan/sequence\string_packed.h"(478)
+template <typename TValue, unsigned int SPACE, typename TSpec> inline typename Iterator<String<TValue, Block<SPACE> >, Tag<TSpec> const >::Type end(String<TValue, Block<SPACE> > & me, Tag<TSpec> const);           // "include/seqan/sequence\string_stack.h"(209)
+template <typename TValue, unsigned int SPACE, typename TSpec> inline typename Iterator<String<TValue, Block<SPACE> > const, Tag<TSpec> const>::Type end(String<TValue, Block<SPACE> > const & me, Tag<TSpec> const);        // "include/seqan/sequence\string_stack.h"(217)
+template <typename TString, typename TSpec, typename TTag> inline typename Iterator< StringSet< TString, TSpec >, Tag<TTag> const>::Type end(StringSet< TString, TSpec > & me, Tag<TTag> const tag);        // "include/seqan/sequence\sequence_multiple.h"(1398)
+template <typename TString, typename TSpec, typename TTag> inline typename Iterator< StringSet< TString, TSpec > const, Tag<TTag> const>::Type end(StringSet< TString, TSpec > const & me, Tag<TTag> const tag);        // "include/seqan/sequence\sequence_multiple.h"(1405)
+#endif  // defined(_MSC_VER) && (_MSC_VER < 1400)
 
 // ==========================================================================
 // Adaption Forwards
@@ -86,40 +102,42 @@ typedef Tag<TagGenerous_> Generous;
 typedef Tag<TagInsist_> Insist;
 typedef Tag<TagLimit_> Limit;
 typedef Tag<TagInsist_> Tight;
-template <typename T> inline typename Iterator<T, Standard>::Type _beginDefault(T & me, Standard);
-template <typename T> inline typename Iterator<T const, Standard>::Type _beginDefault(T const & me, Standard);
-template <typename T> inline typename Iterator<T, Rooted>::Type _beginDefault(T & me, Rooted);
-template <typename T> inline typename Iterator<T const, Rooted>::Type _beginDefault(T const & me, Rooted);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T, Standard>::Type _beginDefault(T & me, Standard);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T const, Standard>::Type _beginDefault(T const & me, Standard);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T, Rooted>::Type _beginDefault(T & me, Rooted);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T const, Rooted>::Type _beginDefault(T const & me, Rooted);
 template <typename T, typename TSize> inline TSize _computeSizeForCapacity(T const & , TSize capacity);
-template <typename T> inline typename Iterator<T, Standard>::Type _endDefault(T & me, Standard);
-template <typename T> inline typename Iterator<T const, Standard>::Type _endDefault(T const & me, Standard);
-template <typename T> inline typename Iterator<T, Rooted>::Type _endDefault(T & me, Rooted);
-template <typename T> inline typename Iterator<T const, Rooted>::Type _endDefault(T const & me, Rooted);
-template <typename TContainer> inline SEQAN_FUNC_ENABLE_IF(Is<StlContainerConcept<typename RemoveReference<TContainer>::Type> >, void) assign(TContainer && me, typename RemoveReference<TContainer>::Type source);
-template <typename TContainer, typename TSource> inline SEQAN_FUNC_ENABLE_IF(And<Not<IsSameType<typename RemoveReference<TContainer>::Type, TSource> >, Is<StlContainerConcept<typename RemoveReference<TContainer>::Type> > >, void) assign(TContainer && me, TSource const & source);
-template <typename TContainer, typename TSource> inline SEQAN_FUNC_ENABLE_IF(Is<StlContainerConcept<typename RemoveReference<TContainer>::Type> >, void) assign(TContainer && me, TSource const & source, typename Size<TSource>::Type limit);
-template<typename TTarget, typename TSource> inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<TTarget>::Type> >, void) assign(TTarget && target, TSource && source, typename Size<TTarget>::Type const limit);
-template <typename T> inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type begin(T & me);
-template <typename T> inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Type begin(T const & me);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T, Standard>::Type _endDefault(T & me, Standard);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T const, Standard>::Type _endDefault(T const & me, Standard);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T, Rooted>::Type _endDefault(T & me, Rooted);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T const, Rooted>::Type _endDefault(T const & me, Rooted);
+template <typename TContainer> inline SEQAN_FUNC_ENABLE_IF(Is<StlContainerConcept<typename RemoveReference<TContainer>::Type> >, void) assign(TContainer SEQAN_FORWARD_ARG me, typename RemoveReference<TContainer>::Type source);
+template <typename TContainer, typename TSource> inline SEQAN_FUNC_ENABLE_IF(And<Not<IsSameType<typename RemoveReference<TContainer>::Type, TSource> >, Is<StlContainerConcept<typename RemoveReference<TContainer>::Type> > >, void) assign(TContainer SEQAN_FORWARD_ARG me, TSource const & source);
+template <typename TContainer, typename TSource> inline SEQAN_FUNC_ENABLE_IF(Is<StlContainerConcept<typename RemoveReference<TContainer>::Type> >, void) assign(TContainer SEQAN_FORWARD_ARG me, TSource const & source, typename Size<TSource>::Type limit);
+template<typename TTarget, typename TSource> inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<TTarget>::Type> >, void) assign(TTarget SEQAN_FORWARD_ARG target, TSource SEQAN_FORWARD_CARG source, typename Size<TTarget>::Type const limit);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type begin(T & me);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Type begin(T const & me);
 template <typename T, typename TSpec> inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, typename Iterator<T, Tag<TSpec> const>::Type) begin(T & me, Tag<TSpec> const tag_);
 template <typename T, typename TSpec> inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, typename Iterator<T const, Tag<TSpec> const>::Type) begin(T const & me, Tag<TSpec> const tag_);
 template <typename T> inline typename Position<T>::Type beginPosition(T &);
 template <typename T> inline typename Position<T>::Type beginPosition(T const &);
 template <typename T, typename TSize> inline TSize computeGenerousCapacity(T const & , TSize capacity);
-template <typename T> inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type end(T & me);
-template <typename T> inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Type end(T const & me);
-template <typename T, typename TSpec> inline typename Iterator<T, Tag<TSpec> const>::Type end(T & me, Tag<TSpec> const tag_);
-template <typename T, typename TSpec> inline typename Iterator<T const, Tag<TSpec> const>::Type end(T const & me, Tag<TSpec> const tag_);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type end(T & me);
+template <typename T> SEQAN_HOST_DEVICE inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Type end(T const & me);
+template <typename T, typename TSpec> SEQAN_HOST_DEVICE inline typename Iterator<T, Tag<TSpec> const>::Type end(T & me, Tag<TSpec> const tag_);
+template <typename T, typename TSpec> SEQAN_HOST_DEVICE inline typename Iterator<T const, Tag<TSpec> const>::Type end(T const & me, Tag<TSpec> const tag_);
 template <typename T> inline typename Position<T>::Type endPosition(T & me);
 template <typename T> inline typename Position<T>::Type endPosition(T const & me);
 template <typename T> inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, void const *) getObjectId(T const & me);
-template <typename TContainer> inline SEQAN_FUNC_ENABLE_IF(Is<StlContainerConcept<typename RemoveReference<TContainer>::Type> >, void const *) getObjectId(TContainer && me);
+template <typename TContainer> inline SEQAN_FUNC_ENABLE_IF(Is<StlContainerConcept<typename RemoveReference<TContainer>::Type> >, void const *) getObjectId(TContainer SEQAN_FORWARD_CARG me);
 template <typename T, typename TPos> inline typename Iterator<T, typename DefaultGetIteratorSpec<T>::Type>::Type iter(T & me, TPos const pos);
 template <typename T, typename TPos> inline typename Iterator<T const, typename DefaultGetIteratorSpec<T>::Type>::Type iter(T const & me, TPos const pos);
 template <typename T, typename TPos, typename TTag> inline typename Iterator<T, Tag<TTag> const>::Type iter(T & me, TPos const pos, Tag<TTag> const &);
 template <typename T, typename TPos, typename TTag> inline typename Iterator<T const, Tag<TTag> const>::Type iter(T const & me, TPos const pos, Tag<TTag> const &);
 template <typename T> inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, typename Size<T>::Type) length(T const & /*me*/);
+#ifdef SEQAN_CXX11_STANDARD
 template <typename TChar, typename TAlloc> inline typename Size<std::forward_list<TChar, TAlloc> >::Type length(std::forward_list<TChar, TAlloc> const & me);
+#endif
 template <typename T, typename TValue, typename TPos> inline void moveValue(T & me, TPos pos, TValue const & _value);
 template <typename T, typename TValue, typename TPos> inline void moveValue(T const & me, TPos pos, TValue const & _value);
 template <typename TContainer> inline SEQAN_FUNC_ENABLE_IF(Is<StlContainerConcept<TContainer> >, typename Size<TContainer>::Type) length(TContainer const & me);
@@ -131,10 +149,14 @@ template <typename T, typename TPos> inline SEQAN_FUNC_DISABLE_IF(Is<StlContaine
 template <typename T, typename TPos> inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, typename Reference<T const>::Type) value(T const & me, TPos /*pos*/);
 template <typename TContainer, typename TPos> inline SEQAN_FUNC_ENABLE_IF(And<Is<StlContainerConcept<TContainer> >, HasSubscriptOperator<TContainer> >, typename Reference<TContainer>::Type) value(TContainer & me, TPos const pos);
 template <typename TContainer, typename TPos> inline SEQAN_FUNC_ENABLE_IF(And<Is<StlContainerConcept<TContainer> >, HasSubscriptOperator<TContainer> >, typename Reference<TContainer const>::Type) value(TContainer const & me, TPos const pos);
+#ifdef SEQAN_CXX11_STANDARD
 template <typename TContainer, typename TPos> inline SEQAN_FUNC_ENABLE_IF(And<Is<StlContainerConcept<TContainer> >, HasSubscriptOperator<TContainer> >, typename Value<TContainer>::Type) value(TContainer && me, TPos const pos);
+#endif
 template <typename TContainer, typename TPos> inline SEQAN_FUNC_ENABLE_IF(And<Is<StlContainerConcept<TContainer> >, Not<HasSubscriptOperator<TContainer> > >, typename Reference<TContainer>::Type) value(TContainer & me, TPos const pos);
 template <typename TContainer, typename TPos> inline SEQAN_FUNC_ENABLE_IF(And<Is<StlContainerConcept<TContainer> >, Not<HasSubscriptOperator<TContainer> > >, typename Reference<TContainer const>::Type) value(TContainer const & me, TPos const pos);
+#ifdef SEQAN_CXX11_STANDARD
 template <typename TContainer, typename TPos> inline SEQAN_FUNC_ENABLE_IF(And<Is<StlContainerConcept<TContainer> >, Not<HasSubscriptOperator<TContainer> > >, typename Value<TContainer>::Type) value(TContainer && me, TPos const pos);
+#endif
 template <typename TContainer> inline SEQAN_FUNC_ENABLE_IF(Is<StlContainerConcept<TContainer> >, bool) empty(TContainer const & me);
 template <typename T> inline SEQAN_FUNC_DISABLE_IF(Is<StlContainerConcept<typename RemoveReference<T>::Type> >, bool) empty(T const & me);
 
@@ -164,7 +186,7 @@ template <typename TValue> inline bool atEnd(TValue * pos);
 template <typename TValue> inline bool atEnd(TValue const * pos, TValue const * );
 template <typename T> inline typename Iterator<T *, typename DefaultGetIteratorSpec<T>::Type>::Type begin(T * me);
 template <typename TValue> inline typename Iterator<TValue *, Standard>::Type begin(TValue * me, Standard);
-template <typename TValue> inline typename Iterator<TValue const *, Standard>::Type begin(TValue const * me, Standard);
+template <typename TValue> SEQAN_HOST_DEVICE inline typename Iterator<TValue const *, Standard>::Type begin(TValue const * me, Standard);
 template <typename TValue, typename TSpec> inline typename Iterator<TValue *, Tag<TSpec> const>::Type begin(TValue * me, Tag<TSpec> const);
 template <typename TValue, typename TSpec> inline typename Iterator<TValue const *, Tag<TSpec> const>::Type begin(TValue const * me, Tag<TSpec> const);
 template <typename TValue> inline void clear(TValue * me);
@@ -191,9 +213,59 @@ template <typename TValue, typename TSize, typename TExpand> inline size_t resiz
 template <typename TValue, typename TPos> inline TValue & value(TValue * me, TPos pos);
 template <typename TValue, typename TPos> inline TValue const & value(TValue const * me, TPos pos);
 
-}  // namespace seqan
+// --------------------------------------------------------------------------
+// Forwards For thrust::device_vector
+// --------------------------------------------------------------------------
 
-#endif  // #if !defined(_MSC_VER)
+#ifdef PLATFORM_CUDA
+template <typename TChar,  typename TAlloc> inline void const * getObjectId(thrust::device_vector<TChar, TAlloc> const & me);
+template <typename TChar,  typename TAlloc> inline typename Iterator<thrust::device_vector<TChar, TAlloc>, Standard>::Type begin(thrust::device_vector<TChar, TAlloc> & me, Standard);
+template <typename TChar,  typename TAlloc> inline typename Iterator<thrust::device_vector<TChar, TAlloc> const, Standard>::Type begin(thrust::device_vector<TChar, TAlloc> const & me, Standard);
+template <typename TChar, typename TAlloc> inline typename Iterator<thrust::device_vector<TChar, TAlloc>, Standard>::Type end(thrust::device_vector<TChar, TAlloc> & me, Standard);
+template <typename TChar,  typename TAlloc> inline typename Iterator<thrust::device_vector<TChar, TAlloc> const, Standard>::Type end(thrust::device_vector<TChar, TAlloc> const & me, Standard);
+template <typename TChar,  typename TAlloc, typename TPos> inline typename GetValue<thrust::device_vector<TChar, TAlloc> >::Type value(thrust::device_vector<TChar, TAlloc> & me, TPos pos);
+template <typename TChar,  typename TAlloc, typename TPos> inline typename GetValue<thrust::device_vector<TChar, TAlloc> const>::Type value(thrust::device_vector<TChar, TAlloc> const & me, TPos pos);
+template <typename TChar, typename TAlloc> inline typename Size<thrust::device_vector<TChar, TAlloc> >::Type length(thrust::device_vector<TChar, TAlloc> const & me);
+template <typename TChar, typename TAlloc> inline typename Size<thrust::device_vector<TChar, TAlloc> >::Type capacity(thrust::device_vector<TChar, TAlloc> const & me);
+template <typename TChar, typename TAlloc> inline bool empty(thrust::device_vector<TChar, TAlloc> const & me);
+template <typename TChar,  typename TAlloc> inline void clear(thrust::device_vector<TChar, TAlloc> & me);
+template <typename TChar, typename TAlloc> inline typename Reference<thrust::device_vector<TChar, TAlloc> >::Type back(thrust::device_vector<TChar, TAlloc> & list);
+template <typename TChar, typename TAlloc> inline typename Reference<thrust::device_vector<TChar, TAlloc> const>::Type back(thrust::device_vector<TChar, TAlloc> const & list);
+template <typename TChar,  typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource & source);
+template <typename TChar,  typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource const & source);
+template <typename TChar,  typename TAlloc, typename TSource, typename TSize> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource & source, TSize limit);
+template <typename TChar,  typename TAlloc, typename TSource, typename TSize>
+inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource const & source, TSize limit);
+template <typename TChar,  typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource & source, Generous);
+template <typename TChar, typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource const & source, Generous);
+template <typename TChar,  typename TAlloc, typename TSource> inline void assign_std_vector_Generous_impl(thrust::device_vector<TChar, TAlloc> & target, TSource & source, typename Size<thrust::device_vector<TChar, TAlloc> >::Type limit);
+template <typename TChar,  typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource & source, typename Size<thrust::device_vector<TChar, TAlloc> >::Type limit, Generous);
+template <typename TChar,  typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource const & source, typename Size<thrust::device_vector<TChar, TAlloc> >::Type limit, Generous);
+template <typename TChar, typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource & source, Limit);
+template <typename TChar, typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource const & source, Limit);
+template <typename TChar, typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource & source, typename Size<thrust::device_vector<TChar, TAlloc> >::Type limit, Limit);
+template <typename TChar, typename TAlloc, typename TSource> inline void assign(thrust::device_vector<TChar, TAlloc> & target, TSource const & source, typename Size<thrust::device_vector<TChar, TAlloc> >::Type limit, Limit);
+template <typename TChar, typename TAlloc, typename TSource> inline void append(thrust::device_vector<TChar, TAlloc> & target, TSource const & source, Generous);
+template <typename TChar,  typename TAlloc, typename TSource> inline void append(thrust::device_vector<TChar, TAlloc> & target, TSource const & source, typename Size<thrust::device_vector<TChar, TAlloc> >::Type limit, Generous);
+template <typename TChar, typename TAlloc, typename TSource> inline void append(thrust::device_vector<TChar, TAlloc> & target, TSource const & source, Limit);
+template <typename TChar, typename TAlloc, typename TSource> inline void append(thrust::device_vector<TChar, TAlloc> & target, TSource const & source, typename Size<thrust::device_vector<TChar, TAlloc> >::Type limit, Limit);
+template <typename TChar, typename TAlloc, typename TValue, typename TTag> inline void appendValue(thrust::device_vector<TChar, TAlloc> & me, TValue const & _value, TTag);
+template <typename TChar, typename TAlloc, typename TValue> inline void appendValue(thrust::device_vector<TChar, TAlloc> & me, TValue const & _value, Limit);
+template <typename TChar,  typename TAlloc, typename TSource> inline void replace(thrust::device_vector<TChar, TAlloc> & target, typename Position<thrust::device_vector<TChar, TAlloc> >::Type pos_begin, typename Position<thrust::device_vector<TChar, TAlloc> >::Type pos_end, TSource const & source, Generous);
+template <typename TChar, typename TAlloc, typename TSource> inline void replace(thrust::device_vector<TChar, TAlloc> & target, typename Position<thrust::device_vector<TChar, TAlloc> >::Type pos_begin, typename Position<thrust::device_vector<TChar, TAlloc> >::Type pos_end, TSource const & source, typename Size<thrust::device_vector<TChar, TAlloc> >::Type limit, Generous);
+template <typename TChar,  typename TAlloc, typename TSource> inline void replace(thrust::device_vector<TChar, TAlloc> & target, typename Position<thrust::device_vector<TChar, TAlloc> >::Type pos_begin, typename Position<thrust::device_vector<TChar, TAlloc> >::Type pos_end, TSource const & source, Limit);
+template <typename TChar, typename TAlloc, typename TSource> inline void replace(thrust::device_vector<TChar, TAlloc> & target, typename Position<thrust::device_vector<TChar, TAlloc> >::Type pos_begin, typename Position<thrust::device_vector<TChar, TAlloc> >::Type pos_end, TSource const & source, typename Size<thrust::device_vector<TChar, TAlloc> >::Type limit, Limit);
+template<typename TChar, typename TCharTraits, typename TAlloc, typename TSource, typename TExpand> inline void replace(thrust::device_vector<TChar, TAlloc> & target, typename Iterator<thrust::device_vector<TChar, TAlloc>, Rooted>::Type pos_begin, typename Iterator<thrust::device_vector<TChar, TAlloc>, Rooted>::Type pos_end, TSource & source, Tag<TExpand> const tag);
+template <typename TChar,  typename TAlloc, typename TSize, typename TExpand> inline typename Size<thrust::device_vector<TChar, TAlloc> >::Type reserve(thrust::device_vector<TChar, TAlloc> & seq, TSize new_capacity, Tag<TExpand> const & tag);
+template <typename TChar, typename TAlloc, typename TSize> inline typename Size<thrust::device_vector<TChar, TAlloc> >::Type reserve(thrust::device_vector<TChar, TAlloc> & seq, TSize new_capacity, Insist const &);
+template <typename TChar,  typename TAlloc, typename TSize> inline typename Size<thrust::device_vector<TChar, TAlloc> >::Type reserve(thrust::device_vector<TChar, TAlloc> & seq, TSize new_capacity, Limit const &);
+template <typename TChar,  typename TAlloc, typename TSize, typename TExpand> inline typename Size<thrust::device_vector<TChar, TAlloc> >::Type resize(thrust::device_vector<TChar, TAlloc> & me, TSize new_length, Tag<TExpand> const &);
+template <typename TChar, typename TAlloc, typename TSize, typename TExpand> inline typename Size<thrust::device_vector<TChar, TAlloc> >::Type fill(thrust::device_vector<TChar, TAlloc> & me, TSize new_length, TChar const & val, Tag<TExpand> const &);
+#endif
+
+}  // namespace SEQAN_NAMESPACE_MAIN
+
+#endif  // #if !defined(_MSC_VER) || _MSC_VER <= 1600
 
 #endif
 

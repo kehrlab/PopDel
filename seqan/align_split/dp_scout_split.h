@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -64,7 +64,6 @@ class DPScoutState_<SplitAlignmentScout>
 public:
     // The best score for each column.  Initialized with 0.5*minValue<TScoreVal>().
     seqan::String<int> splitScore;
-    seqan::String<int> splitPos;
 
     DPScoutState_()
     {}
@@ -116,13 +115,8 @@ _scoutBestScore(DPScout_<TDPCell, SplitAlignmentScout> & dpScout,
     // unsigned posV = coordinate(navigator, +DPMatrixDimension_::VERTICAL);
 
     int & i = dpScout.state->splitScore[posH];
-    if (i < _scoreOfCell(activeCell))
-    {
-        i = _scoreOfCell(activeCell);
-        dpScout.state->splitPos[posH] = position(navigator);
-    }
+    i = std::max(i, _scoreOfCell(activeCell));
 
-    // TODO(rrahn): Do we need the optimal end-point?
     // We track only the last row for the best traceback score.
     if (TIsLastColumn::VALUE || TIsLastRow::VALUE)
     {

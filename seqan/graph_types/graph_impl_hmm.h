@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 #ifndef SEQAN_HEADER_GRAPH_IMPL_HMM_H
 #define SEQAN_HEADER_GRAPH_IMPL_HMM_H
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -111,6 +111,7 @@ public:
 template<typename TAlphabet, typename TCargo, typename TSpec>
 inline String<typename EdgeType<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type*>&
 _getVertexString(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g) {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TCargo, TSpec> > TGraph;
     typedef typename EdgeType<TGraph>::Type TEdgeStump;
     return const_cast<String<TEdgeStump*>&>(g.data_model.data_vertex);
@@ -121,6 +122,7 @@ _getVertexString(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g) {
 template<typename TAlphabet, typename TCargo, typename TSpec>
 inline typename VertexIdHandler<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type&
 _getVertexIdManager(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g) {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TCargo, TSpec> > TGraph;
     typedef typename VertexIdHandler<TGraph>::Type TVertexIdManager;
     return const_cast<TVertexIdManager&>(g.data_model.data_id_managerV);
@@ -131,6 +133,7 @@ _getVertexIdManager(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g) {
 template<typename TAlphabet, typename TCargo, typename TSpec>
 inline typename EdgeIdHandler<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type&
 _getEdgeIdManager(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g) {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TCargo, TSpec> > TGraph;
     typedef typename EdgeIdHandler<TGraph>::Type TEdgeIdManager;
     return const_cast<TEdgeIdManager&>(g.data_model.data_id_managerE);
@@ -144,6 +147,7 @@ _copyGraph(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& source,
            Graph<Hmm<TAlphabet, TCargo, TSpec> >& dest,
            bool transp)
 {
+    SEQAN_CHECKPOINT
     clear(dest);
     if (transp) {
         transpose(source.data_model, dest.data_model);
@@ -181,6 +185,7 @@ inline void
 transpose(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& source,
           Graph<Hmm<TAlphabet, TCargo, TSpec> >& dest)
 {
+    SEQAN_CHECKPOINT
     _copyGraph(source, dest, true);
 }
 
@@ -190,6 +195,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline void
 transpose(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g)
 {
+    SEQAN_CHECKPOINT
     Graph<Hmm<TAlphabet, TCargo, TSpec> > dest;
     _copyGraph(g, dest, true);
     g = dest;
@@ -201,6 +207,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline typename Size<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 numEdges(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g)
 {
+    SEQAN_CHECKPOINT
     return numEdges(g.data_model);
 }
 
@@ -210,6 +217,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline typename Size<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 numVertices(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g)
 {
+    SEQAN_CHECKPOINT
     return numVertices(g.data_model);
 }
 
@@ -219,6 +227,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline bool
 empty(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g)
 {
+    SEQAN_CHECKPOINT
     return empty(g.data_model);
 }
 
@@ -228,6 +237,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline void
 clearEdges(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g)
 {
+    SEQAN_CHECKPOINT
     clearEdges(g.data_model);
 }
 
@@ -250,6 +260,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline void
 clear(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g)
 {
+    SEQAN_CHECKPOINT
     clearVertices(g);
 }
 
@@ -260,6 +271,7 @@ inline typename Size<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 outDegree(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g,
           TVertexDescriptor const vertex)
 {
+    SEQAN_CHECKPOINT
     return outDegree(g.data_model, vertex);
 }
 
@@ -270,6 +282,7 @@ inline typename Size<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 inDegree(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g,
          TVertexDescriptor const vertex)
 {
+    SEQAN_CHECKPOINT
     return inDegree(g.data_model, vertex);
 }
 
@@ -280,6 +293,7 @@ inline typename Size<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 degree(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g,
        TVertexDescriptor const vertex)
 {
+    SEQAN_CHECKPOINT
     return degree(g.data_model, vertex);
 }
 
@@ -290,6 +304,7 @@ inline typename VertexDescriptor<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 addVertex(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
           bool silent)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TCargo, TSpec> > TGraph;
     typedef typename Size<TAlphabet>::Type TSize;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
@@ -312,6 +327,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline typename VertexDescriptor<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 addVertex(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g)
 {
+    SEQAN_CHECKPOINT
     return addVertex(g, false);
 }
 
@@ -348,6 +364,7 @@ addVertex(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
           TEmission const& emis,
           bool silent)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TCargo, TSpec> > TGraph;
     typedef typename VertexDescriptor<TGraph>::Type TVertexDescriptor;
     TVertexDescriptor vd = addVertex(g, emis);
@@ -362,6 +379,7 @@ inline void
 removeVertex(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
              TVertexDescriptor const v)
 {
+    SEQAN_CHECKPOINT
     // Remove the vertex
     removeVertex(g.data_model,v);
 }
@@ -374,6 +392,7 @@ addEdge(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
         TVertexDescriptor const source,
         TVertexDescriptor const target)
 {
+    SEQAN_CHECKPOINT
     return addEdge(g, source, target, (TCargo) 0.0);
 }
 
@@ -386,6 +405,7 @@ addEdge(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
         TVertexDescriptor const target,
         TCargo2 const cargo)
 {
+    SEQAN_CHECKPOINT
     return addEdge(g.data_model, source, target, (TCargo) cargo);
 }
 
@@ -397,6 +417,7 @@ removeEdge(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
            TVertexDescriptor const source,
            TVertexDescriptor const target)
 {
+    SEQAN_CHECKPOINT
     removeEdge(g.data_model, source, target);
 }
 
@@ -407,6 +428,7 @@ inline void
 removeEdge(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
            TEdgeDescriptor const edge)
 {
+    SEQAN_CHECKPOINT
     removeEdge(g.data_model, sourceVertex(g.data_model,edge), targetVertex(g.data_model,edge));
 }
 
@@ -417,6 +439,7 @@ inline void
 removeOutEdges(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
                TVertexDescriptor const v)
 {
+    SEQAN_CHECKPOINT
     removeOutEdges(g.data_model, v);
 }
 
@@ -427,6 +450,7 @@ inline void
 removeInEdges(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
               TVertexDescriptor const v)
 {
+    SEQAN_CHECKPOINT
     removeInEdges(g.data_model,v);
 }
 
@@ -437,6 +461,7 @@ inline typename VertexDescriptor<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 targetVertex(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g,
              TEdgeDescriptor const edge)
 {
+    SEQAN_CHECKPOINT
     return targetVertex(g.data_model, edge);
 }
 
@@ -447,6 +472,7 @@ inline typename VertexDescriptor<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 sourceVertex(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g,
              TEdgeDescriptor const edge)
 {
+    SEQAN_CHECKPOINT
     return sourceVertex(g.data_model, edge);
 }
 
@@ -462,24 +488,13 @@ getAdjacencyMatrix(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g,
 
 //////////////////////////////////////////////////////////////////////////////
 
-template<typename TVector, typename TAlphabet, typename TCargo, typename TSpec, typename TVertex>
-inline void
-getVertexAdjacencyVector(TVector & vectIn,
-                         TVector & vectOut,
-                         Graph<Hmm<TAlphabet, TCargo, TSpec> > const & g,
-                         TVertex const & vertex)
-{
-    getVertexAdjacencyVector(vectIn, vectOut, g.data_model, vertex);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
 template<typename TAlphabet, typename TCargo, typename TSpec, typename TVertexDescriptor>
 inline typename EdgeDescriptor<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 findEdge(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g,
          TVertexDescriptor const v,
          TVertexDescriptor const w)
 {
+    SEQAN_CHECKPOINT
     return findEdge(g.data_model, v, w);
 }
 
@@ -604,6 +619,7 @@ inline void
 assignBeginState(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
                  TVertexDescriptor const vertex)
 {
+    SEQAN_CHECKPOINT;
     SEQAN_ASSERT(idInUse(_getVertexIdManager(g), vertex));
 
     g.data_begin = vertex;
@@ -628,6 +644,7 @@ inline void
 assignEndState(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
                TVertexDescriptor const vertex)
 {
+    SEQAN_CHECKPOINT
     SEQAN_ASSERT(idInUse(_getVertexIdManager(g), vertex));
 
     g.data_end = vertex;
@@ -651,6 +668,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline typename VertexDescriptor<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type&
 beginState(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g)
 {
+    SEQAN_CHECKPOINT
     return (g.data_begin);
 }
 
@@ -671,6 +689,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline typename VertexDescriptor<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type&
 endState(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g)
 {
+    SEQAN_CHECKPOINT
     return (g.data_end);
 }
 
@@ -691,6 +710,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline typename VertexDescriptor<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 getBeginState(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g)
 {
+    SEQAN_CHECKPOINT
     return (g.data_begin);
 }
 
@@ -711,6 +731,7 @@ template<typename TAlphabet, typename TCargo, typename TSpec>
 inline typename VertexDescriptor<Graph<Hmm<TAlphabet, TCargo, TSpec> > >::Type
 getEndState(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g)
 {
+    SEQAN_CHECKPOINT
     return (g.data_end);
 }
 
@@ -737,6 +758,7 @@ getTransitionProbability(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g,
                          TVertexDescriptor const state1,
                          TVertexDescriptor const state2)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TCargo, TSpec> > const TGraph;
     typedef typename EdgeDescriptor<TGraph>::Type TEdgeDescriptor;
     TEdgeDescriptor e = findEdge(g, state1, state2);
@@ -751,6 +773,7 @@ inline TCargo
 getTransitionProbability(Graph<Hmm<TAlphabet, TCargo, TSpec> > const&,
                          TEdgeDescriptor const e)
 {
+    SEQAN_CHECKPOINT
     return getCargo(e);
 }
 
@@ -777,6 +800,7 @@ transitionProbability(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
                       TVertexDescriptor const state1,
                       TVertexDescriptor const state2)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TCargo, TSpec> > TGraph;
     typedef typename EdgeDescriptor<TGraph>::Type TEdgeDescriptor;
     TEdgeDescriptor e = findEdge(g, state1, state2);
@@ -790,6 +814,7 @@ inline TCargo&
 transitionProbability(Graph<Hmm<TAlphabet, TCargo, TSpec> >&,
                       TEdgeDescriptor e)
 {
+    SEQAN_CHECKPOINT
     return cargo(e);
 }
 
@@ -815,6 +840,7 @@ assignTransitionProbability(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
                             TVertexDescriptor const state2,
                             TTransProb const t)
 {
+    SEQAN_CHECKPOINT
     typedef Graph<Hmm<TAlphabet, TCargo, TSpec> > TGraph;
     typedef typename EdgeDescriptor<TGraph>::Type TEdgeDescriptor;
     TEdgeDescriptor e = findEdge(g, state1, state2);
@@ -829,6 +855,7 @@ assignTransitionProbability(Graph<Hmm<TAlphabet, TCargo, TSpec> >&,
                             TEdgeDescriptor e,
                             TTransProb const t)
 {
+    SEQAN_CHECKPOINT
     cargo(e) = t;
 }
 
@@ -928,6 +955,7 @@ assignSilentStatus(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
                    TVertexDescriptor const vertex,
                    bool const silent)
 {
+    SEQAN_CHECKPOINT
     SEQAN_ASSERT(idInUse(_getVertexIdManager(g), vertex));
     g.data_silent[vertex] = silent;
 }
@@ -951,6 +979,7 @@ inline bool&
 silentStatus(Graph<Hmm<TAlphabet, TCargo, TSpec> >& g,
              TVertexDescriptor const vertex)
 {
+    SEQAN_CHECKPOINT
     return g.data_silent[vertex];
 }
 
@@ -974,10 +1003,11 @@ inline bool
 isSilent(Graph<Hmm<TAlphabet, TCargo, TSpec> > const& g,
          TVertexDescriptor const vertex)
 {
+    SEQAN_CHECKPOINT
     return g.data_silent[vertex];
 }
 
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

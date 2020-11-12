@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 
 //#include <stdio.h>
 
-namespace seqan
+namespace SEQAN_NAMESPACE_MAIN
 {
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1161,6 +1161,7 @@ appendAlignedRead(
         TPos const & endPos,
         TPairMatchId const & pairMatchId)
 {
+    SEQAN_CHECKPOINT;
     typedef typename FragmentStore<TSpec, TConfig>::TAlignedReadStore TAlignedReadStore;
     typedef typename Value<TAlignedReadStore>::Type TAlignedReadStoreElement;
 
@@ -1180,6 +1181,7 @@ appendAlignedRead(
         TPos const & beginPos,
         TPos const & endPos)
 {
+    SEQAN_CHECKPOINT;
     typedef typename FragmentStore<TSpec, TConfig>::TAlignedReadStore TAlignedReadStore;
     typedef typename Value<TAlignedReadStore>::Type TAlignedReadStoreElement;
     return appendAlignedRead(store, readId, contigId, beginPos, endPos, TAlignedReadStoreElement::INVALID_ID);
@@ -1927,8 +1929,8 @@ void convertMatchesToGlobalAlignment(FragmentStore<TSpec, TConfig> &store, TScor
 //            setBeginPosition(contigGaps, (*theIt).endPos);
 //            setEndPosition(contigGaps, (*theIt).beginPos);
 //        }
-////              int64_t pos = positionGapToSeq(contigGaps, _min(theIt->beginPos, theIt->endPos)) + 1;
-////        int64_t mpos = 0;
+////              __int64 pos = positionGapToSeq(contigGaps, _min(theIt->beginPos, theIt->endPos)) + 1;
+////        __int64 mpos = 0;
 ////        std::cout << "it->id == " << it->id << std::endl;
 ////        std::cout << "cBegin == " << cBegin << std::endl;
 ////        std::cout << contigGaps << std::endl;
@@ -2221,7 +2223,7 @@ void _alignedReadsInsertGaps(
     typedef typename Value<TReadSeqStore>::Type                             TReadSeq;
     typedef typename Value<TAlignedReadIter>::Type                          TAlignedRead;
     typedef Gaps<TReadSeq, AnchorGaps<typename TAlignedRead::TGapAnchors> > TReadGaps;
-    typedef int64_t                                                         TContigPos;
+    typedef __int64                                                         TContigPos;
 
     for (TAlignedReadIter j = alignedReadsBegin; j != alignedReadsEnd; ++j)
     {
@@ -2278,7 +2280,7 @@ void _twoWayMergeAlignments(
     typedef typename Iterator<TContigGapsGlobal>::Type  TContigGlobalIter;
     typedef typename Iterator<TContigGapsPW>::Type      TContigPWIter;
     typedef typename Iterator<TReadGaps>::Type          TReadIter;
-    typedef int64_t                                     TContigPos;
+    typedef __int64                                     TContigPos;
 
     TContigGlobalIter cIt = begin(contigGapsGlobal);
     TContigPWIter pIt = begin(contigGapsPW);
@@ -2290,7 +2292,7 @@ void _twoWayMergeAlignments(
     std::cout << "readPW      \t" << readGaps << std::endl;
     */
 
-    int64_t blkLen = 0;
+    __int64 blkLen = 0;
     for (; !atEnd(rIt); goFurther(rIt, blkLen), goFurther(cIt, blkLen))
     {
         bool isGapContig = isGap(cIt);
@@ -2454,6 +2456,6 @@ void convertPairWiseToGlobalAlignment(FragmentStore<TSpec, TConfig> &store, TCon
     }
 }
 
-}// namespace seqan
+}// namespace SEQAN_NAMESPACE_MAIN
 
 #endif //#ifndef SEQAN_HEADER_...

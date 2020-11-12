@@ -63,28 +63,18 @@ void printWindowParameters(const PopDelProfileParameters & params)
 // Read all records in the specified region of infile, check and add them to the set of insert size histograms.
 inline void addToInsertSizeHistograms(String<Histogram> & histograms,
                                       const GenomicRegion & interval,
-                                      BamFileIn & infile,
-                                      const BamIndex<Bai> & bai,
+                                      HtsFile & infile,
                                       String<unsigned> & sampleSize,
                                       BamQualReq & qualReq,
                                       const std::map<CharString, unsigned> & readGroups)
 {
     bool mergeRG = (length(histograms) == 1u && readGroups.size() > 1);
-    bool alis;
-    jumpToRegion(infile, alis, interval.rID, interval.beginPos, interval.endPos, bai);
-    if (!alis)
+    if (!setRegion(infile, toCString(interval.seqName), interval.beginPos, interval.endPos))
         return;
+
     BamAlignmentRecord record;
-    while (!atEnd(infile))
+    while (seqFreeReadRegion(record, infile))
     {
-        try
-        {
-            readRecord(record, infile);
-        }
-        catch (...)
-        {
-            SEQAN_THROW(IOError("Could no read record in BAM-File."));
-        }
         if (record.rID == interval.rID && record.beginPos < interval.beginPos)      //Iterate till specified region.
             continue;
         if (record.rID != interval.rID || record.beginPos > interval.endPos)        //Break if region has been passed.
@@ -104,11 +94,11 @@ inline void addToInsertSizeHistograms(String<Histogram> & histograms,
                 {
                     clip += record.cigar[length(record.cigar) - 1].count;
                 }
-                histograms[rg].readLength = length(record.seq) + clip;
+                histograms[rg].readLength = record._l_qseq + clip;
             }
             else
             {
-                histograms[rg].readLength = length(record.seq);
+                histograms[rg].readLength = record._l_qseq;
             }
         }
     }
@@ -119,8 +109,9 @@ inline void addToInsertSizeHistograms(String<Histogram> & histograms,
 typedef Iterator<const String<GenomicRegion> >::Type TItvIter;
 // Call addToInsertSizeHistograms for each specified interval.
 // Return the iterator to the first unused interval (or to the end of the container).
+// Requires both the file and the index to be open already (like after the creation of of BWI object.)
 inline TItvIter getInsertSizeHistograms(String<Histogram> & histograms,
-                                        BamFileIn & infile,
+                                        HtsFile & infile,
                                         const String<GenomicRegion> & intervals,
                                         PopDelProfileParameters & params)
 {
@@ -137,8 +128,6 @@ inline TItvIter getInsertSizeHistograms(String<Histogram> & histograms,
         resize(histograms, params.readGroups.size(), hist, Exact());
         resize(params.sampleSize, length(params.readGroups), 0, Exact());
     }
-    BamIndex<Bai> bai;
-    loadBai(bai, params.bamfile);
     TItvIter itv = begin(intervals);
     TItvIter itvEnd = end(intervals);
 
@@ -146,8 +135,8 @@ inline TItvIter getInsertSizeHistograms(String<Histogram> & histograms,
     while (itv != itvEnd && !enough)                               //Call _addToInsertSizeHistograms for each interval.
     {
         addToInsertSizeHistograms(histograms,
-                                  *itv, infile,
-                                  bai,
+                                  *itv,
+                                  infile,
                                   params.sampleSize,
                                   params.qualReq,
                                   params.readGroups);
@@ -324,18 +313,14 @@ inline void checkCoverage(const PopDelProfileParameters & params,
 // Function calculateParamters()
 // =======================================================================================
 // Sets the parameters for each read group.
-void calculateParameters(PopDelProfileParameters & params)
+void calculateParameters(HtsFile & infile, PopDelProfileParameters & params)
 {
     if (params.outfile == "*BAM-FILE*.profile")
     {
         params.outfile = params.bamfile;
         append(params.outfile, ".profile");
     }
-    BamFileIn infile;
-    open(infile, toCString(params.bamfile));
-    BamHeader header;
-    readHeader(header, infile);
-    getReadGroups(params.readGroups, header, params.mergeRG); // Get the read groups and chromosome names/lengths from bam file header.
+    getReadGroups(params.readGroups, infile, params.mergeRG); // Get the read groups and chromosome names/lengths from bam file header.
     std::ostringstream msg;
     msg << "Found " << length(params.readGroups) << " read groups in input bam file \'" << params.bamfile << "\'.";
     if (params.mergeRG && params.readGroups.size() > 1)
@@ -343,7 +328,7 @@ void calculateParameters(PopDelProfileParameters & params)
     printStatus(msg);
     if (length(params.rois) == 0)                                      // Estimate the genomic regions.
     {
-        unsigned totalLength = getWholeGenomeIntervals(params.rois, header);
+        unsigned totalLength = getWholeGenomeIntervals(params.rois, infile);
         std::ostringstream msg;
         msg << "Reference consists of " << length(params.rois)
             << " sequences with a total length of " << totalLength << " base pairs.";
@@ -351,7 +336,7 @@ void calculateParameters(PopDelProfileParameters & params)
     }
       // Read list of intervals to use for parameter calculation.
     String<GenomicRegion> intervals;
-    readIntervals(intervals, params.intervalFile, header, params.rois, params.referenceVersion);
+    readIntervals(intervals, params.intervalFile, infile, params.rois, params.referenceVersion);
     mergeOverlappingIntervals(intervals);                                // Handle the regular intervals for sampling
     setRIDs(intervals, infile);
     TItvIter itvEnd = getInsertSizeHistograms(params.histograms, infile, intervals, params);// Calculate insert size hist for each RG...

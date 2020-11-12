@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -176,16 +176,6 @@ struct IsContiguous<String<TValue, Array<CAPACITY> > >
 {
     typedef True Type;
     enum { VALUE = true };
-};
-
-// ----------------------------------------------------------------------------
-// Metafunction LENGTH
-// ----------------------------------------------------------------------------
-
-template <typename TValue, size_t CAPACITY>
-struct LENGTH<String<TValue, Array<CAPACITY> > >
-{
-    enum { VALUE = CAPACITY };
 };
 
 // ============================================================================

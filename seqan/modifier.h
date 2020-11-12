@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2016, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2015, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -77,6 +77,5 @@
 #include <seqan/modifier/modifier_shortcuts.h>
 #include <seqan/modifier/modifier_cyclic_shape.h>
 #include <seqan/modifier/modifier_position.h>
-#include <seqan/modifier/modifier_padding.h>
 
 #endif  // #ifndef SEQAN_INCLUDE_SEQAN_MODIFIER_H_

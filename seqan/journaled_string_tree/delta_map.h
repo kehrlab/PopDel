@@ -74,6 +74,7 @@ typedef Tag<DeltaMapStoreMember_> DeltaMapStoreMember;
 // Class DeltaMap
 // ----------------------------------------------------------------------------
 
+
 // TODO(rrahn): Add demo.
 /*!
  * @class DeltaMap
@@ -317,6 +318,7 @@ struct DeltaCoverage<DeltaMap<TConfig, TSpec> const>
     typedef typename DeltaCoverage<TEntry_ const>::Type Type;
 };
 
+
 // ============================================================================
 // Private Functions
 // ============================================================================
@@ -469,6 +471,7 @@ find(DeltaMap<TConfig, TSpec> & deltaMap,
         return it;
     return end(deltaMap, Standard());
 }
+
 
 // ----------------------------------------------------------------------------
 // Function impl::checkNoDuplicate()
