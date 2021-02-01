@@ -49,9 +49,8 @@ For more options see Wiki: [PopDel Call](https://github.com/kehrlab/PopDel/wiki/
 See wiki for more information on how to view the profile with [PopDel View](https://github.com/kehrlab/PopDel/wiki/06.-Inspect-profiles-with-popdel-view) and interpret the [output in VCF-format](https://github.com/kehrlab/PopDel/wiki/05.-Output-Format:-A-(modified)-VCF).
 
 ## Citation
-Sebastian Niehus, Hákon Jónsson, Janina Schönberger, Eythór Björnsson, Doruk Beyter, Hannes P. Eggertsson, Patrick Sulem, Kári Stefánsson, Bjarni V. Halldórsson, Birte Kehr.    
-_PopDel identifies medium-size deletions jointly in tens of thousands of genomes_. Submitted for publication    
-Preprint available at bioRxiv 740225; doi: https://doi.org/10.1101/740225
+Sebastian Niehus, Hákon Jónsson, Janina Schönberger, Eythór Björnsson, Doruk Beyter, Hannes P. Eggertsson, Patrick Sulem, Kári Stefánsson, Bjarni V. Halldórsson, Birte Kehr. _PopDel identifies medium-size deletions simultaneously in tens of thousands of genomes_. Nat Commun 12, 730 (2021). https://doi.org/10.1038/s41467-020-20850-5
+
 
 ## Version and License
 ```
