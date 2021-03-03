@@ -51,11 +51,10 @@ See wiki for more information on how to view the profile with [PopDel View](http
 ## Citation
 Sebastian Niehus, Hákon Jónsson, Janina Schönberger, Eythór Björnsson, Doruk Beyter, Hannes P. Eggertsson, Patrick Sulem, Kári Stefánsson, Bjarni V. Halldórsson, Birte Kehr. _PopDel identifies medium-size deletions simultaneously in tens of thousands of genomes_. Nat Commun 12, 730 (2021). https://doi.org/10.1038/s41467-020-20850-5
 
-
 ## Version and License
 ```
-    Last update: 2020-11-12
-    PopDel version: 1.3.0
+    Last update: 2021-03-03
+    PopDel version: 1.4.0
     SeqAn version: 2.1 (with HTSlib support added by Hannes P.Eggertsson)
     Author: Sebastian Niehus (Sebastian.Niehus[at]ukr.de)
 ```

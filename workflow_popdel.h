@@ -298,12 +298,13 @@ int popdel_call(int argc, char const ** argv)
             {
                 if (checkAndSwitch(chromosomeProfile, params.rgs[i], nextCandidateWindows[i].i2))
                 {
+                    unsigned contigIdx = params.representativeContigs?0:i;
                     unsigned segmentCode = readSegment(chromosomeProfile,        // 0 - Segment finished
                                                        inStream,                 // 1 - ROI or Chrom not yet reached
                                                        params.inputFiles[i],     // 2 - End of ROI or chromosome
                                                        params.rgs[i],            // 3 - End of file
                                                        params.histograms,
-                                                       params.contigNames[i],
+                                                       params.contigNames[contigIdx],
                                                        nextCandidateWindows[i],
                                                        *params.nextRoi,
                                                        bufferedWindows[i]);

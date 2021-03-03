@@ -152,6 +152,8 @@ struct PopDelCallParameters
     TReadGroups readGroups;                         // Map of read group ID and their order of appearance.
     TRGs    rgs;                                    // One string of indices for the read groups per sample.
     String<Histogram> histograms;                   // Insert size distributions per read group.
+    bool modRgByFileName;                           // True if the file names should be addec to the RGIDs.
+    bool representativeContigs;                     // True if only the first sample's contig names shall be used
     String<unsigned> minInitDelLengths;             // Minimum length required for a deletion at initialization.
     unsigned minLen;                                // Minimum length estimation for deletion during iteration.
     double minRelWinCover;                          // Minimum number for (#SignificantWindows * 30 / DelSize)
@@ -173,7 +175,7 @@ struct PopDelCallParameters
     double meanStddev;                              // The mean of all standard deviations of the histograms.
     bool windowWiseOutput;                          // Output each window after window-wise genotyping.
     String<unsigned> indexRegionSizes;
-    unsigned defaultMaxLoad;                         // Default value for the maximum load.
+    unsigned defaultMaxLoad;                        // Default value for the maximum load.
     String<unsigned> maxLoad;                       // Maximum number of active reads per read group.
     unsigned pseudoCountFraction;                   // max(hist)/pseudoCountFraction = min value of hist
 
@@ -182,6 +184,8 @@ struct PopDelCallParameters
     outfile("popdel.vcf"),
     iterations(15),
     prior(0.0001),
+    modRgByFileName(false),
+    representativeContigs(true),
     minLen(maxValue<unsigned>()),
     minRelWinCover(0.5),
     windowSize(30),
@@ -266,6 +270,7 @@ void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
     addOption(parser, ArgParseOption("A", "active-coverage-file",  "File with lines consisting of \"ReadGroup  maxCov\". If this value is reached no more new reads are loaded for this read group until the coverage drops again. Further, the sample will be excluded  from calling in high-coverage windows. A value of 0 disables the filter for the read group.", ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("a", "active-coverage",       "Maximum number of active read pairs (~coverage). This value is taken for all read groups that are not listed in \'active-coverage-file\'. Setting it to 0 disables the filter for all read groups that are not specified in \'active-coverage-file\'.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("d", "max-deletion-size",     "Maximum size of deletions.", ArgParseArgument::INTEGER, "NUM"));
+    addOption(parser, ArgParseOption("e", "per-sample-rgid",       "Internally modify each read group ID by adding the filename. This can be used if read groups across different samples have conflicting IDs."));
     addOption(parser, ArgParseOption("l", "min-init-length",       "Minimal deletion length at initialization of iteration. Default: \\fI4 * standard deviation\\fP.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("m", "min-length",            "Minimal deletion length during iteration. Default: \\fI95th percentile of min-init-lengths\\fP.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("o", "out",                   "Output file name.", ArgParseArgument::OUTPUT_FILE, "FILE"));
@@ -339,6 +344,10 @@ void getParameterValues(PopDelCallParameters & params, ArgumentParser & parser)
     if (isSet(parser, "output-failed"))
     {
         params.outputFailed = true;
+    }
+    if (isSet(parser, "per-sample-rgid"))
+    {
+        params.modRgByFileName = true;
     }
 }
 

@@ -56,13 +56,24 @@ inline void reset(Window & window)
 // Function addRecord()
 // =======================================================================================
 // Aggregate insertSize and numWindows as pair and add it to window for read group.
-
 inline void addRecord(Window & window,
                       __int32 beginPos,
                       unsigned insertSize,
                       unsigned readGroup,
                       unsigned numReadGroups)
 {
+    // Workaround for the "Too big offset in Window error" TODO: Find a permanent fix for this
+    if (beginPos > window.beginPos + 255 ||
+        beginPos < window.beginPos)
+    {
+        // std::ostringstream msg;
+        // msg << "WARNING: Ignoring read pair leading to too big offset in window:\tChrom " << window.chrom << "\tWinPos "
+        //     << window.beginPos << "\tReadPos" << beginPos << "\tInsertSize" << insertSize << "\tRGIdx " << readGroup
+        //     << std::endl;
+        // printStatus(msg);
+        return;
+    }
+    // End of Workaround
     SEQAN_ASSERT_NEQ(numReadGroups, 0u);
     SEQAN_ASSERT_LT(readGroup, numReadGroups);
     if (isEmpty(window))                                // TODO: Maybe move this to some initialization step.

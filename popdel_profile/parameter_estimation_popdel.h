@@ -315,7 +315,7 @@ inline void checkCoverage(const PopDelProfileParameters & params,
 // Sets the parameters for each read group.
 void calculateParameters(HtsFile & infile, PopDelProfileParameters & params)
 {
-    if (params.outfile == "*BAM-FILE*.profile")
+    if (params.outfile == "*BAM/CRAM-FILE*.profile")
     {
         params.outfile = params.bamfile;
         append(params.outfile, ".profile");

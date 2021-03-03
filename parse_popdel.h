@@ -44,7 +44,7 @@ template<typename TParams>
 ArgumentParser::ParseResult parseCommandLine(TParams & params, int argc, char const ** argv)
 {
     // Setup the parser.
-    ArgumentParser parser(argv[0]);
+    ArgumentParser parser("PopDel");
     setupParser(parser, params);
     // Parse the command line and write error messages to error stream.
     std::ostringstream errorStream;
@@ -72,7 +72,7 @@ ArgumentParser::ParseResult parseCommandLine(TParams & params, int argc, char co
 ArgumentParser::ParseResult parseCommandLine(PopDelViewParameters & params, int argc, char const ** argv)
 {
     // Setup the parser.
-    ArgumentParser parser(argv[0]);
+    ArgumentParser parser("PopDel");
     setupParser(parser, params);
     // Parse the command line and write error messages to error stream.
     std::ostringstream errorStream;

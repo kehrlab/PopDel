@@ -34,12 +34,12 @@ inline void setMinInitDelLengths(String<unsigned> & minDelLen,
     std::ostringstream msg;
     if (length(minDelLen) == 1)
     {
-        resize(minDelLen, length(histograms), minDelLen[0]);
+        resize(minDelLen, length(histograms), minDelLen[0], Exact());
         msg << "The minimum initial deletion length has been set to " << minDelLen[0] << " for all samples and readgroups.";
     }
     else
     {
-        resize(minDelLen, length(histograms));
+        resize(minDelLen, length(histograms), Exact());
         unsigned minLen = maxValue<unsigned>();
         unsigned maxLen = 0;
         for (unsigned i = 0; i < length(histograms); ++i)
@@ -75,7 +75,7 @@ void setMeanStddev(PopDelCallParameters & params)
 {
     SEQAN_ASSERT_GEQ(length(params.histograms), 1u);
     double sum = 0;
-    for(Iterator<String<Histogram> >::Type it = begin(params.histograms); it != end(params.histograms); ++it)
+    for(Iterator<String<const Histogram> >::Type it = begin(params.histograms); it != end(params.histograms); ++it)
         sum += it->stddev;
     params.meanStddev = sum / length(params.histograms);
 }
@@ -168,6 +168,8 @@ inline void loadAndCalculateParameters(PopDelCallParameters & params)
                              params.contigLengths,
                              params.indexRegionSizes,
                              params.smoothing,
+                             params.modRgByFileName,
+                             params.representativeContigs,
                              params.pseudoCountFraction);
     std::ostringstream msg;
     msg << "Loaded insert size histograms for " << length(params.histograms) << " read groups.";
@@ -196,7 +198,7 @@ inline void loadAndCalculateParameters(PopDelCallParameters & params)
     }
     loadMaxLoad(params);
     msg.str("");
-    msg << "Calculated minimum log-likelihood ratio as " << params.minimumLikelihoodRatio << " from the prior probability " 
+    msg << "Calculated minimum log-likelihood ratio as " << params.minimumLikelihoodRatio << " from the prior probability "
         << params.prior << " using the 99%-quantile of a chi-squared distribution with df=1.";
     printStatus(msg);
 }

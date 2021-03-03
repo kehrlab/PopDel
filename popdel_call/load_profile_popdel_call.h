@@ -251,10 +251,11 @@ inline bool goNextRoi(std::ifstream & file,
             for (Iterator<String<bool> >::Type it = begin(finishedROIs); it != end(finishedROIs); ++it)
                 *it = false;
     }
+    unsigned idx = params.representativeContigs?0:fileNum;
     jumpToRegion(file,
-                 params.contigNames[fileNum],
-                 params.contigLengths[fileNum],
-                 params.indexRegionSizes[fileNum],
+                 params.contigNames[idx],
+                 params.contigLengths[idx],
+                 params.indexRegionSizes[idx],
                  *nextRoi);
     return true;
 }
@@ -299,6 +300,7 @@ Pair<CharString, __uint32> getFirstWindowCoordinate (String<String<Window> >& co
     {
         for (unsigned i = 0; i < params.fileCount; ++i)
         {
+            unsigned contigIdx = params.representativeContigs?0:i;
             String<Window> & currentSampleConvertedWindows = convertedWindows[i];
             std::ifstream in(toCString(params.inputFiles[i]), std::ios::in | std::ios::binary);
             if (!in.good())
@@ -318,13 +320,13 @@ Pair<CharString, __uint32> getFirstWindowCoordinate (String<String<Window> >& co
             {
                 std::cerr << "[PopDel] Error in profile \"" << params.inputFiles[i] << "\"." << std::endl;
                 std::ostringstream msg;
-                msg << "[PopDel] Could not convert window " << params.contigNames[i][window.chrom] <<
+                msg << "[PopDel] Could not convert window " << params.contigNames[contigIdx][window.chrom] <<
                        ":" << window.beginPos << ". The profile \"" << params.inputFiles[i] << "\" might be corrupted.";
                 SEQAN_THROW(IOError(toCString(msg.str())));
             }
 
             // Compare the read window with the current minimum.
-            currentCoord.i1 = params.contigNames[i][currentSampleConvertedWindows[0].chrom];
+            currentCoord.i1 = params.contigNames[contigIdx][currentSampleConvertedWindows[0].chrom];
             currentCoord.i2 = currentSampleConvertedWindows[0].beginPos;
             if (minCoord.i1 == "" || !lowerCoord(minCoord, currentCoord, params.nextRoi, params.allRois))
                 minCoord = currentCoord;
@@ -366,6 +368,7 @@ inline bool getFirstWindowOnNextROI (Pair<CharString, __uint32> & minCoord,
     {
         for (unsigned i = 0; i < params.fileCount; ++i)
         {
+            unsigned contigIdx = params.representativeContigs?0:i;
             String<Window> & currentSampleConvertedWindows = convertedWindows[i];
             std::ifstream in(toCString(params.inputFiles[i]), std::ios::in | std::ios::binary);
             if (!in.good())
@@ -385,13 +388,13 @@ inline bool getFirstWindowOnNextROI (Pair<CharString, __uint32> & minCoord,
             {
                 std::cerr << "[PopDel] Error in profile \"" << params.inputFiles[i] << "\"." << std::endl;
                 std::ostringstream msg;
-                msg << "[PopDel] Could not convert window at " << params.contigNames[window.chrom] <<
+                msg << "[PopDel] Could not convert window at " << params.contigNames[contigIdx][window.chrom] <<
                 ":" << window.beginPos << ". The profile \"" <<  params.inputFiles[i] << "\" might be corrupted.";
                 SEQAN_THROW(IOError(toCString(msg.str())));
             }
 
             // Compare the read window with the current minimum.
-            currentCoord.i1 = params.contigNames[i][currentSampleConvertedWindows[0].chrom];
+            currentCoord.i1 = params.contigNames[contigIdx][currentSampleConvertedWindows[0].chrom];
             currentCoord.i2 = currentSampleConvertedWindows[0].beginPos;
             if (minCoord.i1 == "" || !lowerCoord(minCoord, currentCoord, params.nextRoi, params.allRois))
                 minCoord = currentCoord;
@@ -417,6 +420,7 @@ inline bool getFirstWindowOnNextROI (Pair<CharString, __uint32> & minCoord,
 // Return true, if the next segment can be loaded and false if loading has to be postponed.
 inline bool checkAndSwitch(ChromosomeProfile & profile, const TReadGroupIndices & rg, const unsigned beginPos)
 {
+    SEQAN_ASSERT(!empty(rg));
     if (profile.startProfiles[rg[0]].tooBigForNext(beginPos))
     {
 //         bool allEmpty = true;

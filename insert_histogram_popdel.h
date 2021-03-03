@@ -30,7 +30,7 @@ struct Histogram
     unsigned       upperQuantileDist;      // Distance from median to 95% quantile.
     unsigned       windowSize;             // The size of one window in bp's.
 
-    Histogram() :
+    Histogram():
     values(""),
     min_prob(0.0),
     offset(0),
@@ -44,10 +44,37 @@ struct Histogram
     // ---------------------------------------------------------------------------------------
     // Function clearStrings()
     // ---------------------------------------------------------------------------------------
-    // Clears all member strings.
-    inline void clearStrings()
+    // Clears all member strings. If shrink is true, the object will be shrunk to capacity 0.
+    inline void clearStrings(bool shrink=false)
     {
         clear(values);
+        if (shrink)
+        {
+            resize(values, 0);
+            shrinkToFit(values);
+        }
+        else
+        {
+            clear(values);
+        }
+    }
+    // Return the size of the histogram in byte
+    inline unsigned getSize() const
+    {
+        return (sizeof(values) +
+                length(values) * sizeof(double) +
+                4 * sizeof(double) +
+                1 * sizeof(int) +
+                5 * sizeof(unsigned));
+    }
+    // Return the capcity of the histogram in byte
+    inline unsigned getCapactiy() const
+    {
+        return (sizeof(values) +
+                capacity(values) * sizeof(double) +
+                4 * sizeof(double) +
+                1 * sizeof(int) +
+                5 * sizeof(unsigned));
     }
 };
 inline unsigned getHistLeftBorder(const Histogram & hist)
@@ -227,7 +254,7 @@ inline void writeIndexIntoHeader(TStream & stream, String<String<uint64_t> > pro
     }
 
     // Move current position of stream back to ending.
-    stream.seekp(last); 
+    stream.seekp(last);
 }
 
 // =======================================================================================
@@ -240,7 +267,8 @@ inline void readProfileHeader(TStream & stream,
                               String<Histogram> & histograms,
                               String<CharString> & contigNames,
                               String<int32_t> & contigLengths,
-                              unsigned & indexRegionSize)
+                              unsigned & indexRegionSize,
+                              bool dropContigs = false)
 {
     // Read the magic string.
     CharString buffer;
@@ -291,8 +319,8 @@ inline void readProfileHeader(TStream & stream,
         msg << "Profile seems to have 0 read groups.";
         SEQAN_THROW(ParseError(toCString(msg.str())));
     }
-    resize(readGroups, numReadGroups);
-    resize(histograms, numReadGroups);
+    resize(readGroups, numReadGroups, Exact());
+    resize(histograms, numReadGroups, Exact());
 
     // Read the read group names and histograms.
     for (unsigned i = 0; i < numReadGroups; ++i)
@@ -307,7 +335,7 @@ inline void readProfileHeader(TStream & stream,
         }
 
         // Read the read group name.
-        resize(readGroups[i], nameLen-1);
+        resize(readGroups[i], nameLen-1, Exact());
         stream.read(reinterpret_cast<char *>(&readGroups[i][0]), nameLen-1);
         stream.read(&buffer[0], 1);
         if (!stream.good())
@@ -352,7 +380,7 @@ inline void readProfileHeader(TStream & stream,
             msg << "Unable to read insert size histogram size.";
             SEQAN_THROW(ParseError(toCString(msg.str())));
         }
-        resize(histograms[i].values, histEnd - histograms[i].offset);
+        resize(histograms[i].values, histEnd - histograms[i].offset, Exact());
         for (unsigned h = 0; h < histEnd - histograms[i].offset; ++h)
         {
             stream.read(reinterpret_cast<char *>(&histograms[i].values[h]), sizeof(double));
@@ -372,9 +400,11 @@ inline void readProfileHeader(TStream & stream,
         msg << "Unable to read number of contigs.";
         SEQAN_THROW(ParseError(toCString(msg.str())));
     }
-    resize(contigNames, numContigs);
-    resize(contigLengths, numContigs);
-
+    if (!dropContigs)
+    {
+        resize(contigNames, numContigs, Exact());
+        resize(contigLengths, numContigs, Exact());
+    }
     // Read the chromosome names and lengths.
     for (unsigned i = 0; i < numContigs; ++i)
     {
@@ -388,26 +418,38 @@ inline void readProfileHeader(TStream & stream,
         }
 
         // Read the chromosome name.
-        resize(contigNames[i], nameLen-1);
-        stream.read(reinterpret_cast<char *>(&contigNames[i][0]), nameLen-1);
-        stream.read(&buffer[0], 1);
-        if (!stream.good())
+        if (!dropContigs)
         {
-            msg << "Unable to read contig name.";
-            SEQAN_THROW(ParseError(toCString(msg.str())));
-        }
-        if (buffer[0] != '\0') // Expect chromosome names to be null-terminated.
-        {
-            msg << "Expecting contig name to be null-terminated.";
-            SEQAN_THROW(ParseError(toCString(msg.str())));
-        }
+            resize(contigNames[i], nameLen-1, Exact());
+            stream.read(reinterpret_cast<char *>(&contigNames[i][0]), nameLen-1);
+            stream.read(&buffer[0], 1);
+            if (!stream.good())
+            {
+                msg << "Unable to read contig name.";
+                SEQAN_THROW(ParseError(toCString(msg.str())));
+            }
+            if (buffer[0] != '\0') // Expect chromosome names to be null-terminated.
+            {
+                msg << "Expecting contig name to be null-terminated.";
+                SEQAN_THROW(ParseError(toCString(msg.str())));
+            }
 
-        // Read the chromosome length.
-        stream.read(reinterpret_cast<char *>(&contigLengths[i]), sizeof(int32_t));
-        if (!stream.good())
+            // Read the chromosome length.
+            stream.read(reinterpret_cast<char *>(&contigLengths[i]), sizeof(int32_t));
+            if (!stream.good())
+            {
+                msg << "Unable to read contig length.";
+                SEQAN_THROW(ParseError(toCString(msg.str())));
+            }
+        }
+        else
         {
-            msg << "Unable to read contig length.";
-            SEQAN_THROW(ParseError(toCString(msg.str())));
+            stream.ignore(nameLen + sizeof(int32_t));
+            if (!stream.good())
+            {
+                msg << "Unable to skip contig name and length.";
+                SEQAN_THROW(ParseError(toCString(msg.str())));
+            }
         }
     }
 }
@@ -790,7 +832,7 @@ inline bool checkUniqueRG(std::map<CharString, unsigned> & readGroups,
     if (readGroups.count(readGroup) != 0)
     {
         std::ostringstream msg;
-        msg << "WARNING: Duplicate insert size histogram of read group \'" 
+        msg << "WARNING: Duplicate insert size histogram of read group \'"
             << readGroup << "\'. Skipping it in file \'" << filename << "\'.";
         printStatus(msg);
         return false;
@@ -884,7 +926,9 @@ inline void loadInsertSizeHistograms(String<Histogram> & histograms,           /
                                      String<String<CharString> > & contigNames,
                                      String<String<int32_t> > & contigLengths,
                                      String<unsigned> & indexRegionSizes,
-                                     bool smoothing,
+                                     const bool & smoothing,
+                                     const bool & modRgByFileName,
+                                     const bool & representativeContigs,
                                      const unsigned & pseudoCountFraction)
 {
     std::ifstream infile = tryOpenHistogram(filename);
@@ -893,27 +937,91 @@ inline void loadInsertSizeHistograms(String<Histogram> & histograms,           /
     String<CharString> sampleContigNames;
     String<int32_t> sampleContigLengths;  // TODO: Make this more efficient by directly writing to the final sets.
     unsigned indexRegionSize = 0;
+    bool dropContigs = !empty(contigNames) && representativeContigs;
     readProfileHeader(infile,
                       filename,
                       sampleReadGroups,
                       sampleHistograms,
                       sampleContigNames,
                       sampleContigLengths,
-                      indexRegionSize);
+                      indexRegionSize,
+                      dropContigs);
+    if (representativeContigs && !empty(indexRegionSizes))
+    {
+        if (indexRegionSize != indexRegionSizes[0])
+        {
+            std::ostringstream msg;
+            msg << "Index region sizes are not equal! Terminating.";
+            SEQAN_THROW(IOError(toCString(msg.str())));
+        }
+    }
     // Process all histograms of the sample and add them.
     unsigned rg = length(readGroups);
+    reserve(rgs, length(sampleReadGroups), Exact());
+    bool rgAdded = false;
     for (unsigned i = 0; i < length(sampleReadGroups); ++i)
     {
         if (checkUniqueRG(readGroups, rg, sampleReadGroups[i], filename))
         {
             appendValue(rgs, rg - 1);
+            rgAdded = true;
             processHistogram(sampleHistograms[i], 256, smoothing, pseudoCountFraction);
             appendValue(histograms, sampleHistograms[i]);
+            sampleHistograms[i].clearStrings(true);
+        }
+        // Hacky part for enhancing read group IDs with the file name. Use on your own risk.
+        else if (modRgByFileName)
+        {
+            for(unsigned i = 0; i < length(sampleReadGroups); ++i)
+            {
+                CharString newRGName = getSampleName(filename);
+                append(newRGName, ":");
+                append(newRGName, sampleReadGroups[i]);
+                std::cout << "WARNING: Internally replacing read group ID \'" << sampleReadGroups[i]
+                          << "\' of file \'" << filename << "\' with \'"<< newRGName <<"\'" << std::endl;
+                sampleReadGroups[i] = newRGName;
+            }
+            if (checkUniqueRG(readGroups, rg, sampleReadGroups[i], filename))
+            {
+                appendValue(rgs, rg - 1);
+                rgAdded = true;
+                processHistogram(sampleHistograms[i], 256, smoothing, pseudoCountFraction);
+                appendValue(histograms, sampleHistograms[i]);
+            }
+            else
+            {
+                std::ostringstream msg;
+                msg << "This should not have happened... Tried to de-duplicate read groups of \'" << filename
+                    << "\' << by adding the file name to the IDs, but something went wrong. Terminating.";
+                SEQAN_THROW(IOError(toCString(msg.str())));
+            }
+        }
+        else
+        {
+            std::ostringstream msg;
+            msg << "Previously observed read groups detected in file \'" << filename << "\'. "
+                << "Please make sure that all read group IDs of your cohort are unique or "
+                << "remove the sample(s) in question. If you are sure that the duplicate read group names are OK "
+                << "please use the option \'-e\'/'--per-sample-rgid\' to resolve the conflict. Terminating.";
+            SEQAN_THROW(IOError(toCString(msg.str())));
         }
     }
-    appendValue(indexRegionSizes, indexRegionSize);
-    appendValue(contigNames, sampleContigNames);
-    appendValue(contigLengths, sampleContigLengths);
+    if (!rgAdded)
+    {
+        std::ostringstream msg;
+        msg << "All read group IDs of sample \'" << filename
+            << "\' are duplicates of previously observed read group IDs."
+            << "Please make sure that all read group IDs of your cohort are unique "
+            << "or remove the sample(s) in question. If you are sure that the duplicate read group names are OK "
+            << "please use the option \'-e\'/'--per-sample-rgid\' to resolve the conflict. Terminating.";
+        SEQAN_THROW(IOError(toCString(msg.str())));
+    }
+    if (!dropContigs)
+    {
+        appendValue(contigNames, sampleContigNames);
+        appendValue(contigLengths, sampleContigLengths);
+        appendValue(indexRegionSizes, indexRegionSize);
+    }
 }
 //Overload for applying loadInsertSizeHistograms on multiple files.
 inline void loadInsertSizeHistograms(String<Histogram> & histograms,
@@ -923,12 +1031,30 @@ inline void loadInsertSizeHistograms(String<Histogram> & histograms,
                                      String<String<CharString> > & contigNames,
                                      String<String<int32_t> > & contigLengths,
                                      String<unsigned> & indexRegionSizes,
-                                     bool smoothing,
+                                     const bool & smoothing,
+                                     const bool & modRgByFileName,
+                                     const bool & representativeContigs,
                                      const unsigned & pseudoCountFraction)
 {
-    resize(rgs, length(filenames), Exact());
+    unsigned n = length(filenames);
+    resize(rgs, n, Exact());
+    reserve(histograms, n, Exact());
+    if (representativeContigs)
+    {
+        reserve(contigNames, 1, Exact());
+        reserve(contigLengths, 1, Exact());
+        reserve(indexRegionSizes, 1, Exact());
+    }
+    else
+    {
+        reserve(contigNames, n, Exact());
+        reserve(contigLengths, n, Exact());
+        reserve(indexRegionSizes, n, Exact());
+    }
     unsigned sampleNum = 0;
-    for (unsigned i = 0; i < length(filenames); ++i)
+    unsigned long long totalSize = 0;
+
+    for (unsigned i = 0; i < n; ++i)
     {
         loadInsertSizeHistograms(histograms,
                                  readGroups,
@@ -938,12 +1064,19 @@ inline void loadInsertSizeHistograms(String<Histogram> & histograms,
                                  contigLengths,
                                  indexRegionSizes,
                                  smoothing,
+                                 modRgByFileName,
+                                 representativeContigs,
                                  pseudoCountFraction);
+        unsigned histSize = histograms[i].getSize();
+        totalSize += histSize;
         std::ostringstream msg;
-        msg << "Loaded histogram from file \'" << filenames[i] << "\'.";
+        msg << "Loaded histogram from file \'" << filenames[i] << "\' in " << histSize << " byte.";
         printStatus(msg);
         ++sampleNum;
     }
+    std::ostringstream msg;
+    msg << "Total memory reserved for histograms amounts to " << totalSize << " byte.";
+    printStatus(msg);
 }
 // -----------------------------------------------------------------------------
 // Function I()
