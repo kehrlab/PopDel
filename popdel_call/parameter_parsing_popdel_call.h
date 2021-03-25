@@ -178,6 +178,7 @@ struct PopDelCallParameters
     unsigned defaultMaxLoad;                        // Default value for the maximum load.
     String<unsigned> maxLoad;                       // Maximum number of active reads per read group.
     unsigned pseudoCountFraction;                   // max(hist)/pseudoCountFraction = min value of hist
+    bool uncompressedIn;                            // True if uncompressed profiles are read.
 
     PopDelCallParameters() :
     histogramsFile(""),
@@ -201,7 +202,8 @@ struct PopDelCallParameters
     meanStddev(0.0),
     windowWiseOutput(false),
     defaultMaxLoad(100),
-    pseudoCountFraction(500)
+    pseudoCountFraction(500),
+    uncompressedIn(false)
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -218,6 +220,7 @@ void setHiddenOptions(ArgumentParser & parser, bool hide, const PopDelCallParame
     hideOption(parser, "p", hide);
     hideOption(parser, "t", hide);
     hideOption(parser, "u", hide);
+    hideOption(parser, "x", hide);
 }
 // ---------------------------------------------------------------------------------------
 // Function addHiddenOptions()
@@ -233,6 +236,7 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelCallParameters & para
     addOption(parser, ArgParseOption("p", "prior-probability", "Prior probability of a deletion.",                  ArgParseArgument::DOUBLE, "NUM"));
     addOption(parser, ArgParseOption("t", "iterations",        "Number of iterations in EM for length estimation.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("u", "unsmoothed",        "Disable the smoothing of the insert size histogram."));
+    addOption(parser, ArgParseOption("x", "uncompressed-in",   "Read uncompressed PopDel profiles"));
 
     setDefaultValue(parser, "b",  params.windowBuffer);
     setDefaultValue(parser, "f",  params.pseudoCountFraction);
@@ -348,6 +352,10 @@ void getParameterValues(PopDelCallParameters & params, ArgumentParser & parser)
     if (isSet(parser, "per-sample-rgid"))
     {
         params.modRgByFileName = true;
+    }
+    if (isSet(parser, "uncompressed-in"))
+    {
+        params.uncompressedIn = true;
     }
 }
 

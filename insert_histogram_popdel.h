@@ -92,9 +92,8 @@ inline unsigned getHistRightBorder(const Histogram & hist)
 // Function writeProfileHeader()
 // =======================================================================================
 // Write the header (CHROM POS RG1 RG2 ... RGn) to the output stream.
-
 template<typename TStream>
-inline void writeProfileHeader(TStream & stream,
+inline void printProfileHeader(TStream & stream,
                                const String<CharString> & readGroups,
                                const String<CharString> & contigNames,
                                const String<int32_t> & contigLengths)
@@ -121,95 +120,79 @@ inline void writeProfileHeader(TStream & stream,
         stream << std::endl;
     }
 }
-
+// =======================================================================================
+// Function writeHistograms()
+// =======================================================================================
+// Write the read group names and histograms to the stream.
 template<typename TStream>
-inline void writeProfileHeader(TStream & stream,
-                               const std::map<CharString, unsigned> & readGroups,
-                               const String<CharString> & contigNames,
-                               const String<int32_t> & contigLengths)
+inline void writeHistograms(TStream & stream,
+                            String<CharString> & readGroups,
+                            String<Histogram> & histograms,
+                            const bool trimHist = true)
 {
-    typedef typename std::map<CharString, unsigned>::const_iterator TIter;
-
-    // Get the IDs of all read groups.
-    String<CharString> rg;
-    resize(rg, length(readGroups));
-    for (TIter it = readGroups.begin(); it != readGroups.end(); ++it)
-        rg[it->second] = it->first;
-
-    writeProfileHeader(stream, rg, contigNames, contigLengths);
-}
-
-template<typename TStream>
-inline void writeProfileHeader(TStream & stream,
-                               const unsigned & regionSize,
-                               const unsigned & numRegions,
-                               const std::map<CharString, unsigned> & readGroups,
-                               String<Histogram> & histograms,
-                               const String<CharString> & contigNames,
-                               const String<int32_t> & contigLengths,
-                               const bool mergeRG)
-{
-    typedef typename std::map<CharString, unsigned>::const_iterator TIter;
-
-    SEQAN_ASSERT_EQ(length(contigNames), length(contigLengths));
-
-    // Get the IDs of all read groups.
-    String<CharString> rg;
-    if (mergeRG)
+    for (unsigned i = 0; i < length(readGroups); ++i)
     {
-        resize(rg, 1, Exact());
-        rg[0] = readGroups.begin()->first;
-    }
-    else
-    {
-        resize(rg, length(readGroups));
-        for (TIter it = readGroups.begin(); it != readGroups.end(); ++it)
-            rg[it->second] = it->first;
-    }
-
-    // Write magic string.
-    stream.write("POPDEL\1", 7);
-
-    // Write index regions size and size of the index.
-    stream.write(reinterpret_cast<const char*>(&regionSize), sizeof(uint32_t));
-    stream.write(reinterpret_cast<const char *>(&numRegions), sizeof(uint32_t));
-
-    // Write index spaceholder.
-    uint64_t pos = 0;
-    for (unsigned i = 0; i < numRegions; ++i)
-        stream.write(reinterpret_cast<char *>(&pos), sizeof(uint64_t));
-
-    // Write number of read groups.
-    uint32_t numReadGroups = mergeRG?1:readGroups.size();
-    stream.write(reinterpret_cast<char *>(&numReadGroups), sizeof(uint32_t));
-
-    // Write read group names and insert size histograms.
-    for (unsigned i = 0; i < numReadGroups; ++i)
-    {
-        uint32_t rgLen = length(rg[i]) + 1;
+        uint32_t rgLen = length(readGroups[i]) + 1;
+        unsigned histStart = getHistLeftBorder(histograms[i]);
+        unsigned histEnd;
+        THistIter it;
+        THistIter itEnd;
+        if (trimHist)
+        {
+            histEnd = getHistRightBorder(histograms[i]);
+            it = begin(histograms[i].values) + histStart;
+            itEnd = begin(histograms[i].values) + histEnd;
+        }
+        else
+        {
+            histEnd = histStart + length(histograms[i].values);
+            it = begin(histograms[i].values);
+            itEnd = end(histograms[i].values);
+        }
         stream.write(reinterpret_cast<char *>(&rgLen), sizeof(uint32_t));
-        stream.write(reinterpret_cast<char *>(&rg[i][0]), length(rg[i]));
+        stream.write(reinterpret_cast<char *>(&readGroups[i][0]), length(readGroups[i]));
         stream.write("\0", 1);
         stream.write(reinterpret_cast<char *>(&histograms[i].median), sizeof(uint16_t));
         stream.write(reinterpret_cast<char *>(&histograms[i].stddev), sizeof(double));
         stream.write(reinterpret_cast<char *>(&histograms[i].readLength), sizeof(uint16_t));
-        unsigned histStart = getHistLeftBorder(histograms[i]);
-        unsigned histEnd = getHistRightBorder(histograms[i]);
         stream.write(reinterpret_cast<char *>(&histStart), sizeof(uint16_t));
         stream.write(reinterpret_cast<char *>(&histEnd), sizeof(uint16_t));
-        THistIter it = begin(histograms[i].values) + histStart;
-        THistIter itEnd = begin(histograms[i].values) + histEnd;
         for (; it != itEnd; ++it)
         {
             double val = *it;
             stream.write(reinterpret_cast<char *>(&val), sizeof(double));
         }
     }
+}
+template<typename TStream>
+inline void writeProfileHeader(TStream & stream,
+                               const unsigned & regionSize,
+                               const unsigned & numRegions,
+                               String<CharString> & readGroups,
+                               String<Histogram> & histograms,
+                               const String<CharString> & contigNames,
+                               const String<int32_t> & contigLengths,
+                               const bool trimHist = true)
+{
+    SEQAN_ASSERT_EQ(length(contigNames), length(contigLengths));
+    // Write magic string.
+    stream.write("POPDEL\1", 7);
+    // Write index regions size and size of the index.
+    stream.write(reinterpret_cast<const char*>(&regionSize), sizeof(uint32_t));
+    stream.write(reinterpret_cast<const char *>(&numRegions), sizeof(uint32_t));
+    // Write index spaceholder.
+    uint64_t pos = 0;
+    for (unsigned i = 0; i < numRegions; ++i)
+        stream.write(reinterpret_cast<char *>(&pos), sizeof(uint64_t));
 
+    // Write number of read groups.
+    uint32_t numReadGroups = length(readGroups);
+    stream.write(reinterpret_cast<char *>(&numReadGroups), sizeof(uint32_t));
+    // Write read group names and insert size histograms.
+    writeHistograms(stream, readGroups, histograms, trimHist);
     // Write number of chromosomes.
     uint32_t numContigs = length(contigNames);
     stream.write(reinterpret_cast<char *>(&numContigs), sizeof(uint32_t));
-
     // Write chromosome names and lengths.
     for (unsigned i = 0; i < numContigs; ++i)
     {
@@ -220,7 +203,94 @@ inline void writeProfileHeader(TStream & stream,
         stream.write(reinterpret_cast<const char *>(&contigLengths[i]), sizeof(uint32_t));
     }
 }
+template<typename TStream>
+inline void writeProfileHeader(TStream & stream,
+                               const std::map<CharString, unsigned> & readGroups,
+                               const String<CharString> & contigNames,
+                               const String<int32_t> & contigLengths)
+{
+    String<CharString> rg;
+    resize(rg, length(readGroups), Exact());
+    for (std::map<CharString, unsigned>::const_iterator it = readGroups.begin(); it != readGroups.end(); ++it)
+        rg[it->second] = it->first;
 
+    writeProfileHeader(stream, rg, contigNames, contigLengths);
+}
+template<typename TStream>
+inline void writeProfileHeader(TStream & stream,
+                               const unsigned & regionSize,
+                               const unsigned & numRegions,
+                               const std::map<CharString, unsigned> & readGroups,
+                               String<Histogram> & histograms,
+                               const String<CharString> & contigNames,
+                               const String<int32_t> & contigLengths,
+                               const bool mergeRG)
+{
+    String<CharString> rg;
+    if (mergeRG)
+    {
+        resize(rg, 1, Exact());
+        rg[0] = readGroups.begin()->first;
+    }
+    else
+    {
+        resize(rg, length(readGroups), Exact());
+        for (std::map<CharString, unsigned>::const_iterator it = readGroups.begin(); it != readGroups.end(); ++it)
+            rg[it->second] = it->first;
+    }
+    writeProfileHeader(stream, regionSize, numRegions, rg, histograms, contigNames, contigLengths);
+}
+// =======================================================================================
+// Function resizeIndexFields()
+// =======================================================================================
+// Resizes the index fields so that they can be written to the header as a placeholder
+// Return the size of the index.
+inline unsigned resizeIndexFields(String<String<uint64_t> > & indexFields,
+                              const String<int32_t> & contigLengths,
+                              const unsigned & indexRegionSize)
+{
+    resize(indexFields, length(contigLengths), Exact());
+    unsigned indexSize = 0;
+    for (unsigned i = 0; i < length(contigLengths); ++i)
+    {
+        unsigned fieldSize = contigLengths[i] / indexRegionSize + 1;
+        resize(indexFields[i], fieldSize, 0);
+        indexSize += fieldSize;
+    }
+    return indexSize;
+}
+// =======================================================================================
+// Function indexNeedsUpdate()
+// =======================================================================================
+// Return true if the index needs to be updated.
+// Return false otherwise.
+inline bool indexNeedsUpdate(const bool & bwiNext,
+                             const int32_t & regionChrom,
+                             const int32_t & regionPos,
+                             const int32_t & winChrom,
+                             const int32_t & winPos,
+                             const int64_t indexRegionSize)
+{
+    return (regionPos != winPos / indexRegionSize || regionChrom != winChrom || (!bwiNext));
+}
+// =======================================================================================
+// Function updateIndexFields()
+// =======================================================================================
+// Update the indexFiels for window.chrom and window.beginPos with the current position in the out stream (tellp()).
+// Also update regionChrom and regionPos with the values of window under consideration of the indexRegionSize.
+template<typename TStream>
+inline void updateIndexFields(String<String<uint64_t> > & indexFields,
+                              __int32 & regionChrom,
+                              __int32 & regionPos,
+                              const __int32 & currentChrom,
+                              const __int32 & currentPos,
+                              TStream & out,
+                              const unsigned & indexRegionSize)
+{
+    regionChrom = currentChrom;
+    regionPos = currentPos / indexRegionSize;
+    indexFields[regionChrom][regionPos] = out.tellp();
+}
 // =======================================================================================
 // Function writeIndexIntoHeader()
 // =======================================================================================

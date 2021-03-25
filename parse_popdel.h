@@ -7,7 +7,7 @@
 #include "utils_popdel.h"
 #include "popdel_profile/profile_parameter_parsing_popdel.h"
 #include "popdel_call/parameter_parsing_popdel_call.h"
-#include "popdel_view_parameter_parsing.h"
+#include "popdel_view/popdel_view_parameter_parsing.h"
 
 using namespace seqan;
 

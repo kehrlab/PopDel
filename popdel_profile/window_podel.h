@@ -86,7 +86,6 @@ inline void addRecord(Window & window,
 // Function writeWindow()
 // =======================================================================================
 // Write info from a window to output stream. Write CHROM, POS and insert size deviation from median per read group.
-
 template<typename TStream>
 inline void writeWindow(TStream & stream,
                         const Window & window,
@@ -158,7 +157,8 @@ inline void writeWindow(TStream & stream,
     stream << std::endl;
 }
 
-inline void writeWindow(zlib_stream::zip_ostream & stream,
+template<typename TStream>
+inline void writeWindow(TStream & stream,
                         const Window & window,
                         const String<Histogram> & histograms)
 {
@@ -207,7 +207,8 @@ inline unsigned posToWin(const unsigned & pos, const unsigned windowSize = 30u)
 // Note that this will potentially safe an signed value in an unsigned variable (window.i2).
 // The correct value can be retrieved by casting this value to int16_t.
 // Return true on sucess and false if EOF has been reached.
-inline bool readWindow(zlib_stream::zip_istream & stream,
+template<typename TStream>
+inline bool readWindow(TStream & stream,
                        Window & window,
                        unsigned numReadGroups)
 {
@@ -249,7 +250,8 @@ inline bool readWindow(zlib_stream::zip_istream & stream,
     return true;
 }
 // Overload that adds the median insert-size to the deviation before storing it in window.
-inline bool readWindow(zlib_stream::zip_istream & stream,
+template<typename TStream>
+inline bool readWindow(TStream& stream,
                        Window & window,
                        const String<Histogram> & histograms)
 {
@@ -290,6 +292,19 @@ inline bool readWindow(zlib_stream::zip_istream & stream,
         }
     }
     return true;
+}
+//Wrapper for handling the unzipping of the stream before if necessary.
+inline bool readWindow(std::ifstream & in, Window & window, const unsigned & numReadGroups, const bool & uncompressed)
+{
+    if (uncompressed)
+    {
+        return readWindow(in, window, numReadGroups);
+    }
+    else
+    {
+        zlib_stream::zip_istream unzipper(in);
+        return readWindow(unzipper, window, numReadGroups);
+    }
 }
 // =======================================================================================
 // Function convertWindow()

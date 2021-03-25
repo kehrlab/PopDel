@@ -13,7 +13,8 @@
 #include "popdel_call/genotype_deletion_popdel_call.h"
 #include "popdel_call/load_profile_popdel_call.h"
 #include "popdel_call/vcfout_popdel_call.h"
-#include "popdel_view_parameter_parsing.h"
+#include "popdel_view/popdel_view_parameter_parsing.h"
+#include "popdel_view/view.h"
 
 using namespace seqan;
 
@@ -178,7 +179,6 @@ int popdel_profile(int argc, char const ** argv)
         SEQAN_THROW(FileOpenError(toCString(params.outfile)));
 
     // Initialize file offsets (by chromosome) for profile index.
-    unsigned indexSize = 0;
     String<int32_t> cLengths;
     getContigLengths(cLengths, bwi.infile);
 
@@ -186,12 +186,7 @@ int popdel_profile(int argc, char const ** argv)
     getContigNames(cNames, bwi.infile);
 
     String<String<uint64_t> > indexFields;
-    resize(indexFields, length(cLengths));
-    for (unsigned i = 0; i < length(cLengths); ++i)
-    {
-        resize(indexFields[i], cLengths[i]/params.indexRegionSize + 1, 0);
-        indexSize += length(indexFields[i]);
-    }
+    unsigned indexSize = resizeIndexFields(indexFields, cLengths, params.indexRegionSize);
 
     // Write uncompressed header to the output file.
     writeProfileHeader(out,
@@ -210,28 +205,47 @@ int popdel_profile(int argc, char const ** argv)
         __int32 regionChrom = (*bwi).chrom;
         __int32 regionPos = (*bwi).beginPos / params.indexRegionSize;
         indexFields[regionChrom][regionPos] = out.tellp();
-
         // Write windows of the next region as a compressed block.
-        zlib_stream::zip_ostream zipper(out);
-        do
+        if (params.uncompressed)
         {
-            // Sort the insert sizes for each read group before writing them to output.
-            for (unsigned rg = 0; rg < length((*bwi).insertSizes); ++rg)
-                std::sort(begin((*bwi).insertSizes[rg]), end((*bwi).insertSizes[rg]));
+            do
+            {
+                // Sort the insert sizes for each read group before writing them to output.
+                for (unsigned rg = 0; rg < length((*bwi).insertSizes); ++rg)
+                    std::sort(begin((*bwi).insertSizes[rg]), end((*bwi).insertSizes[rg]));
 
-            // Write function subtracts mean insert size from all records in window.
-            writeWindow(zipper, *bwi, params.histograms);
-            bwiNext = goNext(bwi);
+                // Write function subtracts mean insert size from all records in window.
+                writeWindow(out, *bwi, params.histograms);
+                bwiNext = goNext(bwi);
+            }
+            while (!indexNeedsUpdate(bwiNext, regionChrom, regionPos, (*bwi).chrom, (*bwi).beginPos, params.indexRegionSize));
         }
-        while (bwiNext && regionChrom == (*bwi).chrom && regionPos == (*bwi).beginPos / (__int64)params.indexRegionSize);
-        zipper.zflush();
-    }
+        else
+        {
+            zlib_stream::zip_ostream zipper(out);
+            do
+            {
+                // Sort the insert sizes for each read group before writing them to output.
+                for (unsigned rg = 0; rg < length((*bwi).insertSizes); ++rg)
+                    std::sort(begin((*bwi).insertSizes[rg]), end((*bwi).insertSizes[rg]));
 
+                // Write function subtracts mean insert size from all records in window.
+                writeWindow(zipper, *bwi, params.histograms);
+                bwiNext = goNext(bwi);
+            }
+            while (!indexNeedsUpdate(bwiNext, regionChrom, regionPos, (*bwi).chrom, (*bwi).beginPos, params.indexRegionSize));
+            zipper.zflush();
+        }
+    }
     // Write the profile index into the header.
     writeIndexIntoHeader(out, indexFields, out.tellp());
 
     std::ostringstream msg;
-    msg << "Output written to \'" << params.outfile << "\'.";
+    if (params.uncompressed)
+        msg << "Uncompresesd profile written to \'" << params.outfile << "\'.";
+    else
+        msg << "Profile written to \'" << params.outfile << "\'.";
+
     printStatus(msg);
     return 0;
 }
@@ -307,7 +321,8 @@ int popdel_call(int argc, char const ** argv)
                                                        params.contigNames[contigIdx],
                                                        nextCandidateWindows[i],
                                                        *params.nextRoi,
-                                                       bufferedWindows[i]);
+                                                       bufferedWindows[i],
+                                                       params.uncompressedIn);
                     inStream.close();
                     if (!processSegmentCode(nextReadPos,
                                             finishedROIs,
@@ -375,11 +390,13 @@ int popdel_view(int argc, char const ** argv)
     String<Histogram> histograms;
     String<CharString> contigNames;
     String<int32_t> contigLengths;
-    unsigned indexRegionSize;
-    readProfileHeader(in, params.infile, readGroups, histograms, contigNames, contigLengths, indexRegionSize);
+    readProfileHeader(in, params.infile, readGroups, histograms, contigNames, contigLengths, params.indexRegionSize);
+    if (params.outIndexRegionSize == 0)
+        params.outIndexRegionSize = params.indexRegionSize;
+
     // Write the header to std::cout.
     if (params.writeHeader || params.writeOnlyHeader)
-        writeProfileHeader(std::cout, readGroups, contigNames, contigLengths);
+        printProfileHeader(std::cout, readGroups, contigNames, contigLengths);
 
     if (params.writeHistograms)
     {
@@ -390,37 +407,19 @@ int popdel_view(int argc, char const ** argv)
     if (params.writeOnlyHeader)
         return 0;
 
-    Window window;
-    if (params.region.seqName == "")
+    if (params.outfile == "")
     {
-        // Read all windows and write them to std::cout.
-        zlib_stream::zip_istream unzipper(in);
-        while(readWindow(unzipper, window, length(readGroups)))
-        {
-            writeWindow(std::cout, window, contigNames);
-        }
+        return viewProfile(in, contigNames, contigLengths, length(readGroups), params);
     }
     else
     {
-        // Read file offset from index and move the stream there.
-        fillInvalidPositions(params.region, contigNames, contigLengths);
-        jumpToRegion(in, contigNames, contigLengths, indexRegionSize, params.region);
-
-        // Write all windows in the region to std::cout.
-        zlib_stream::zip_istream unzipper(in);
-        while(readWindow(unzipper, window, length(readGroups)))
-        {
-            if (contigNames[window.chrom] != params.region.seqName ||
-               (contigNames[window.chrom] == params.region.seqName &&
-                          window.beginPos >= params.region.endPos))
-                break;
-            if (params.region.beginPos > window.beginPos)
-                continue;
-            writeWindow(std::cout, window, contigNames);
-        }
+        return unzipProfile(in,
+                            contigNames,
+                            contigLengths,
+                            readGroups,
+                            histograms,
+                            params);
     }
-
-    return 0;
 }
 
 #endif /*WORKFLOW_POPDEL_H_*/

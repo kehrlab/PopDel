@@ -53,8 +53,8 @@ Sebastian Niehus, Hákon Jónsson, Janina Schönberger, Eythór Björnsson, Doru
 
 ## Version and License
 ```
-    Last update: 2021-03-03
-    PopDel version: 1.4.0
+    Last update: 2021-03-25
+    PopDel version: 1.5.0
     SeqAn version: 2.1 (with HTSlib support added by Hannes P.Eggertsson)
     Author: Sebastian Niehus (Sebastian.Niehus[at]ukr.de)
 ```

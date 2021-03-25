@@ -309,9 +309,8 @@ Pair<CharString, __uint32> getFirstWindowCoordinate (String<String<Window> >& co
             //jump to the first region of interest.
             goNextRoi(in, i, params.nextRoi, finishedROIs, params);
 
-            // decompress and read the window.
-            zlib_stream::zip_istream unzipper(in);
-            readWindow(unzipper, window, length(params.rgs[i]));
+            readWindow(in, window, length(params.rgs[i]), params.uncompressedIn);
+
             if (isEmpty(window))
                 continue;
 
@@ -378,8 +377,7 @@ inline bool getFirstWindowOnNextROI (Pair<CharString, __uint32> & minCoord,
             goNextRoi(in, i, params.nextRoi, finishedROIs, params);
 
             // decompress and read the window.
-            zlib_stream::zip_istream unzipper(in);
-            readWindow(unzipper, window, length(params.rgs[i]));
+            readWindow(in, window, length(params.rgs[i]), params.uncompressedIn);
             if (isEmpty(window))
                 continue;
 
@@ -486,8 +484,9 @@ inline void addRgRecordsToProfile(ChromosomeProfile & profile,
 // Read all entries until the beginning of the ROI is reached, ignoring everything befor the ROI.
 // Perform the necessary switches if necessary.
 // Return 0 on success, 2 if the contig is not present (or lies before the starting point of reading) and 3 at EOF.
+template<typename TStream>
 inline unsigned readTillRoi(ChromosomeProfile & profile,
-                            zlib_stream::zip_istream & unzipper,
+                            TStream & file,
                             Window & window,
                             const String<CharString> & contigNames,
                             Pair<CharString, __uint32> & coordinate,
@@ -496,7 +495,7 @@ inline unsigned readTillRoi(ChromosomeProfile & profile,
 {
     do
     {
-        if (!readWindow(unzipper, window, length(rg)))
+        if (!readWindow(file, window, length(rg)))
         {
             performPartialSwitches(profile, rg);
             coordinate.i1 = "";
@@ -523,8 +522,9 @@ inline unsigned readTillRoi(ChromosomeProfile & profile,
 // Return 1 if the desired chromosome has not yet been reached.
 // Return 2 if the end of the chromosome or ROI has been reached.
 // Return 3 if EOF has been reached.
+template<typename TStream>
 inline unsigned readSegment(ChromosomeProfile & profile,
-                            std::ifstream & file,
+                            TStream & file,
                             const CharString & fileName,
                             const TReadGroupIndices & rg,
                             const String<Histogram> & histograms,
@@ -533,11 +533,10 @@ inline unsigned readSegment(ChromosomeProfile & profile,
                             const GenomicRegion & roi,
                             String<Window> & convertedWindows)
 {
-    zlib_stream::zip_istream unzipper(file);
     Window window;
     while (true)
     {
-        unsigned ret = readTillRoi(profile, unzipper, window, contigNames, coordinate, rg, roi);
+        unsigned ret = readTillRoi(profile, file, window, contigNames, coordinate, rg, roi);
         if (ret > 0)
             return ret;
 
@@ -584,6 +583,44 @@ inline unsigned readSegment(ChromosomeProfile & profile,
             }
             addRgRecordsToProfile(profile, rg, histograms, *it);
         }
+    }
+}
+// Wrapper for handling de-compression if necessary
+inline unsigned readSegment(ChromosomeProfile & profile,
+                            std::ifstream & file,
+                            const CharString & fileName,
+                            const TReadGroupIndices & rg,
+                            const String<Histogram> & histograms,
+                            const String<CharString> & contigNames,
+                            Pair<CharString, __uint32> & coordinate,
+                            const GenomicRegion & roi,
+                            String<Window> & convertedWindows,
+                            const bool & uncompressed)
+{
+    if (uncompressed)
+    {
+        return readSegment(profile,
+                           file,
+                           fileName,
+                           rg,
+                           histograms,
+                           contigNames,
+                           coordinate,
+                           roi,
+                           convertedWindows);
+    }
+    else
+    {
+        zlib_stream::zip_istream unzipper(file);
+        return readSegment(profile,
+                           unzipper,
+                           fileName,
+                           rg,
+                           histograms,
+                           contigNames,
+                           coordinate,
+                           roi,
+                           convertedWindows);
     }
 }
 // =======================================================================================

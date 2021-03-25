@@ -33,6 +33,7 @@ struct PopDelProfileParameters
     bool mergeRG;
     CharString referenceVersion;
     CharString referenceFile;
+    bool uncompressed;
 
     PopDelProfileParameters() :
     outfile("*BAM/CRAM-FILE*.profile"),
@@ -44,7 +45,8 @@ struct PopDelProfileParameters
     indexRegionSize(10000),
     mergeRG(false),
     referenceVersion("GRCh38"),
-    referenceFile("")
+    referenceFile(""),
+    uncompressed(false)
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -60,6 +62,7 @@ void setHiddenOptions(ArgumentParser & parser, bool hide, const PopDelProfilePar
     hideOption(parser, "u",  hide);
     hideOption(parser, "R",  hide);
     hideOption(parser, "s",  hide);
+    hideOption(parser, "x",  hide);
 }
 // ---------------------------------------------------------------------------------------
 // Function addHiddenOptions()
@@ -74,6 +77,7 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelProfileParameters & p
     addOption(parser, ArgParseOption("R", "reference-file",    "FASTA file of the reference genome. Only required for CRAM files whose header entries point to the wrong file.", ArgParseArgument::STRING, "FILE"));
     addOption(parser, ArgParseOption("s",  "min-align-score",  "Only use reads with an alignment score relative to read length above NUM.",  ArgParseArgument::DOUBLE,  "NUM"));
     addOption(parser, ArgParseOption("u",  "min-unclipped",    "Only use reads of which at least NUM bases are not clipped.",                ArgParseArgument::INTEGER, "NUM"));
+    addOption(parser, ArgParseOption("x",  "uncompressed",    "Don't use gzip compression for profile."));
 
     setDefaultValue(parser, "f",  params.qualReq.flagsSet);
     setDefaultValue(parser, "F",  params.qualReq.flagsUnset);
@@ -178,6 +182,7 @@ void getParameterValues(PopDelProfileParameters & params, const ArgumentParser &
     getOptionValue(params.referenceFile,              parser, "reference-file");
     parseReferenceGenome(params.referenceVersion,     parser);
     params.mergeRG = isSet(                           parser, "merge-read-groups");
+    params.uncompressed = isSet(                      parser, "uncompressed");
 }
 
 #endif /* PROFILE_PARAMETER_PARSING_POPDEL_H_ */

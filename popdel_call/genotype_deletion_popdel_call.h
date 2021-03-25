@@ -209,7 +209,7 @@ inline Triple<long double> compute_data_likelihoods(String<Triple<long double> >
 //               std::cout << "L(REF):\t" << refLikelihood << std::endl;
 //               std::cout << "L(DEL):\t" << delLikelihood << std::endl;
             long double g0 = log(refLikelihood);
-            long double g1 = log(refLikelihood +delLikelihood) - log(2.0);
+            long double g1 = log(refLikelihood + delLikelihood) - log(2.0);
             long double g2 = log(delLikelihood);
             currentRgWiseDataLikelihoods.i1 += g0;
             currentRgWiseDataLikelihoods.i2 += g1;

@@ -1047,7 +1047,7 @@ inline bool lowerGenomicRegion(const GenomicRegion & r1, const GenomicRegion & r
         return false;
 }
 // =======================================================================================
-// Function _fillInvalidPositions()
+// Function fillInvalidPositions()
 // =======================================================================================
 // Replace invalid values of GenomicRegions object with processable values.
 // Use 0 for start position. Use end position of sequence for end position of interval.
@@ -1066,7 +1066,17 @@ inline void fillInvalidPositions(GenomicRegion & itv,
         }
     }
 }
-
+// Wrapper for application on String of GenomicRegions.
+inline void fillInvalidPositions(String<GenomicRegion> & itvs,
+                                 const String<String<char> > & contigNames,
+                                 const String<int32_t> & contigLengths)
+{
+    for (unsigned i = 0; i < length(itvs); ++i)
+        fillInvalidPositions(itvs[i], contigNames, contigLengths);
+}
+// =======================================================================================
+// Function findInterval()
+// =======================================================================================
 inline Iterator<const String<GenomicRegion> >::Type findInterval(const String<GenomicRegion> & intervals,
                                                                  const GenomicRegion & roi)
 {
