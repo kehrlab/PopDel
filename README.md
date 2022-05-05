@@ -1,13 +1,15 @@
 
-PopDel - Population-wide Deletion Calling
+PopDel+: Population-wide Deletion Calling
 =========================================
 
+__Important note:__ This is an unstable prototype version of PopDel that includes the calling/genotyping of duplications and inversions.
+The read pair profiles created by the stable version of PopDel are not compatible with this version of PopDel and vice versa.
+For the stable version of PopDel (that currently only supports the analysis of deletions) please refer to the 'master' branch of the repository.
 
-[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/popdel/README.html) [![GitHub license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/kehrlab/PopDel/master/LICENSE) [![GitHub Releases](https://img.shields.io/github/release/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/releases) [![GitHub Issues](https://img.shields.io/github/issues/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/issues)
 
 <b>Input</b>: BAM/CRAM files (tested for up to 50,000) from short read paired end whole genome sequencing data
 
-<b>Output</b>: Called deletions in VCF file
+<b>Output</b>: Called deletions, dandem duplications and inversions in VCF file
 
 <b>Note:</b> The default reference genome is GRCh38 (Genome Reference Consortium Human Build 38). Other human reference builds can be specified in the options. See [Specifying the reference genome](https://github.com/kehrlab/PopDel/wiki/03.-Create-profiles-with-popdel-profile#specifying-the-reference-genome). For other diploid organism or custom reference builds, it is necessary to specify user-defined sampling intervals. See [Sampling intervals for parameter estimation](https://github.com/kehrlab/PopDel/wiki/03.-Create-profiles-with-popdel-profile#sampling-options-for-parameter-estimation).  
 
@@ -36,7 +38,7 @@ popdel profile myBamN.bam
 ```
 For more options see Wiki: [PopDel Profile](https://github.com/kehrlab/PopDel/wiki/03.-Create-profiles-with-popdel-profile)
 
-#### Step 2: Call deletions
+#### Step 2: Call deletions, tandem duplications and inversions
 Joint calling on list of all profiles
 ```
 # Create a list of all profiles
@@ -49,12 +51,14 @@ For more options see Wiki: [PopDel Call](https://github.com/kehrlab/PopDel/wiki/
 See wiki for more information on how to view the profile with [PopDel View](https://github.com/kehrlab/PopDel/wiki/06.-Inspect-profiles-with-popdel-view) and interpret the [output in VCF-format](https://github.com/kehrlab/PopDel/wiki/05.-Output-Format:-A-(modified)-VCF).
 
 ## Citation
-Sebastian Niehus, Hákon Jónsson, Janina Schönberger, Eythór Björnsson, Doruk Beyter, Hannes P. Eggertsson, Patrick Sulem, Kári Stefánsson, Bjarni V. Halldórsson, Birte Kehr. _PopDel identifies medium-size deletions simultaneously in tens of thousands of genomes_. Nat Commun 12, 730 (2021). https://doi.org/10.1038/s41467-020-20850-5
+Sebastian Niehus, Hákon Jónsson, Janina Schönberger, Eythór Björnsson, Doruk Beyter, Hannes P. Eggertsson, Patrick Sulem, Kári Stefánsson, Bjarni V. Halldórsson, Birte Kehr.    
+_PopDel identifies medium-size deletions simultaneously in tens of thousands of genomes_. Nat Commun 12, 730 (2021).
+doi: https://doi.org/10.1038/s41467-020-20850-5
 
 ## Version and License
 ```
-    Last update: 2021-03-25
-    PopDel version: 1.5.0
+    Last update: 2022-05-05
+    PopDel version: 2.0.0-alpha
     SeqAn version: 2.1 (with HTSlib support added by Hannes P.Eggertsson)
     Author: Sebastian Niehus (Sebastian.Niehus[at]ukr.de)
 ```

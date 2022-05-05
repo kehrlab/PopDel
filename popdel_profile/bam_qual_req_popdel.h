@@ -4,6 +4,7 @@
 #include <seqan/bam_io.h>
 
 #include "../utils_popdel.h"
+#include "window_popdel.h"
 
 using namespace seqan;
 // =======================================================================================
@@ -11,8 +12,8 @@ using namespace seqan;
 // =======================================================================================
 struct BamQualReq
 {
-    __uint32 flagsSet;                   // Required flags.
-    __uint32 flagsUnset;                 // Forbidden falgs
+    unsigned flagsSet;                   // Required flags.
+    unsigned flagsUnset;                 // Forbidden falgs
     bool sameChrom;
     unsigned minMappingQual;             // minimum mapping quality of each sequence.
     unsigned minUnclippedLength;         // minimum length of sequences when unclipped.
@@ -20,10 +21,14 @@ struct BamQualReq
     int alignmentScoreIndex;             // index of the alignment score in the BamTagsDict.
 
     BamQualReq() :
-    flagsSet(33),           // read paired &  mate reverse strand
-    flagsUnset(3868),       // read/mate unmapped, read reverse strand, not primary alignment, supplementary alignment
+    flagsSet(1),            // read paired
+    flagsUnset(3852),       // read/mate unmapped, not primary alignment, supplementary alignment
                             // read fails platform/vendor quality checks, read is PCR or optical duplicate
-    sameChrom(true), minMappingQual(1), minUnclippedLength(50), minRelAlignScore(0.8), alignmentScoreIndex(0)
+    sameChrom(true),
+    minMappingQual(1),
+    minUnclippedLength(50),
+    minRelAlignScore(0.8),
+    alignmentScoreIndex(0)
     {}
 };
 
@@ -69,20 +74,11 @@ inline unsigned getAlignScore(CharString & tags, int & index)
     return score;
 }
 // =======================================================================================
-// Function isReverseRead()
-// =======================================================================================
-// Performs checks if read is primary alignment and mate is not reverse -> Read is primary alignment and reverse read
-inline bool isReverseRead(const BamAlignmentRecord & record)
-{   //Originally: 2336 instead of 3884, but 3884 is more restrictive, so we now use that.
-    return (record.flag & 3884) == 0;   // i.e if NOT(mate on reverse strand|| not prim. alignment || supp. alignment ||
-                                        //            read/mate is unmapped || duplicate || read fails platform QC)
-}
-// =======================================================================================
 // Function meetsRequirements()
 // =======================================================================================
 // Perform checks if all requirements are met by the record.
 // Return true if all checks are passed, false otherwise.
-inline bool meetsRequirements(BamAlignmentRecord & record, BamQualReq & qualReq)
+inline bool meetsRequirements(BamAlignmentRecord & record, BamQualReq & qualReq) // can't be const b/c of getAlignScore
 {
     if ((record.flag & qualReq.flagsUnset) != 0)                        // Check if the -F specified flags are unset
         return false;

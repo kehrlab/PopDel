@@ -1,12 +1,17 @@
 #ifndef BAM_WINDOW_ITERATOR_POPDEL_H_
 #define BAM_WINDOW_ITERATOR_POPDEL_H_
 
-#include "window_podel.h"
+#include "window_popdel.h"
 #include "bam_qual_req_popdel.h"
 #include "profile_parameter_parsing_popdel.h"
+#include "profile_translocation_popdel.h"
+#include "profile_translocation_popdel.h"
 #include "../utils_popdel.h"
 
 using namespace seqan;
+
+
+struct GoodReadBufferEntry; // Forward declare for use in BamWindowInterator.
 
 // =======================================================================================
 // Struct BamWindowIterator
@@ -17,22 +22,26 @@ struct BamWindowIterator
     typedef std::map<CharString, unsigned> TReadGroups;    // Mapping of ReadGroupID:Index
     HtsFileIn infile;                                      // The input BAM/CRAM-file.
     TReadGroups readGroups;                                // Map of read group IDs and their rank (order of apperance).
-    BamQualReq qualReqFwd;                                 // Quality requirements for forward reads.
-    BamQualReq qualReqRev;                                 // Quality requirements for reverse reads.
-    std::map<CharString, Pair<__int32> > goodFwdReads;     // Forward reads that meet all quality requirements;
-                                                               // stored as: map<ID, <innerBeginPos, insertBeginPos> >.
-    BamAlignmentRecord nextRecord;                         // The next record to be processed.
-    __int32 nextRecordsInnerBegin;                         // Begin of the next records's inner part (part betw. reads).
-    __int32 nextRecordsInsertBegin;                        // Begin of next record's insert.
-    __int32 maxDeletionSize;                               // Biggest insertSize of all RGs to be considered.
-    String<int32_t> maxInsertSizes;                        // Max. insertSizes per RG.
-    __int32 windowSize;                                    // Size of one window.
-    __int32 windowShift;                                   // Window shift per iteration (=window size by default).
-    String<Window> activeWindows;                          // String of currently active windows.
-    __int32 currentWindowBegin;                            // Begin position of current Window.
-    String<GenomicRegion> intervals;                       // Intervals to work on.
-    Iterator<String<GenomicRegion> >::Type currentReadingInterval; //
-    Iterator<String<GenomicRegion> >::Type currentWindowInterval;  //
+    BamQualReq qualReq;                                    // Quality requirements for forward reads.
+    std::map<CharString, GoodReadBufferEntry> goodLeftReads;    // Left reads that meet all quality requirements;
+    String<TranslocationBuffer> translocationBuffers;     // Buffers holding all pairs affected by translocations. 1 per RG.
+    BamAlignmentRecord nextRecord;                        // The next record to be processed.
+    int32_t leftTipPos;                                   // clipped 3' end of the leftmost read of the pair
+    int32_t distance;                                     // FR-reads: 5'-end distance. Other reads: 3'-end distance.
+    int32_t totalClipping;                                // Total ammount of soft clipping in both reads of the pair.
+    Orientation orientation;                              // Orientation of the current pair
+    int32_t maxDeletionSize;                              // Biggest tip distance of all RGs to be considered.
+    String<int32_t> maxTipDistances;                      // Max. tip distance per RG.
+    String<int32_t> readLengths;                          // Read length for every RG
+    int32_t windowSize;                                   // Size of one window.
+    int32_t windowShift;                                  // Window shift per iteration (=window size by default).
+    String<Window> activeWindows;                         // String of currently active windows.
+    int32_t currentWindowBegin;                           // Begin position of current Window.
+    String<GenomicRegion> intervals;                      // Intervals to work on.
+    TranslocationBlacklist blacklist;                      // Blacklist for translocation reads
+    Iterator<String<GenomicRegion> >::Type currentReadingInterval;
+    Iterator<String<GenomicRegion> >::Type currentWindowInterval;
+    String<bool> finishedRIDs;                         // Bool for each rID in the BAM file indicating finished status.
     bool mergeRG;
 
     BamWindowIterator(const CharString & filename, const CharString & referenceFile)
@@ -60,10 +69,99 @@ struct BamWindowIterator
             SEQAN_THROW(IOError("Could not open index file."));
     }
 };
+// =======================================================================================
+// Function initContigStatusList()
+// =======================================================================================
+// Prepare BamWindowIterator::finishedRIDs for later use
+inline void initContigStatusList(BamWindowIterator & bwi, const unsigned numContigs)
+{
+    resize(bwi.finishedRIDs, numContigs, false, Exact());
+}
+// =======================================================================================
+// Function getNextReadLenght()
+// =======================================================================================
+// Return the read lenght of the read group bwi.nextRead belongs to.
+inline int getNextReadLenght(const BamWindowIterator & bwi)
+{
+    return bwi.readLengths[getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG)];
+}
+// =======================================================================================
+// Function getLeftClip()
+// =======================================================================================
+// Return the number of sofclipped bases at the left end of the record.
+inline uint32_t getLeftClip(const BamAlignmentRecord & rec)
+{
+    SEQAN_ASSERT_GT(length(rec.cigar), 0u);
+    if (rec.cigar[0].operation == 'S')
+        return rec.cigar[0].count;
+    else
+        return 0;
+}
+// =======================================================================================
+// Function getLeftClip()
+// =======================================================================================
+// Return the number of sofclipped bases at the left end of BamWindowInterator::nextRecord.
+inline uint32_t getLeftClip(const BamWindowIterator & bwi)
+{
+    return getLeftClip(bwi.nextRecord);
+}
+// =======================================================================================
+// Function getRightClip()
+// =======================================================================================
+// Return the number of sofclipped bases at the right end of the record.
+inline uint32_t getRightClip(const BamAlignmentRecord & rec)
+{
+    SEQAN_ASSERT_GT(length(rec.cigar), 0u);
+    unsigned i = length(rec.cigar) - 1;
+    if (rec.cigar[i].operation == 'S')
+        return rec.cigar[i].count;
+    else
+        return 0;
+}
+// Return the number of sofclipped bases at the right end of BamWindowInterator::nextRecord.
+inline uint32_t getRightClip(const BamWindowIterator & bwi)
+{
+    return getRightClip(bwi.nextRecord);
+}
+// =======================================================================================
+// Struct GoodReadBufferEntry
+// =======================================================================================
+struct GoodReadBufferEntry
+{
+    int32_t clippedLeftEnd;         // = beginPos
+    int32_t fullLeftEnd;            // = beginPos - leftClip
+    int32_t clippedRightEnd;        // = beginPos + getAlignmentLengthInRef - 1
+    int32_t fullRightEnd;           // = clippedRightEnd + rightClip
+    int32_t flag;
+
+    GoodReadBufferEntry(): fullLeftEnd(0), clippedRightEnd(0), fullRightEnd(0), flag(0){};
+
+    GoodReadBufferEntry(const int32_t fle, const int32_t cre, const int32_t fre, const int32_t flg):
+    fullLeftEnd(fle),
+    clippedRightEnd(cre),
+    fullRightEnd(fre),
+    flag(flg){};
+
+    GoodReadBufferEntry(const BamWindowIterator & bwi)
+    {
+        clippedLeftEnd = bwi.nextRecord.beginPos;
+        fullLeftEnd = clippedLeftEnd - getLeftClip(bwi);
+        if (fullLeftEnd < 0)
+            fullLeftEnd = 0;
+        clippedRightEnd =  clippedLeftEnd + getAlignmentLengthInRef(bwi.nextRecord) - 1;
+        fullRightEnd =  clippedRightEnd + getRightClip(bwi);
+        flag = bwi.nextRecord.flag;
+    };
+};
+// Overload for directly applying getPairOrientation() on a GoodReadBufferEntry.
+inline Orientation getPairOrientation(const GoodReadBufferEntry & entry)
+{
+    return getPairOrientation(entry.flag);
+}
 // ---------------------------------------------------------------------------------------
 // Function posToWindow()
 // ---------------------------------------------------------------------------------------
-// Returns an iterator to the window which overlaps the position 'pos'.
+// Return an iterator to the window which overlaps the position 'pos'.
 inline Iterator<String<Window> >::Type posToWindow(const unsigned & pos, BamWindowIterator & bwi)
 {
     unsigned windowIndex =  pos / bwi.windowShift;          // Begin position of the window that overlaps pos.
@@ -78,55 +176,268 @@ inline Reference<String<Window> >::Type operator*(BamWindowIterator & bwi)
 {
     return *posToWindow(bwi.currentWindowBegin, bwi);
 }
+// =======================================================================================
+// Function isLeftAlignment()
+// =======================================================================================
+// Return true if the startin position of the given record is smaller than that of the mate
+// Does not correct for softclipping!
+inline bool isLeftAlignment(const BamAlignmentRecord & record)
+{
+    return record.beginPos < record.pNext;
+}
+// =======================================================================================
+// Function isRightAlignment()
+// =======================================================================================
+// Return true if the startin position of the given record is bigger than that of the mate
+// Does not correct for softclipping!
+inline bool isRightAlignment(const BamAlignmentRecord & record)
+{
+    return record.beginPos > record.pNext;
+}
+// =======================================================================================
+// Function getAbsTipDistance()
+// =======================================================================================
+// Return the maximum distance of the clipped 3'ends to each other, i.e. the tip to tip distance.
+// Because we tLen is ambigous, we cannot give the exact end of the second's read 3' end, without looking at it.
+// Therefore, we calculate the highest possible distance between the tips, based on the read length and pNExt.
+// For normally oriented read pairs this equals to the inner distance.
+inline int getAbsTipDistance(const BamWindowIterator & bwi)
+{
+    int a = bwi.nextRecord.beginPos;
+    if (!hasFlagRC(bwi.nextRecord))
+        a += getAlignmentLengthInRef(bwi.nextRecord) - 1;
+
+    int b;
+    if (hasFlagNextRC(bwi.nextRecord))
+        b = bwi.nextRecord.pNext;
+    else
+        b = bwi.nextRecord.pNext + getNextReadLenght(bwi);
+    return abs(a - b);
+}
+// =======================================================================================
+// Function inMaxRange()
+// =======================================================================================
+// Return true if the 3' ends of the record are close enough to be added to the window.
+// Return false otherwise.
+inline bool inMaxRange(const BamWindowIterator & bwi)
+{
+    int rg = getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG);
+    return getAbsTipDistance(bwi) + bwi.readLengths[rg] <= bwi.maxTipDistances[rg];
+    // We need the addition of the read length to make sure that we don't allow read pairs that might
+    // start after a window has already been closed, because we found another read with a lower left tip.
+}
+// =======================================================================================
+// Function inWindowRange()
+// =======================================================================================
+// Return true if the left tip of bwi does lie in the valid range of windows.
+// Return false otherwise.
+inline bool inWindowRange(const BamWindowIterator & bwi, const int & maxTipDistance)
+{
+    return bwi.leftTipPos < bwi.currentWindowBegin + bwi.windowSize + maxTipDistance;
+}
+//
+// =======================================================================================
+// Function processLeftAlignment()
+// =======================================================================================
+// Processes a (probable) left alignment by adding its properties to the map of good reads.
+// Return false if the read lies after the current interval (i.e the interval has been completely processed).
+// Return true otherwise.
+inline bool processLeftAlignment(BamWindowIterator & bwi)
+{
+    SEQAN_ASSERT(!isTranslocated(bwi.nextRecord));
+    if (bwi.nextRecord.beginPos >= bwi.currentReadingInterval->endPos)
+        return false;                                                   // Fwd. read starts after current interval.
+    if (bwi.nextRecord.pNext < bwi.currentReadingInterval->beginPos)
+        return true;                                                    // Rev. read ends before current interval.
+    if (inMaxRange(bwi))
+        bwi.goodLeftReads[bwi.nextRecord.qName] = GoodReadBufferEntry(bwi);
+    return true;
+}
+// =======================================================================================
+// Function getTip()
+// =======================================================================================
+// Return the position of the record's 3'-end.
+// This equals r.beginPos for reverse complement reads and r.beginPos + getAlignmentLengthInRef(r) -1 for forward reads.
+inline int getTip(const BamAlignmentRecord & r)
+{
+    if (hasFlagRC(r))
+        return r.beginPos;
+    else
+        return r.beginPos + getAlignmentLengthInRef(r) - 1;
+}
+inline int getTip(const GoodReadBufferEntry & r)
+{
+    if (r.flag & 16)         // read is reverse complement
+        return r.clippedLeftEnd;
+    else
+        return r.clippedRightEnd;
+}
+// =======================================================================================
+// Function assignTipAndDistance()
+// =======================================================================================
+// Assign the position of the tip of the left read and the distance between the tips (3' ends) of the reads.
+inline void assignTipAndDistance(int & leftTipPos,
+                                 int & distance,
+                                 const GoodReadBufferEntry & leftRead,
+                                 const BamAlignmentRecord & rightRead)
+{
+    leftTipPos = getTip(leftRead);
+    distance = getTip(rightRead) - leftTipPos;
+}
+//Overload in case the first read is the BamAlignmentRecord record.
+inline void assignTipAndDistance(int & leftTipPos,
+                                 int & distance,
+                                 const BamAlignmentRecord & leftRead,
+                                 const GoodReadBufferEntry & rightRead)
+{
+    leftTipPos = getTip(leftRead);
+    distance = getTip(rightRead) - leftTipPos;
+}
+// =======================================================================================
+// Function getFullClip()
+// =======================================================================================
+// Return the sum of leftClip and rightClip of a read.
+inline int getFullClip(const GoodReadBufferEntry & r)
+{
+    return (r.clippedLeftEnd - r.fullLeftEnd) + (r.fullRightEnd - r.clippedRightEnd);
+}
+inline unsigned getFullClip(const BamAlignmentRecord & r)
+{
+    return getLeftClip(r) + getRightClip(r);
+}
+// =======================================================================================
+// Function getTotalClipping()
+// =======================================================================================
+// Return the sum of fullClip of both reads of a pair.
+inline int getTotalClipping(const GoodReadBufferEntry & g,
+                            const BamAlignmentRecord & b)
+{
+    return getFullClip(g) + getFullClip(b);
+}
+inline int getTotalClipping(const BamAlignmentRecord & b,
+                            const GoodReadBufferEntry & g)
+{
+    return getTotalClipping(g, b);
+}
+// =======================================================================================
+// Function processRightAlignment()
+// =======================================================================================
+// Processes a (probable) right alignment by correcting for the clipping and adding it to the map of good reads.
+// Also checks if the left an right alignment have been confused due to sofclipping.
+// Return true if a good right alignment has been processed can can be written to ouput, false otherwise.
+inline bool processRightAlignment(BamWindowIterator & bwi)
+{
+    SEQAN_ASSERT(!isTranslocated(bwi.nextRecord));
+    std::map<CharString, GoodReadBufferEntry>::iterator fwd = bwi.goodLeftReads.find(bwi.nextRecord.qName);
+    if (fwd != bwi.goodLeftReads.end())
+    {
+        int32_t fullLeftEnd = bwi.nextRecord.beginPos - getLeftClip(bwi);
+        if (fullLeftEnd < fwd->second.fullLeftEnd)
+        {   // left and right read have been confused due to soft clipping. 'bwi.nextRecord' is the left read.
+            bwi.orientation = getPairOrientation(fwd->second);
+            assignTipAndDistance(bwi.leftTipPos, bwi.distance, bwi.nextRecord, fwd->second);
+        }
+        else
+        {
+            bwi.orientation = getPairOrientation(bwi.nextRecord);
+            assignTipAndDistance(bwi.leftTipPos, bwi.distance, fwd->second, bwi.nextRecord);
+        }
+        bwi.totalClipping = getTotalClipping(bwi.nextRecord, fwd->second);
+        SEQAN_ASSERT_GEQ(bwi.totalClipping, 0);
+        bwi.goodLeftReads.erase(fwd);
+        return true;
+    }
+    return false;
+}
+// =======================================================================================
+// Function checkAndRemoveTranslocatedRecord()
+// =======================================================================================
+// Check the if the mate of a bad translocated record possibly is in the translocationBuffer
+// and try to remove it if so.
+inline void checkAndRemoveTranslocatedRecord(BamWindowIterator & bwi)
+{
+    if (rIDAlreadyProcessed(bwi.finishedRIDs, bwi.nextRecord.rNextId))
+    {
+        if (!bwi.blacklist.contains(bwi.nextRecord.rNextId, bwi.nextRecord.pNext))
+        {
+            unsigned rg = getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG);
+            bwi.translocationBuffers[rg].removeIfFound(bwi.nextRecord.qName);
+        }
+    }
+}
+// =======================================================================================
+// Function checkAndAddTranslocatedRecord()
+// =======================================================================================
+// Check if the mate of the record has already been added to the translocationBuffer
+// and insert a new entry / update the existing one accordingly if both reads lie in ROIS and are not blacklisted.
+inline void checkAndAddTranslocatedRecord(BamWindowIterator & bwi)
+{
+    if (rIDAlreadyProcessed(bwi.finishedRIDs, bwi.nextRecord.rNextId))
+    {
+        if (!bwi.blacklist.contains(bwi.nextRecord))
+        {
+            if (contains(bwi.intervals, bwi.nextRecord.rNextId, bwi.nextRecord.pNext))
+            {
+                unsigned rg = getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG);
+                auto it = bwi.translocationBuffers[rg].pairs.find(bwi.nextRecord.qName);
+                if (it != bwi.translocationBuffers[rg].pairs.end())
+                    processTranslocatedRecord(bwi.translocationBuffers[rg], it, bwi.nextRecord);
+            }
+        }
+    }
+    else    // The mate cannot be in the buffer yet, so insert a new entry.
+    {
+        if (!bwi.blacklist.blacklisted(bwi.nextRecord))
+        {
+            if (contains(bwi.intervals, bwi.nextRecord.rNextId, bwi.nextRecord.pNext))
+            {
+                unsigned rg = getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG);
+                processTranslocatedRecord(bwi.translocationBuffers[rg], bwi.nextRecord);
+            }
+        }
+    }
+}
 // ---------------------------------------------------------------------------------------
 // Function processRecord()
 // ---------------------------------------------------------------------------------------
 // Return 1 if processing of read (nextRecord) is done (=Checking requirements and maybe adding its info to bwi).
 // Return 0 if a good rev. read with a good mate was found whose processing needs to wait until window is reached.
 // Return -1 if the record lies outside of the interval specified in bwi.interval.
+// Note: Cases where beginPos == pNext are ignored.
 inline int processRecord(BamWindowIterator & bwi)
 {
-    // Process forward reads.
-    if (!isReverseRead(bwi.nextRecord))                            // Check if read is first in pair.
+    if (!meetsRequirements(bwi.nextRecord, bwi.qualReq))
     {
-        if (bwi.nextRecord.rID == bwi.currentReadingInterval->rID &&
-            bwi.nextRecord.beginPos >= bwi.currentReadingInterval->endPos)
+        if (isTranslocated(bwi.nextRecord))
+            checkAndRemoveTranslocatedRecord(bwi);
+
+        return 1;
+    }
+    else
+    {
+        if (isTranslocated(bwi.nextRecord))
         {
-            return -1;                                                      // Fwd.-read starts after current interval.
-        }
-        if (bwi.nextRecord.pNext < bwi.currentReadingInterval->beginPos)    // Rev.-read ends before current interval.
-        {
+            if (meetsTranslocRequirements(bwi.nextRecord))
+                checkAndAddTranslocatedRecord(bwi);
+            else
+                checkAndRemoveTranslocatedRecord(bwi);
+
             return 1;
         }
-        if (meetsRequirements(bwi.nextRecord, bwi.qualReqFwd) && bwi.nextRecord.beginPos <= bwi.nextRecord.pNext)
+        else if (isLeftAlignment(bwi.nextRecord))
         {
-            __int32 innerBeginPos = bwi.nextRecord.beginPos + getAlignmentLengthInRef(bwi.nextRecord);
-            __int32 insertBeginPos = bwi.nextRecord.beginPos;
-            if (bwi.nextRecord.cigar[0].operation == 'S')                   // If next record is soft-clipped...
-            {
-                insertBeginPos -= bwi.nextRecord.cigar[0].count;            // ...adjust its starting position.
-            }
-            if (bwi.nextRecord.tLen <= bwi.maxInsertSizes[getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG)])
-            {
-                bwi.goodFwdReads[bwi.nextRecord.qName] = Pair<__int32>(innerBeginPos, insertBeginPos);
-            }
-            return 1;
+            if (processLeftAlignment(bwi))
+                return 1;                           // Continue reading records.
+            else
+                return -1;                          // Inveral has been completely processed
         }
-    }
-    // Process reverse reads.
-    else if (bwi.nextRecord.beginPos >= bwi.nextRecord.pNext)       // Check in case there is an inversion.
-    {
-        std::map<CharString, Pair<__int32> >::iterator fwd = bwi.goodFwdReads.find(bwi.nextRecord.qName);
-        if (fwd != bwi.goodFwdReads.end()) // If the corresponding forward read is in the list of good forward reads...
-        {   // ...save its innerBeginPos and insertBeginPos for later use in nextRecord and erase it from goodFwdReads.
-            bwi.nextRecordsInnerBegin = (fwd->second).i1;
-            bwi.nextRecordsInsertBegin = (fwd->second).i2;
-            bwi.goodFwdReads.erase(fwd);
-            if (meetsRequirements(bwi.nextRecord, bwi.qualReqRev))
-                return 0;
+        else if (isRightAlignment(bwi.nextRecord))  // Not really necessary but avoids lookups when beginPos == pNext.
+        {
+            if (processRightAlignment(bwi))
+                return 0;                           // Good pair has been found and can be written to output.
         }
+        return 1;                                   // Continue reading records.
     }
-    return true;
 }
 // ---------------------------------------------------------------------------------------
 // Function tryReadRecord()
@@ -164,7 +475,7 @@ inline void goToInterval(BamWindowIterator & bwi)
 // ---------------------------------------------------------------------------------------
 // Function goToNextReverseRecord()
 // ---------------------------------------------------------------------------------------
-// Find the next reverse record in the intervals and process it using _processRecord. Called by _goToFirstReverseRecord.
+// Find the next reverse record in the intervals and process it using processRecord. Called by goToFirstReverseRecord.
 // Return true if a good rev. read with a good mate was found whose processing needs to wait until window is reached.
 // Return false if end of file is reached.
 inline bool goToNextReverseRecord(BamWindowIterator & bwi)
@@ -180,7 +491,7 @@ inline bool goToNextReverseRecord(BamWindowIterator & bwi)
             {
                 return true;
             }
-            else if (pr < 0 && bwi.goodFwdReads.empty())        // Record is outside of interval.
+            else if (pr < 0 && bwi.goodLeftReads.empty())        // Record is outside of interval.
             {   // TODO Check if this can still happen.
                 ++bwi.currentReadingInterval;
                 if (bwi.currentReadingInterval >= end(bwi.intervals))
@@ -192,10 +503,18 @@ inline bool goToNextReverseRecord(BamWindowIterator & bwi)
         }
         if (bwi.currentReadingInterval != end(bwi.intervals)) // Check the next interval
         {
+            int32_t chrom = (*bwi.currentReadingInterval).rID;
             ++bwi.currentReadingInterval;
             if (bwi.currentReadingInterval >= end(bwi.intervals))
             {
                 return false;                               // Last interval has been processed.
+            }
+            if ((*bwi.currentReadingInterval).rID != chrom)
+            {
+                // std::cout << "rID " << chrom << " has been marked as completed after setting reading interval to "
+                //           << (*bwi.currentReadingInterval).seqName << "(" << (*bwi.currentReadingInterval).rID << ")"
+                //           << ":" << (*bwi.currentReadingInterval).beginPos << std::endl;
+                bwi.finishedRIDs[chrom] = true;
             }
             goToInterval(bwi);
         }
@@ -213,6 +532,7 @@ inline bool goToNextReverseRecord(BamWindowIterator & bwi)
 inline bool goToFirstReverseRecord(BamWindowIterator & bwi)
 {
     setRIDs(bwi.intervals, bwi.infile);
+    std::stable_sort(begin(bwi.intervals), end(bwi.intervals), &lowerRIDGenomicRegion);
     // Initialize the first interval and read the first record after the interval's begin from infile
     bwi.currentReadingInterval = begin(bwi.intervals);
     goToInterval(bwi);
@@ -230,7 +550,7 @@ inline bool goToFirstReverseRecord(BamWindowIterator & bwi)
     {
         return true;
     }
-    else if (pr < 0 && bwi.goodFwdReads.empty())            // Record is outside of interval.
+    else if (pr < 0 && bwi.goodLeftReads.empty())            // Record is outside of interval.
     {
         ++bwi.currentReadingInterval;
         if (bwi.currentReadingInterval >= end(bwi.intervals))
@@ -244,29 +564,19 @@ inline bool goToFirstReverseRecord(BamWindowIterator & bwi)
 // ---------------------------------------------------------------------------------------
 // Function addRecordToWindow()
 // ---------------------------------------------------------------------------------------
-// Add information about the number of overlapped windows and the insert size of the record to the window of read group.
+// Add info about the number of overlapped windows and the tip distances of the record to the window of read group.
 inline void addRecordToWindows(BamWindowIterator & bwi)
 {
-    typedef Iterator<String<Window> >::Type TWindowIter;
-    TWindowIter it = posToWindow(bwi.nextRecordsInnerBegin, bwi);
-    TWindowIter itEnd = posToWindow(bwi.nextRecord.beginPos, bwi);
-    TWindowIter wEnd = end(bwi.activeWindows);
-    itEnd++;
-    if (itEnd == wEnd)
-        itEnd = begin(bwi.activeWindows);
-    unsigned insertSize = bwi.nextRecord.beginPos + getAlignmentLengthInRef(bwi.nextRecord) - bwi.nextRecordsInsertBegin;
-    if (bwi.nextRecord.cigar[length(bwi.nextRecord.cigar) - 1].operation == 'S')    // If next record is soft-clipped...
-        insertSize += bwi.nextRecord.cigar[length(bwi.nextRecord.cigar) - 1].count; //...adjust insert size
-    /*unsigned numWindows = 1u;                                                  // Number of windows the record overlaps.
-    if (bwi.nextRecordsInnerBegin < bwi.nextRecord.beginPos)
-    {
-        if (it < itEnd)
-            numWindows = itEnd - it;
-        else
-            numWindows = wEnd - it + itEnd - begin(bwi.activeWindows);
-    }*/
-    unsigned rg = getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG);
-    addRecord(*it, bwi.nextRecordsInnerBegin, insertSize, rg, length(bwi.readGroups));
+    //Note: bwi.nextRecords is the rightmost read of a pair at this point!
+    SEQAN_ASSERT_LEQ(posToWindow(bwi.leftTipPos, bwi)->beginPos, bwi.leftTipPos);
+    SEQAN_ASSERT_GT(posToWindow(bwi.leftTipPos, bwi)->beginPos + 256, bwi.leftTipPos);
+    addRecord(*posToWindow(bwi.leftTipPos, bwi),
+              bwi.leftTipPos,
+              bwi.distance,
+              bwi.totalClipping,
+              bwi.orientation,
+              getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG),
+              length(bwi.readGroups));
 }
 // ---------------------------------------------------------------------------------------
 // Function resetWindows()
@@ -278,21 +588,21 @@ inline void resetWindows(BamWindowIterator & bwi)
     // Set the interval to the next interval with good read pairs.
     bwi.currentWindowInterval = bwi.currentReadingInterval;
     // Set the window begin position.
-    int maxInsertSize = max(bwi.maxInsertSizes);
-    //int maxInsertSize = bwi.maxInsertSizes[getReadGroup(bwi.nextRecord.tags, bwi.readGroups)];
-    unsigned pos = bwi.nextRecord.beginPos > maxInsertSize ? bwi.nextRecord.beginPos - maxInsertSize : 0;
+    int maxTipDistance = max(bwi.maxTipDistances);
+    int tipPos = getTip(bwi.nextRecord);
+    unsigned pos = tipPos > maxTipDistance ? tipPos - maxTipDistance : 0;
     bwi.currentWindowBegin = (pos / bwi.windowShift) * bwi.windowShift;
     // Clear all windows and set their chromosome and begin position.
-    for (__int32 i = bwi.currentWindowBegin;
-         i < bwi.currentWindowBegin + maxInsertSize + bwi.windowSize + 1;
+    for (int i = bwi.currentWindowBegin;
+         i < bwi.currentWindowBegin + maxTipDistance + bwi.windowSize + 1;
          i += bwi.windowShift)
-        *posToWindow(i, bwi) = Window((*bwi.currentWindowInterval).rID, i);
+        *posToWindow(i, bwi) = Window(bwi.currentWindowInterval->rID, i);
 }
 // ---------------------------------------------------------------------------------------
 // Function isLastWindow()
 // ---------------------------------------------------------------------------------------
 // Return true if the last window of the (globally) last interval has been processed, false otherwise.
-inline bool isLastWindow(BamWindowIterator & bwi)
+inline bool isLastWindow(const BamWindowIterator & bwi)
 {
     if (bwi.currentReadingInterval >= end(bwi.intervals) &&
         bwi.currentWindowBegin >= (*bwi.currentWindowInterval).endPos)
@@ -309,7 +619,7 @@ inline bool isLastWindow(BamWindowIterator & bwi)
 // Function isLastWindowOnSeq()
 // ---------------------------------------------------------------------------------------
 //Return true if the last window of an interval/sequence/contig/chromosome has been processed, false otherwise.
-inline bool isLastWindowOnSeq(BamWindowIterator & bwi)
+inline bool isLastWindowOnSeq(const BamWindowIterator & bwi)
 {
     SEQAN_ASSERT(!isLastWindow(bwi));
     if (bwi.currentWindowBegin > (*bwi.currentWindowInterval).endPos)
@@ -331,8 +641,10 @@ inline bool goNext(BamWindowIterator & bwi)
     while (true)
     {
         // Reset the previously reported/skipped window.
+        int maxTipDistance = max(bwi.maxTipDistances);
         *bwi = Window((*bwi.currentWindowInterval).rID,
-                      bwi.currentWindowBegin + bwi.windowShift * length(bwi.activeWindows));
+                       bwi.currentWindowBegin + bwi.windowShift * length(bwi.activeWindows));
+
         // Move active windows by one.
         bwi.currentWindowBegin += bwi.windowShift;
         // Return if we reached last window in last interval.
@@ -341,11 +653,10 @@ inline bool goNext(BamWindowIterator & bwi)
         // Reset all active windows if we reached last window in an interval.
         if (isLastWindowOnSeq(bwi))
             resetWindows(bwi);
+
         // Add all records that may overlap the first active window.
-        int maxInsertSize = max(bwi.maxInsertSizes);
-        //int maxInsertSize = bwi.maxInsertSizes[getReadGroup(bwi.nextRecord.tags, bwi.readGroups)];
-        while (bwi.currentReadingInterval == bwi.currentWindowInterval &&
-               bwi.nextRecordsInnerBegin - maxInsertSize < bwi.currentWindowBegin + bwi.windowSize)
+        //int maxTipDistances = bwi.maxTipDistances[getReadGroup(bwi.nextRecord.tags, bwi.readGroups)];
+        while (bwi.currentReadingInterval == bwi.currentWindowInterval && inWindowRange(bwi, maxTipDistance))
         {
             addRecordToWindows(bwi);
             goToNextReverseRecord(bwi);
@@ -356,17 +667,20 @@ inline bool goNext(BamWindowIterator & bwi)
     }
 }
 // =======================================================================================
-// Function calculateMaxInsertSizes()
+// Function calculateMaxTipDistances()
 // =======================================================================================
-// Sets the calculateMaxInsertSizes for each read group.
-// Return the biggest maxInsertSize of all read groups.
-inline void calculateMaxInsertSizes(BamWindowIterator & bwi,
-                                    const String<Histogram> & hists)
+// Sets the maxTipDistances for each read group.
+// Return the biggest maxTipDistance of all read groups.
+inline void calculateMaxTipDistances (BamWindowIterator & bwi, const String<Histogram> & hists)
 {
     unsigned rgCount = length(hists);
-    resize(bwi.maxInsertSizes, rgCount);
+    resize(bwi.maxTipDistances, rgCount);
     for (unsigned rg = 0; rg < rgCount; ++rg)
-        bwi.maxInsertSizes[rg] = hists[rg].median + 2 * hists[rg].stddev + bwi.maxDeletionSize; // TODO: Check!
+    {
+        bwi.maxTipDistances[rg] = hists[rg].median
+                                  + 2 * hists[rg].stddev
+                                  + bwi.maxDeletionSize;
+    }
 }
 // =======================================================================================
 // Function initialize()
@@ -380,6 +694,7 @@ void initialize(BamWindowIterator & bwi,
                 int windowSize,
                 int windowShift,
                 const String<Histogram> & hists,
+                const unsigned numContigs,
                 const bool mergeRG)
 {
     // Set the parameters.
@@ -389,36 +704,37 @@ void initialize(BamWindowIterator & bwi,
     if (mergeRG)
     {
         bwi.readGroups[readGroups.begin()->first] = readGroups.begin()->second;
+        resize(bwi.translocationBuffers, 1, Exact());
     }
     else
     {
         bwi.readGroups = readGroups;
+        resize(bwi.translocationBuffers, length(hists), Exact());
     }
+    // Assign readLength to BWI.
+    resize(bwi.readLengths, length(hists), Exact());
+    typedef Iterator<const String<Histogram>, Standard>::Type tHistIter;
+    Iterator<String<int32_t> >::Type lIt = begin(bwi.readLengths, Standard());
+    for (tHistIter hIt = begin(hists, Standard()); hIt != end(hists, Standard()); ++hIt, ++lIt)
+        *lIt = hIt->readLength;
+
     bwi.maxDeletionSize = maxDeletionSize;
-    calculateMaxInsertSizes(bwi, hists);
+    calculateMaxTipDistances (bwi, hists);
     bwi.intervals = intervals;
+    initContigStatusList(bwi, numContigs);
     // Set the quality requirements for reads.
-    bwi.qualReqFwd = qualReq;
-    bwi.qualReqRev = qualReq;
-    bwi.qualReqFwd.flagsSet |= BAM_FLAG_NEXT_RC;
-    bwi.qualReqFwd.flagsUnset |= BAM_FLAG_RC;
-    bwi.qualReqFwd.flagsSet &= ~BAM_FLAG_RC;
-    bwi.qualReqFwd.flagsUnset &= ~BAM_FLAG_NEXT_RC;
-    bwi.qualReqRev.flagsSet |= BAM_FLAG_RC;
-    bwi.qualReqRev.flagsUnset |= BAM_FLAG_NEXT_RC;
-    bwi.qualReqRev.flagsSet &= ~BAM_FLAG_NEXT_RC;
-    bwi.qualReqRev.flagsUnset &= ~BAM_FLAG_RC;
+    bwi.qualReq = qualReq;
     // Open the input bam file, read the header and go to the reverse read of the first good read pair in infile.
     if (!goToFirstReverseRecord(bwi))
         SEQAN_THROW(IOError("[PopDel] No BAM records meet the requirements."));
     // Initialize windows.
-    int maxInsertSize = max(bwi.maxInsertSizes);    //TODO: Check if this works out and replace max with parameter.
-    //int maxInsertSize = bwi.maxInsertSizes[getReadGroup(bwi.nextRecord.tags, bwi.readGroups)];
-    resize(bwi.activeWindows, ((maxInsertSize + bwi.windowSize) / bwi.windowShift) + 1);
+    int maxTipDistance = max(bwi.maxTipDistances);    //TODO: Check if this works out and replace max with parameter.
+    //int maxTipDistance = bwi.maxTipDistances[getReadGroup(bwi.nextRecord.tags, bwi.readGroups)];
+    resize(bwi.activeWindows, ((maxTipDistance + bwi.windowSize) / bwi.windowShift) + 1);
     resetWindows(bwi);
+
     // Add all records that may overlap the first window.
-    while (bwi.currentReadingInterval == bwi.currentWindowInterval &&
-        bwi.nextRecordsInnerBegin - maxInsertSize < bwi.currentWindowBegin + bwi.windowSize)
+    while (bwi.currentReadingInterval == bwi.currentWindowInterval && inWindowRange(bwi, maxTipDistance))
     {
         addRecordToWindows(bwi);
         goToNextReverseRecord(bwi);

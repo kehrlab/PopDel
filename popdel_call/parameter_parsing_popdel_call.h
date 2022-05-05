@@ -3,7 +3,7 @@
 
 #include <seqan/arg_parse.h>
 
-#include "../insert_histogram_popdel.h"
+#include "../histogram_popdel.h"
 #include "utils_popdel.h"
 
 using namespace seqan;
@@ -142,6 +142,7 @@ struct PopDelCallParameters
 {
     typedef std::map<CharString, unsigned> TReadGroups;
     String<CharString> inputFiles;                  // Path/filename of file containing the paths to the profiles.
+    String<CharString> sampleNames;                 // List of unique sample names.
     CharString histogramsFile;                      // Path/filename of input histogram file.
     CharString roiFile;                             // File containing the regions of interest.
     CharString maxLoadFile;                         // File containing the maximum load for each read group.
@@ -152,8 +153,6 @@ struct PopDelCallParameters
     TReadGroups readGroups;                         // Map of read group ID and their order of appearance.
     TRGs    rgs;                                    // One string of indices for the read groups per sample.
     String<Histogram> histograms;                   // Insert size distributions per read group.
-    bool modRgByFileName;                           // True if the file names should be addec to the RGIDs.
-    bool representativeContigs;                     // True if only the first sample's contig names shall be used
     String<unsigned> minInitDelLengths;             // Minimum length required for a deletion at initialization.
     unsigned minLen;                                // Minimum length estimation for deletion during iteration.
     double minRelWinCover;                          // Minimum number for (#SignificantWindows * 30 / DelSize)
@@ -168,25 +167,29 @@ struct PopDelCallParameters
     QuantileMap quantileMap;                        // Map for translating log LR into PHRED error-probabilities.
     unsigned fileCount;                             // Number of remaining files.
     unsigned sampleNum;                             // Total number of files/Samples.
+    bool representativeContigs;                     // Consider only the contig names & lenghts of the first sample.
     String<String<CharString> > contigNames;        // Names of the contigs. One String per file.
     String<String<int32_t> > contigLengths;         // Lenghts of above contigs. One String per file.
     unsigned maxDeletionSize;                       // Maximum size of a deletion.
     double minSampleFraction;                       // Minimum fraction of samples which has to have data in the window.
     double meanStddev;                              // The mean of all standard deviations of the histograms.
     bool windowWiseOutput;                          // Output each window after window-wise genotyping.
-    String<unsigned> indexRegionSizes;
+    String<unsigned> numRegions;                    // Holds the number of index regions of each sample.
+    String<unsigned> indexRegionSizes;              // Hold the indexRegionSize of each sample.
     unsigned defaultMaxLoad;                        // Default value for the maximum load.
     String<unsigned> maxLoad;                       // Maximum number of active reads per read group.
     unsigned pseudoCountFraction;                   // max(hist)/pseudoCountFraction = min value of hist
-    bool uncompressedIn;                            // True if uncompressed profiles are read.
+    unsigned orientationThreshold;                  // Minimum (absolute) number of read pairs per orientation.
+    double relOrientationThreshold;                 // Minimum relative proportion of read pairs per orientation.
+    unsigned translocationThreshold;                // Minimum (absolute) number of translocated read pairs.
+    double relTranslocationThreshold;              // Minimum relative proportion of translocated read pairs.
+    bool delOnly;
 
     PopDelCallParameters() :
     histogramsFile(""),
     outfile("popdel.vcf"),
     iterations(15),
     prior(0.0001),
-    modRgByFileName(false),
-    representativeContigs(true),
     minLen(maxValue<unsigned>()),
     minRelWinCover(0.5),
     windowSize(30),
@@ -197,13 +200,18 @@ struct PopDelCallParameters
     quantileMap(0.0001),
     fileCount(0),
     sampleNum(0),
+    representativeContigs(false),
     maxDeletionSize(10000),
     minSampleFraction(0.1),
     meanStddev(0.0),
     windowWiseOutput(false),
     defaultMaxLoad(100),
     pseudoCountFraction(500),
-    uncompressedIn(false)
+    orientationThreshold(2),
+    relOrientationThreshold(0.1),
+    translocationThreshold(2),
+    relTranslocationThreshold(0.1),
+    delOnly(false)
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -214,13 +222,14 @@ void setHiddenOptions(ArgumentParser & parser, bool hide, const PopDelCallParame
 {
     hideOption(parser, "b", hide);
     hideOption(parser, "c", hide);
+    hideOption(parser, "e", hide);
     hideOption(parser, "f", hide);
     hideOption(parser, "F", hide);
+    hideOption(parser, "m", hide);
     hideOption(parser, "n", hide);
     hideOption(parser, "p", hide);
     hideOption(parser, "t", hide);
     hideOption(parser, "u", hide);
-    hideOption(parser, "x", hide);
 }
 // ---------------------------------------------------------------------------------------
 // Function addHiddenOptions()
@@ -230,13 +239,13 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelCallParameters & para
 {
     addOption(parser, ArgParseOption("b", "buffer-size",       "Number of buffered windows.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("c", "min-relative-window-cover", "Determines which fraction of a deletion has to be covered by significant windows.", ArgParseArgument::DOUBLE, "NUM"));
+    addOption(parser, ArgParseOption("e", "representative-contigs", "Use the contig names and lengths of the first sample for all samples. Reduces memory consumption, but requires all samples to have the same contig names and lenghts."));
     addOption(parser, ArgParseOption("f", "pseudocount-fraction",   "The biggest likelihood of the background distribution will be divided by this value to determine the pseudocounts of the histogram. Bigger values boost the sensitivity for HET calls but also increase the chance of missclassifying HOMDEL or HOMREF as HET calls.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("F", "output-failed", "Also output calls which did not pass the filters."));
     addOption(parser, ArgParseOption("n", "no-regenotyping",   "Outputs every potential variant window without re-genotyping and merging."));
     addOption(parser, ArgParseOption("p", "prior-probability", "Prior probability of a deletion.",                  ArgParseArgument::DOUBLE, "NUM"));
     addOption(parser, ArgParseOption("t", "iterations",        "Number of iterations in EM for length estimation.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("u", "unsmoothed",        "Disable the smoothing of the insert size histogram."));
-    addOption(parser, ArgParseOption("x", "uncompressed-in",   "Read uncompressed PopDel profiles"));
 
     setDefaultValue(parser, "b",  params.windowBuffer);
     setDefaultValue(parser, "f",  params.pseudoCountFraction);
@@ -274,7 +283,6 @@ void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
     addOption(parser, ArgParseOption("A", "active-coverage-file",  "File with lines consisting of \"ReadGroup  maxCov\". If this value is reached no more new reads are loaded for this read group until the coverage drops again. Further, the sample will be excluded  from calling in high-coverage windows. A value of 0 disables the filter for the read group.", ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("a", "active-coverage",       "Maximum number of active read pairs (~coverage). This value is taken for all read groups that are not listed in \'active-coverage-file\'. Setting it to 0 disables the filter for all read groups that are not specified in \'active-coverage-file\'.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("d", "max-deletion-size",     "Maximum size of deletions.", ArgParseArgument::INTEGER, "NUM"));
-    addOption(parser, ArgParseOption("e", "per-sample-rgid",       "Internally modify each read group ID by adding the filename. This can be used if read groups across different samples have conflicting IDs."));
     addOption(parser, ArgParseOption("l", "min-init-length",       "Minimal deletion length at initialization of iteration. Default: \\fI4 * standard deviation\\fP.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("m", "min-length",            "Minimal deletion length during iteration. Default: \\fI95th percentile of min-init-lengths\\fP.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("o", "out",                   "Output file name.", ArgParseArgument::OUTPUT_FILE, "FILE"));
@@ -283,6 +291,7 @@ void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
     addOption(parser, ArgParseOption("R", "ROI-file",              "File listing one or more regions of interest, one region per line. "
                                                                    "See parameter -r.",                                                        ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("s",  "min-sample-fraction",  "Minimum fraction of samples which is required to have enough data in the window.", ArgParseArgument::DOUBLE, "NUM"));
+    addOption(parser, ArgParseOption("x", "del-only", "Exclusively call deletions. Ignore other SVs."));
 
     // Set default values for visible options.
     setDefaultValue(parser, "a", params.defaultMaxLoad);
@@ -349,13 +358,13 @@ void getParameterValues(PopDelCallParameters & params, ArgumentParser & parser)
     {
         params.outputFailed = true;
     }
-    if (isSet(parser, "per-sample-rgid"))
+    if (isSet(parser, "representative-contigs"))
     {
-        params.modRgByFileName = true;
+        params.representativeContigs = true;
     }
-    if (isSet(parser, "uncompressed-in"))
+    if (isSet(parser, "del-only"))
     {
-        params.uncompressedIn = true;
+        params.delOnly = true;
     }
 }
 

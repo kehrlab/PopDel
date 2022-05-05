@@ -5,7 +5,7 @@
 #include <seqan/seq_io.h>
 
 #include "bam_qual_req_popdel.h"
-#include "../insert_histogram_popdel.h"
+#include "../histogram_popdel.h"
 #include "../utils_popdel.h"
 
 using namespace seqan;
@@ -19,8 +19,10 @@ struct PopDelProfileParameters
     typedef std::map<CharString, unsigned> TReadGroups;
     CharString bamfile;                                   // Input file
     CharString outfile;                                   // Output file
+    CharString sampleName;                                // Name of the sample.
     TReadGroups readGroups;                               // Map of read group ID and their number of appearance
     CharString intervalFile;                              // File of regular genomic intervals for parameter estimation.
+    CharString translocationBlacklist; 
     String<Histogram> histograms;                         // Insert size distributions per read group.
     String<unsigned> sampleSize;                          // Counts the number of sampled reads per read group.
     unsigned maxDeletionSize;                             // Iteration parameters. Maximum size of a deletion.
@@ -33,11 +35,12 @@ struct PopDelProfileParameters
     bool mergeRG;
     CharString referenceVersion;
     CharString referenceFile;
-    bool uncompressed;
 
     PopDelProfileParameters() :
     outfile("*BAM/CRAM-FILE*.profile"),
+    sampleName(""),
     intervalFile(""),
+    translocationBlacklist(""),
     maxDeletionSize(10000),
     windowSize(256),
     windowShift(0),
@@ -45,8 +48,7 @@ struct PopDelProfileParameters
     indexRegionSize(10000),
     mergeRG(false),
     referenceVersion("GRCh38"),
-    referenceFile(""),
-    uncompressed(false)
+    referenceFile("")
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -62,7 +64,7 @@ void setHiddenOptions(ArgumentParser & parser, bool hide, const PopDelProfilePar
     hideOption(parser, "u",  hide);
     hideOption(parser, "R",  hide);
     hideOption(parser, "s",  hide);
-    hideOption(parser, "x",  hide);
+    hideOption(parser, "sm",  hide);
 }
 // ---------------------------------------------------------------------------------------
 // Function addHiddenOptions()
@@ -77,7 +79,7 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelProfileParameters & p
     addOption(parser, ArgParseOption("R", "reference-file",    "FASTA file of the reference genome. Only required for CRAM files whose header entries point to the wrong file.", ArgParseArgument::STRING, "FILE"));
     addOption(parser, ArgParseOption("s",  "min-align-score",  "Only use reads with an alignment score relative to read length above NUM.",  ArgParseArgument::DOUBLE,  "NUM"));
     addOption(parser, ArgParseOption("u",  "min-unclipped",    "Only use reads of which at least NUM bases are not clipped.",                ArgParseArgument::INTEGER, "NUM"));
-    addOption(parser, ArgParseOption("x",  "uncompressed",    "Don't use gzip compression for profile."));
+    addOption(parser, ArgParseOption("sm",  "sample-name",    "Set sample name. Default: @RG SM tag in BAM-file. BAM-file name if tag is not present.",                                                            ArgParseArgument::STRING, "STRING"));
 
     setDefaultValue(parser, "f",  params.qualReq.flagsSet);
     setDefaultValue(parser, "F",  params.qualReq.flagsUnset);
@@ -109,6 +111,7 @@ void setupParser(ArgumentParser & parser, const PopDelProfileParameters & params
     addOption(parser, ArgParseOption("H", "fullHelp",          "Displays full list of options."));
     addSection(parser, "PopDel profile options");
     addOption(parser, ArgParseOption("r", "reference",         "Reference genome version used for the mapping. Not used when using custom sampling intervals (option '-i'). One of 'GRCh37', 'GRCh38', 'hg19', 'hg38' (case-insensitive).", ArgParseArgument::STRING, "REF"));
+    addOption(parser, ArgParseOption("b", "blacklist",         "BED file of regions which will be ignored during translocation detection.", ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("d", "max-deletion-size", "Maximum size of deletions.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("i", "intervals",         "File with genomic intervals for parameter estimation instead of default intervals (see README). One closed interval per line, formatted as \'CHROM:START-END\', 1-based coordinates.", ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("mrg","merge-read-groups","Merge all read groups of the sample. Only advised if they share the same properties!"));
@@ -179,10 +182,11 @@ void getParameterValues(PopDelProfileParameters & params, const ArgumentParser &
     getOptionValue(params.qualReq.minUnclippedLength, parser, "min-unclipped");
     getOptionValue(params.qualReq.minRelAlignScore,   parser, "min-align-score");
     getOptionValue(params.indexRegionSize,            parser, "index-region-size");
+    getOptionValue(params.sampleName,                 parser, "sample-name");
     getOptionValue(params.referenceFile,              parser, "reference-file");
+    getOptionValue(params.translocationBlacklist,     parser, "blacklist");
     parseReferenceGenome(params.referenceVersion,     parser);
     params.mergeRG = isSet(                           parser, "merge-read-groups");
-    params.uncompressed = isSet(                      parser, "uncompressed");
 }
 
 #endif /* PROFILE_PARAMETER_PARSING_POPDEL_H_ */

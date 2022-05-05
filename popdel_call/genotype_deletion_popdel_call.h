@@ -43,22 +43,16 @@ inline std::set<int> initialize_deletion_lengths(const ChromosomeProfile & chrom
     {
         String<int> sampleValues;
         unsigned cov = chromosomeProfiles.getActiveReadsDeviations(sampleValues, rgs[i], 2u);
-        if(cov < 2u)
-        {
+        if (cov < 2u)       // TODO: Parameter min cov.
             lowCoverageSamples[i] = true;
-            continue;                                                                    // TODO: Parameter min cov.
-        }
-        else if (length(sampleValues) == 0u)
-            continue;
-        else
-        {
-            appendValue(deviations, upperHalfMedian(sampleValues));     // TODO: Try different initializations for del-size.
-        }
+        else if (length(sampleValues) != 0u)
+            appendValue(deviations, upperHalfMedian(sampleValues)); // TODO: Try different initializations for del-size.
     }
     // Keep only averages of medians that are less than 50 bp apart  and those that are above the threshold.
-    std::set<int> deletion_lengths;
+    std::set<int> deletionLengths;
     if (empty(deviations))
-        return deletion_lengths;
+        return deletionLengths;
+
     std::sort(begin(deviations), end(deviations));
     int sum = deviations[0];
     int n = 1;
@@ -73,17 +67,18 @@ inline std::set<int> initialize_deletion_lengths(const ChromosomeProfile & chrom
         }
         else
         {
-            if (sum/n > (int)threshold)
-                deletion_lengths.insert(sum/n);
+            if (sum / n > (int)threshold)
+                deletionLengths.insert(sum / n);
+
             sum = deviations[i];
             n = 1;
             threshold = thresholds[i];
         }
     }
-    if (sum/n > static_cast<int>(threshold))
-        deletion_lengths.insert(sum/n);
+    if (sum / n > static_cast<int>(threshold))
+        deletionLengths.insert(sum / n);
 
-    return deletion_lengths;
+    return deletionLengths;
 }
 // -----------------------------------------------------------------------------
 // Function initialize_allele_frequency()
@@ -93,13 +88,13 @@ inline std::set<int> initialize_deletion_lengths(const ChromosomeProfile & chrom
 inline double initialize_allele_frequency(const ChromosomeProfile & chromosomeProfiles,
                                           const TRGs & rgs,
                                           unsigned deletion_length,
-                                          const String<Histogram> & histograms)
+                                          const String<Histogram> & histograms,
+                                          bool frOnly = true)
 {
     unsigned globalCount = 0;
     unsigned globalTotal = 0;
     for (unsigned i = 0; i < length(rgs); ++i)                  // For each sample...
     {
-        unsigned count = 0;
         unsigned total = 0;
         const String<unsigned>& currentSample = rgs[i];
         for (unsigned j = 0; j < length(currentSample); ++j)        // For each read group of the current sample...
@@ -117,13 +112,19 @@ inline double initialize_allele_frequency(const ChromosomeProfile & chromosomePr
             ChromosomeProfile::TActiveSet::const_iterator whereEnd(chromosomeProfiles.activeReads[rg].end());
             while (where != whereEnd)                             // Count number of  of values(=insert size deviations)
             {                                                     // that fall into the window.
-                int deviation = chromosomeProfiles.startProfiles[rg].getDeviationAt(*where);
-                if (deviation > windowBegin && deviation < windowEnd)
-                    ++count;
+                if (!frOnly || chromosomeProfiles.startProfiles[rg].getOrientationAt(*where) == Orientation::FR )
+                {
+                    int deviation = chromosomeProfiles.startProfiles[rg].getDeviationAt(*where);
+                    if (deviation > windowBegin && deviation < windowEnd)
+                        ++globalCount;
+                }
+                else
+                {
+                    --globalTotal;
+                }
                 ++where;
             }
         }
-        globalCount += count;
         globalTotal += total;
     }
     if (globalTotal == 0u)
@@ -137,18 +138,17 @@ inline double initialize_allele_frequency(const ChromosomeProfile & chromosomePr
 inline void assignDad(Dad & dad,
                       const int & deviation,
                       const int & refUpperBoundary,
-                      const int & delLowerBoundary,
-                      const int & delUpperBoundary)
+                      const Pair<int> & delSuppBorders)
 {
     if (deviation > refUpperBoundary)
     {
-        if (deviation < delLowerBoundary)
+        if (deviation < delSuppBorders.i1)
         {
             ++dad.between;
         }
         else
         {
-            if (deviation <= delUpperBoundary)
+            if (deviation <= delSuppBorders.i2)
             {
                 ++dad.alt;
             }
@@ -160,7 +160,7 @@ inline void assignDad(Dad & dad,
     }
     else
     {
-        if (deviation < delUpperBoundary)
+        if (deviation < delSuppBorders.i2)
         {
             ++dad.ref;
         }
@@ -181,7 +181,8 @@ inline Triple<long double> compute_data_likelihoods(String<Triple<long double> >
                                                     const String<unsigned> & sample,
                                                     unsigned deletion_length,
                                                     const String<int> & referenceShifts,
-                                                    const String<Histogram> & hists)
+                                                    const String<Histogram> & hists,
+                                                    bool frOnly = true)
 {
     Triple<long double> logLikelihoods(0, 0, 0);       // log likelihoods for Hom_noDel, Het_del, Hom_del in this order.
     for (unsigned i = 0; i < length(sample); ++i)
@@ -196,30 +197,34 @@ inline Triple<long double> compute_data_likelihoods(String<Triple<long double> >
         const Histogram & hist = hists[rg];
         ChromosomeProfile::TActiveSet::const_iterator it(chromosomeProfiles.activeReads[rg].begin());
         ChromosomeProfile::TActiveSet::const_iterator itEnd(chromosomeProfiles.activeReads[rg].end());
-//          std::cout << "////////////////////////NEW ITERATION!//////////////////////////" << std::endl;
-//          std::cout << "=============================================================" << std::endl;
+//         std::cout << "////////////////////////NEW ITERATION!//////////////////////////" << std::endl;
+//         std::cout << "=============================================================" << std::endl;
         while (it != itEnd)
         {
-            int currentDeviation = chromosomeProfiles.getSingleDeviation(rg, it);
-            long double refLikelihood = I(hist, currentDeviation - refShift);
-            long double delLikelihood = I(hist, currentDeviation - deletion_length);
-//               std::cout << "====================================================" << std::endl;
-//               std::cout << "Pos:\t" << chromosomeProfiles.currentPos << std::endl;
-//               std::cout << "Dev:\t" << currentDeviation << std::endl;
-//               std::cout << "L(REF):\t" << refLikelihood << std::endl;
-//               std::cout << "L(DEL):\t" << delLikelihood << std::endl;
-            long double g0 = log(refLikelihood);
-            long double g1 = log(refLikelihood + delLikelihood) - log(2.0);
-            long double g2 = log(delLikelihood);
-            currentRgWiseDataLikelihoods.i1 += g0;
-            currentRgWiseDataLikelihoods.i2 += g1;
-            currentRgWiseDataLikelihoods.i3 += g2;
-            logLikelihoods.i1 += g0;
-            logLikelihoods.i2 += g1;
-            logLikelihoods.i3 += g2;
+            if (!frOnly || chromosomeProfiles.getSingleOrientation(rg, it) == Orientation::FR )
+            {
+                int currentDeviation = chromosomeProfiles.getSingleDeviation(rg, it);
+//              uint16_t currentClipping = chromosomeProfiles.getSingleClipping(rg, it);
+                long double delLikelihood = I(hist, currentDeviation - deletion_length);
+                long double refLikelihood = I(hist, currentDeviation - refShift);
+//              std::cout << "====================================================" << std::endl;
+//              std::cout << "Pos:\t" << chromosomeProfiles.currentPos << std::endl;
+//              std::cout << "Dev:\t" << currentDeviation << std::endl;
+//              std::cout << "L(REF):\t" << refLikelihood << std::endl;
+//              std::cout << "L(DEL):\t" << delLikelihood << std::endl;
+                long double g0 = log(refLikelihood);
+                long double g1 = log(refLikelihood + delLikelihood) - log(2.0);
+                long double g2 = log(delLikelihood);
+                currentRgWiseDataLikelihoods.i1 += g0;
+                currentRgWiseDataLikelihoods.i2 += g1;
+                currentRgWiseDataLikelihoods.i3 += g2;
+                logLikelihoods.i1 += g0;
+                logLikelihoods.i2 += g1;
+                logLikelihoods.i3 += g2;
 //              std::cout << "G0:\t" << g0 << " (" << currentRgWiseDataLikelihoods.i1 << ")" <<std::endl;
 //              std::cout << "G1:\t" << g1 << " (" << currentRgWiseDataLikelihoods.i2 << ")" <<std::endl;
 //              std::cout << "G2:\t" << g2 << " (" << currentRgWiseDataLikelihoods.i3 << ")" <<std::endl;
+            }
             ++it;
         }
         long double maxRgDl = std::max(std::max(currentRgWiseDataLikelihoods.i1, currentRgWiseDataLikelihoods.i2),
@@ -257,16 +262,17 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
                                                     Dad & dad,
                                                     Pair<unsigned> & firstLast,
                                                     Pair<String <unsigned> > & suppFirstLasts,
+                                                    bool & supportClip,
                                                     const ChromosomeProfile & chromosomeProfiles,
                                                     const String<unsigned> & sample,
                                                     unsigned deletion_length,
                                                     const String<int> & referenceShifts,
-                                                    const String<Histogram> & hists)
+                                                    const String<Histogram> & hists,
+                                                    bool frOnly = true)
 {
     Triple<long double> logLikelihoods(0, 0, 0);       // log likelihoods for Hom_noDel, Het_del, Hom_del in this order.
     gtLogs = logLikelihoods;
-    int delLowerBorder = maxValue<int>();
-    int delUpperBorder = 0;
+    Pair<int> suppBorders;
     for (unsigned i = 0; i < length(sample); ++i)
     {
         __uint32 rg = sample[i];
@@ -275,34 +281,37 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
 
         const Histogram & hist = hists[rg];
         int refShift = referenceShifts[rg];
-        delLowerBorder =  deletion_length - hist.lowerQuantileDist;  //TODO: Might be too strict
-        delUpperBorder =  deletion_length + hist.upperQuantileDist;
+        suppBorders = getDelSupportBorders(deletion_length, hist.lowerQuantileDist, hist.upperQuantileDist);
         ChromosomeProfile::TActiveSet::const_iterator it(chromosomeProfiles.activeReads[rg].begin());
         ChromosomeProfile::TActiveSet::const_iterator itEnd(chromosomeProfiles.activeReads[rg].end());
         while (it != itEnd)
         {
-            int currentDeviation = chromosomeProfiles.getSingleDeviation(rg, it);
-            assignDad(dad, currentDeviation, hist.upperQuantileDist, delLowerBorder, delUpperBorder);
-            long double refLikelihood = I(hist, currentDeviation - refShift);
-            long double delLikelihood = I(hist, currentDeviation - deletion_length);
-            if (refLikelihood >= 2 * delLikelihood)
-                ++lad.i1;       // Supporting the reference
-            else if (delLikelihood >= 2 * refLikelihood)
-                ++lad.i3;       // Supporting a deletion
-            else
-                ++lad.i2;       // Unclear support.
+            if (!frOnly || chromosomeProfiles.getSingleOrientation(rg, it) == Orientation::FR )
+            {
+                int currentDeviation = chromosomeProfiles.getSingleDeviation(rg, it);
+//              uint16_t currentClipping = chromosomeProfiles.getSingleClipping(rg, it);
+                assignDad(dad, currentDeviation, hist.upperQuantileDist, suppBorders);
+                long double delLikelihood = I(hist, currentDeviation - deletion_length);
+                long double refLikelihood = I(hist, currentDeviation - refShift);
+                if (refLikelihood >= 2 * delLikelihood)
+                    ++lad.i1;       // Supporting the reference
+                else if (delLikelihood >= 2 * refLikelihood)
+                    ++lad.i3;       // Supporting a deletion
+                else
+                    ++lad.i2;       // Unclear support.
 
-            logLikelihoods.i1 += log(refLikelihood);
-            gtLogs.i1 += log10(refLikelihood);
-            logLikelihoods.i2 += log(refLikelihood +delLikelihood) - log(2.0);
-            gtLogs.i2 += log10(refLikelihood + delLikelihood) - log10(2.0);
-            logLikelihoods.i3 += log(delLikelihood);
-            gtLogs.i3 += log10(delLikelihood);
+                logLikelihoods.i1 += log(refLikelihood);
+                gtLogs.i1 += log10(refLikelihood);
+                logLikelihoods.i2 += log(refLikelihood +delLikelihood) - log(2.0);
+                gtLogs.i2 += log10(refLikelihood + delLikelihood) - log10(2.0);
+                logLikelihoods.i3 += log(delLikelihood);
+                gtLogs.i3 += log10(delLikelihood);
+            }
             ++it;
         }
     }
-    firstLast = chromosomeProfiles.getActiveReadsFirstLast(hists, sample);
-    chromosomeProfiles.addSupportFirstLast(suppFirstLasts, hists, sample, delLowerBorder, delUpperBorder);
+    firstLast = chromosomeProfiles.getActiveReadsFirstLast(sample);
+    chromosomeProfiles.addSupportFirstLast(suppFirstLasts, supportClip, sample, suppBorders);
     // Scale the likelihoods with the largest of the three genotypes.
     if (sum(gtLogs) == 0.0)
         return Triple<long double>(1, 0.0000000001, 0.0000000001);
@@ -361,7 +370,8 @@ inline unsigned update_deletion_length(const ChromosomeProfile & chromosomeProfi
                                        const Triple<double> & gt_likelihoods,
                                        int deletion_length,
                                        String<int> & referenceShifts,
-                                       const String<Histogram> & histograms)
+                                       const String<Histogram> & histograms,
+                                       bool frOnly = true)
 {
     // Compute the sum and weighted sum of probabilities that the read pairs are from a deletion.
     double sumDel = 0;
@@ -402,15 +412,19 @@ inline unsigned update_deletion_length(const ChromosomeProfile & chromosomeProfi
             ChromosomeProfile::TActiveSet::const_iterator actReadsItEnd(chromosomeProfiles.activeReads[*rgIt].end());
             while (actReadsIt != actReadsItEnd)
             {
-                int currentDeviation = chromosomeProfiles.getSingleDeviation(*rgIt, actReadsIt);
-                double del = I(histograms[*rgIt], currentDeviation - deletion_length);
-                double no_del = I(histograms[*rgIt], currentDeviation - referenceShifts[*rgIt]);
-                double prob_del = exp(a1)   * del / (del + no_del) + exp(a2);
-                double prob_ref = exp(a1Rg) * no_del / (del + no_del) + exp(a0Rg);
-                sumDel += prob_del;
-                sumRef += prob_ref;
-                weighted_sumDel += prob_del * (currentDeviation);
-                weighted_sumRef += prob_ref * (currentDeviation);
+                if (!frOnly || chromosomeProfiles.getSingleOrientation(*rgIt, actReadsIt) == Orientation::FR )
+                {
+                    int currentDeviation = chromosomeProfiles.getSingleDeviation(*rgIt, actReadsIt);
+//                  uint16_t currentClipping = chromosomeProfiles.getSingleClipping(*rgIt, actReadsIt);
+                    double del = I(histograms[*rgIt], currentDeviation - deletion_length);
+                    double no_del = I(histograms[*rgIt], currentDeviation - referenceShifts[*rgIt]);
+                    double prob_del = exp(a1)   * del / (del + no_del) + exp(a2);
+                    double prob_ref = exp(a1Rg) * no_del / (del + no_del) + exp(a0Rg);
+                    sumDel += prob_del;
+                    sumRef += prob_ref;
+                    weighted_sumDel += prob_del * (currentDeviation);
+                    weighted_sumRef += prob_ref * (currentDeviation);
+                }
                 ++actReadsIt;
             }
             referenceShifts[*rgIt] = weighted_sumRef / sumRef;
@@ -421,7 +435,7 @@ inline unsigned update_deletion_length(const ChromosomeProfile & chromosomeProfi
         }
         ++sIt;
     }
-    if (sumDel == 0 )
+    if (sumDel == 0)
         return 0;
     double len = (weighted_sumDel / sumDel);
     if (len < 0)
@@ -480,21 +494,210 @@ inline double deletion_likelihood_ratio(const String<Triple<long double> > & dat
 // -----------------------------------------------------------------------------
 // Return a pair consisting of supporting first read position and the supporting last position at
 // percentile p and 1-p respectively.
-inline Pair<unsigned> getSuppFirstLast(Pair<String<unsigned> > & suppFirstLasts, double p = 0.8)
+inline Pair<unsigned> getSuppFirstLast(Pair<String<unsigned> > & suppFirstLasts,
+                                       double p = 0.8)
 {
     SEQAN_ASSERT_EQ(length(suppFirstLasts.i1), length(suppFirstLasts.i2));
     if (length(suppFirstLasts.i1) == 0u)
-    {
         return(Pair<unsigned>(0, 0));
+    else
+        return Pair<unsigned>(getPercentile(suppFirstLasts.i1, p), getPercentile(suppFirstLasts.i2, 1.0 - p));
+}
+// -----------------------------------------------------------------------------
+// Function checkDelAlreadySeen()
+// -----------------------------------------------------------------------------
+// Return true if this pair of deletion length and allele frequency has already been observed.
+// Retun false otherwise.
+inline bool checkDelAlreadySeen(String<Triple<long double> > & data_likelihoods,
+                                String<Triple<long double> > & rgWiseDataLikelihoods,
+                                String<int> & referenceShifts,
+                                unsigned & delSize,
+                                double & freq,
+                                const String<int> & prevShifts,
+                                const unsigned & prevLen,
+                                const double & prevFreq,
+                                const ChromosomeProfile & chromosomeProfiles,
+                                const TRGs & rgs,
+                                const Triple<double> & prevGtLikelihoods,
+                                const Triple<double> & gtLikelihoods,
+                                const std::map<int, double> & visited,
+                                const PopDelCallParameters & params)
+{
+    std::map<int,double>::const_iterator v = visited.find(delSize);
+    if (v != visited.end())
+    {
+        if (fabs(v->second - freq) <= 0.0001)
+        {
+            // Calculate likelihood ratio for the current values.
+            double logLR = deletion_likelihood_ratio(data_likelihoods, gtLikelihoods);
+            // Re-calculate data likelihood for previous values and calculate the likelihood ratio.
+            for (unsigned i = 0; i < length(rgs); ++i)
+                data_likelihoods[i] = compute_data_likelihoods(rgWiseDataLikelihoods,
+                                                               chromosomeProfiles,
+                                                               rgs[i],
+                                                               prevLen,
+                                                               prevShifts,
+                                                               params.histograms);
+            double prevLogLR = deletion_likelihood_ratio(data_likelihoods, prevGtLikelihoods);
+            // Keep better of both estimates.
+            if (prevLogLR > logLR)
+            {
+                delSize = prevLen;
+                freq = prevFreq;
+                referenceShifts = prevShifts;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+// -----------------------------------------------------------------------------
+// Function performIterativeUpdates()
+// -----------------------------------------------------------------------------
+// Iteratively updates all deletion parameters until stop conditions are met.
+inline __uint32 performIterativeUpdates(String<Triple<long double> > & data_likelihoods,
+                                        String<Triple<long double> > & rgWiseDataLikelihoods,
+                                        String<int> & referenceShifts,
+                                        unsigned & delSize,
+                                        double & freq,
+                                        const String<int> & prevShifts,
+                                        unsigned & prevLen,
+                                        double & prevFreq,
+                                        const ChromosomeProfile & chromosomeProfiles,
+                                        const TRGs & rgs,
+                                        Triple<double> & prevGtLikelihoods,
+                                        Triple<double> & gtLikelihoods,
+                                        std::map<int, double> & visited,
+                                        const PopDelCallParameters & params)
+{
+    __uint32 iterations = 0;
+    // Alternate between updating the allele freq and the deletion length until convergence of the deletion length.
+    while (delSize >= params.minLen && iterations < params.iterations)
+    {
+        ++iterations;
+        visited[delSize] = freq;
+        prevLen = delSize;
+        prevFreq = freq;
+        prevGtLikelihoods = gtLikelihoods;
+
+        delSize = update_deletion_length(chromosomeProfiles,
+                                        rgs,
+                                        data_likelihoods,
+                                        rgWiseDataLikelihoods,
+                                        gtLikelihoods,
+                                        delSize,
+                                        referenceShifts,
+                                        params.histograms);
+
+        for (unsigned i = 0; i < length(rgs); ++i)
+            data_likelihoods[i] = compute_data_likelihoods(rgWiseDataLikelihoods,
+                                                           chromosomeProfiles,
+                                                           rgs[i],
+                                                           delSize,
+                                                           referenceShifts,
+                                                           params.histograms);
+
+        freq = update_allele_frequency(data_likelihoods, gtLikelihoods);
+        if (freq == 0)
+            break;
+        gtLikelihoods = compute_gt_likelihoods(freq);
+        // Break if the current deletion length and frequency combination have already been observed.
+        if (checkDelAlreadySeen(data_likelihoods,
+            rgWiseDataLikelihoods,
+            referenceShifts,
+            delSize,
+            freq,
+            prevShifts,
+            prevLen,
+            prevFreq,
+            chromosomeProfiles,
+            rgs,
+            prevGtLikelihoods,
+            gtLikelihoods,
+            visited,
+            params))
+            break;
+    }
+    return iterations;
+}
+// -----------------------------------------------------------------------------
+// Function getStartPositionInterval()
+// -----------------------------------------------------------------------------
+// Return true if a valid (non-negative) start position interval exists and write [start, end[ to 'interval'.
+// Return false otherwise.
+inline bool getStartPositionInterval(Pair<unsigned> & interval,
+                                     const unsigned & start,
+                                     const unsigned & end,
+                                     const unsigned & deletion_length,
+                                     unsigned tolerance = 0)
+{
+    SEQAN_ASSERT_GEQ(end, deletion_length);
+    if (start + deletion_length > end + tolerance)
+    {
+        return false;
     }
     else
     {
-        unsigned l = std::round(static_cast<double>(length(suppFirstLasts.i1)-1) * p);
-        unsigned r = std::round(static_cast<double>(length(suppFirstLasts.i2)-1) * (1 - p));
-        std::sort(begin(suppFirstLasts.i1), end(suppFirstLasts.i1));
-        std::sort(begin(suppFirstLasts.i2), end(suppFirstLasts.i2));
-        return Pair<unsigned>((suppFirstLasts.i1)[l], (suppFirstLasts.i2)[r]);
+        interval = Pair<unsigned>(start, std::max(start + 1, static_cast<int>(end) - deletion_length));
+        return true;
     }
+}
+// -----------------------------------------------------------------------------
+// Function supportsDel()
+// -----------------------------------------------------------------------------
+// Return true if the given insert size deviatino supports the given deletion, false otherwise.
+// Also considers the pair's orientation.
+inline bool supportsDel(const int & deviation, const Orientation & orientation, const Pair<int> & borders)
+{
+    return deviation >= borders.i1 && deviation <= borders.i2 && orientation == Orientation::FR;
+}
+// -----------------------------------------------------------------------------
+// Function getIntervalBorders()
+// -----------------------------------------------------------------------------
+// Return a pair of the leftmost starting position and the rightmost end position for a starting interval histogram.
+inline Pair<unsigned> getIntervalBorders(const unsigned & deletion_length,
+                                         const ChromosomeProfile & chromosomeProfiles,
+                                         const TRGs & rgs,
+                                         const String<Histogram> & histograms)
+{
+    typedef Iterator<const TRGs, Standard >::Type TSampleIter;
+    typedef Iterator<const TReadGroupIndices, Standard >::Type TRGIter;
+    typedef ChromosomeProfile::TActiveSet::const_iterator TReadIter;
+
+    unsigned minStart = maxValue<unsigned>();
+    unsigned maxEnd = 0;
+    Pair<unsigned> interval;
+
+    for (TSampleIter sampleIt = begin(rgs, Standard()); sampleIt != end(rgs, Standard()); ++sampleIt)
+    {
+        for (TRGIter rgIt = begin(*sampleIt, Standard()); rgIt != end(*sampleIt, Standard()); ++rgIt)
+        {
+            const Histogram & currentHist = histograms[*rgIt];
+            Pair<int> delSuppBorders = getDelSupportBorders(deletion_length,
+                                                            currentHist.lowerQuantileDist,
+                                                            currentHist.upperQuantileDist);
+            const ChromosomeProfile::TActiveSet & currentActiveSet = chromosomeProfiles.activeReads[*rgIt];
+            for (TReadIter readIt = currentActiveSet.begin(); readIt != currentActiveSet.end(); ++readIt)
+            {
+                if (supportsDel(chromosomeProfiles.getSingleDeviation(*rgIt, readIt),
+                                chromosomeProfiles.getSingleOrientation(*rgIt, readIt),
+                                delSuppBorders))
+                {
+                    const unsigned startPos = chromosomeProfiles.getSingleStartPos(*rgIt, readIt) + 1;
+                    const unsigned endPos = chromosomeProfiles.getSingleEndPos(*rgIt, readIt);
+                    if (getStartPositionInterval(interval, startPos, endPos, deletion_length, 2 * currentHist.stddev))
+                    {
+                        if (minStart > interval.i1)
+                            minStart = interval.i1;
+                        if (maxEnd < interval.i2)
+                            maxEnd = interval.i2;
+                    }
+                }
+            }
+        }
+    }
+    SEQAN_ASSERT_GT(maxEnd, minStart);
+    return Pair<unsigned>(minStart, maxEnd);
 }
 // -----------------------------------------------------------------------------
 // Function genotype_deletion_window()
@@ -511,7 +714,8 @@ inline bool genotype_deletion_window(String<Call> & calls,
 //     std::cout << "=============================================================" << std::endl;
     // Initialize the deletion length and check if the samples have sufficient coverage.
     String<bool> lowCoverageSamples;
-    resize(lowCoverageSamples, length(rgs), false);
+    const unsigned samplecount = length(rgs);
+    resize(lowCoverageSamples, samplecount, false);
     std::set<int> deletion_lengths = initialize_deletion_lengths(chromosomeProfiles,
                                                                  rgs,
                                                                  params.minInitDelLengths,
@@ -539,8 +743,8 @@ inline bool genotype_deletion_window(String<Call> & calls,
         String<Triple<long double> > rgWiseDataLikelihoods;
         resize(rgWiseDataLikelihoods, length(params.histograms));
         String<Triple<long double> > data_likelihoods;
-        resize(data_likelihoods, length(rgs));
-        for (unsigned i = 0; i < length(rgs); ++i)
+        resize(data_likelihoods, samplecount);
+        for (unsigned i = 0; i < samplecount; ++i)
             data_likelihoods[i] = compute_data_likelihoods(rgWiseDataLikelihoods,
                                                            chromosomeProfiles,
                                                            rgs[i],
@@ -556,88 +760,41 @@ inline bool genotype_deletion_window(String<Call> & calls,
         unsigned prevLen = len;
         Triple<double> prevGtLikelihoods = gtLikelihoods;
         String<int> prevShifts = referenceShifts;
-
-        __uint32 iterations = 0;
-        // Alternate between updating the allele freq and the deletion length until convergence of the deletion length.
-        while (len >= params.minLen && iterations < params.iterations)
-        {
-            ++iterations;
-            visited[len] = freq;
-            prevLen = len;
-            prevFreq = freq;
-            prevGtLikelihoods = gtLikelihoods;
-
-            len = update_deletion_length(chromosomeProfiles,
-                                         rgs,
-                                         data_likelihoods,
-                                         rgWiseDataLikelihoods,
-                                         gtLikelihoods,
-                                         len,
-                                         referenceShifts,
-                                         params.histograms);
-
-            for (unsigned i = 0; i < length(rgs); ++i)
-                data_likelihoods[i] = compute_data_likelihoods(rgWiseDataLikelihoods,
-                                                               chromosomeProfiles,
-                                                               rgs[i],
-                                                               len,
-                                                               referenceShifts,
-                                                               params.histograms);
-
-            freq = update_allele_frequency(data_likelihoods, gtLikelihoods);
-            if (freq == 0)
-                break;
-            gtLikelihoods = compute_gt_likelihoods(freq);
-
-            // Check if this pair of deletion length and allele frequency has already been observed. Break if TRUE.
-            std::map<int,double>::iterator v = visited.find(len);
-            if (v != visited.end())
-            {
-                if (fabs(v->second - freq) <= 0.0001)
-                {
-                    // Calculate likelihood ratio for the current values.
-                    double logLR = deletion_likelihood_ratio(data_likelihoods, gtLikelihoods);
-
-                    // Re-calculate data likelihood for previous values and calculate the likelihood ratio.
-                    for (unsigned i = 0; i < length(rgs); ++i)
-                        data_likelihoods[i] = compute_data_likelihoods(rgWiseDataLikelihoods,
-                                                                       chromosomeProfiles,
-                                                                       rgs[i],
-                                                                       prevLen,
-                                                                       prevShifts,
-                                                                       params.histograms);
-
-                    double prevLogLR = deletion_likelihood_ratio(data_likelihoods, prevGtLikelihoods);
-                    // Keep better of both estimates.
-                    if (prevLogLR > logLR)
-                    {
-                        len = prevLen;
-                        freq = prevFreq;
-                        referenceShifts = prevShifts;
-                    }
-                    break;
-                }
-            }
-        }
+        __uint32 iterations = performIterativeUpdates(data_likelihoods,
+                                                      rgWiseDataLikelihoods,
+                                                      referenceShifts,
+                                                      len,
+                                                      freq,
+                                                      prevShifts,
+                                                      prevLen,
+                                                      prevFreq,
+                                                      chromosomeProfiles,
+                                                      rgs,
+                                                      prevGtLikelihoods,
+                                                      gtLikelihoods,
+                                                      visited,
+                                                      params);
         if (freq < 0.0000000001 || len < params.minLen)
         {
             continue;
         }
         String<Triple<long double> > gtLogs;
-        resize (gtLogs, length(rgs));
-        String<Triple<unsigned> > lads; // Likelihhod based counts of read pairs for the classes.
-        resize (lads, length(rgs), Triple<unsigned>(0, 0, 0));
-        String<Dad> dads;                  // Distribution based counts of RP for the classes.
-        resize (dads, length(rgs));
-        String<Pair<unsigned> > firstLasts; // Lowest firstWin and highest lastWin for each sample.
-        resize (firstLasts, length(rgs));
+        resize (gtLogs, samplecount);
+        String<Triple<unsigned> > lads;         // Likelihhod based counts of read pairs for the classes.
+        resize (lads, samplecount, Triple<unsigned>(0, 0, 0));
+        String<Dad> dads;                       // Distribution based counts of RP for the classes.
+        resize (dads,samplecount);
+        String<Pair<unsigned> > firstLasts;     // Lowest firstWin and highest lastWin for each sample.
+        resize (firstLasts, samplecount);
         Pair<String<unsigned> > suppFirstLasts;
-        for (unsigned i = 0; i < length(rgs); ++i)
+        bool supportClip = false;     // Is set to true by compute_data_likelihoods() if supporting reads have clipping.
+        for (unsigned i = 0; i < samplecount; ++i)
             data_likelihoods[i] = compute_data_likelihoods(gtLogs[i],
                                                            lads[i],
                                                            dads[i],
                                                            firstLasts[i],
                                                            suppFirstLasts,
+                                                           supportClip,
                                                            chromosomeProfiles,
                                                            rgs[i],
                                                            len,
@@ -669,13 +826,13 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                         logLR,
                                         freq,
                                         chromosomeProfiles.currentPos - 1,
-                                        suppFirstLast.i1,
-                                        suppFirstLast.i2));
+                                        suppFirstLast));
             }
             Call & currentCall = calls[length(calls) - 1];
             set(currentCall.lads, lads);
             set(currentCall.dads, dads);
             set(currentCall.firstLast, firstLasts);
+            set(currentCall.hasClipping, supportClip);
             calculatePhredGL(currentCall, gtLogs);
             ret = true;
 
@@ -683,8 +840,6 @@ inline bool genotype_deletion_window(String<Call> & calls,
             setNoDataSamples(currentCall, lowCoverageSamples);
             if (!checkSampleNumber(lowCoverageSamples, params.minSampleFraction))
                 setSampleFilter(currentCall);
-//             if (chromosomeProfiles.currentPos + 30 < currentCall.position || chromosomeProfiles.currentPos > currentCall.endPosition)
-//                 currentCall.isOutside = true;
         }
     }
     return ret;

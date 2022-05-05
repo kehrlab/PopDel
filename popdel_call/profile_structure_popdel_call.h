@@ -5,30 +5,41 @@
 
 #include <seqan/basic.h>
 #include "../utils_popdel.h"
-#include "../insert_histogram_popdel.h"
+#include "../histogram_popdel.h"
+#include "../popdel_profile/window_popdel.h"
+#include "junction_popdel_call.h"
 
 using namespace seqan;
 // =======================================================================================
 // Class ChromosomeProfileStartEntry
 // =======================================================================================
-// Stores the firstWindow and the insert size deviation of a specific insert.
+// Stores the firstWindow and the inner distance deviation of a specific read pair.
 struct ChromosomeProfileStartEntry
 {
-    __uint32 startPos;
-    __int32  insertSizeDeviation;
+    uint32_t startPos;
+    uint32_t endPos;
+    int32_t  innerDistDeviation;
+    uint16_t clipping;
+    Orientation orientation;
 
     ChromosomeProfileStartEntry() :
-        startPos(0), insertSizeDeviation(0){}
+    startPos(0), endPos(0), innerDistDeviation (0), clipping(0), orientation(Orientation::FR){}
 
-    ChromosomeProfileStartEntry(__uint32 start, __int32 deviation) :
-        startPos(start), insertSizeDeviation(deviation){}
+    ChromosomeProfileStartEntry(uint32_t start,
+                                uint32_t end,
+                                int32_t deviation,
+                                uint16_t clip = 0,
+                                Orientation o = Orientation::FR):
+        startPos(start), endPos(end), innerDistDeviation(deviation), clipping(clip), orientation(o){}
 };
 // =======================================================================================
 // Operator== overload
 // =======================================================================================
 bool operator==(const ChromosomeProfileStartEntry & l, const ChromosomeProfileStartEntry & r)
 {
-    return (l.startPos == r.startPos && l.insertSizeDeviation == r.insertSizeDeviation);
+    return (l.startPos == r.startPos
+            && l.innerDistDeviation == r.innerDistDeviation
+            && l.endPos == r.endPos);
 }
 bool operator==(const String<ChromosomeProfileStartEntry> & l, const String<ChromosomeProfileStartEntry> & r)
 {
@@ -123,31 +134,21 @@ bool operator==(const StartEntrySubset & l, const StartEntrySubset & r)
     if (l.readable != r.readable)
         return false;
     Iterator<const String<ChromosomeProfileStartEntry> >::Type lIt = begin(l.subset, Standard());
-    Iterator<const String<ChromosomeProfileStartEntry> >::Type lEnd = end(l.subset, Standard());
     Iterator<const String<ChromosomeProfileStartEntry> >::Type rIt = begin(r.subset, Standard());
-    while (lIt != lEnd)
-    {
+    for (; lIt != end(l.subset, Standard()); ++lIt, ++rIt)
         if (!(*lIt == *rIt))
             return false;
-        ++lIt;
-        ++rIt;
-    }
-        return true;
+    return true;
 }
 bool operator==(const String<StartEntrySubset> & l, const String<StartEntrySubset> & r)
 {
     if (length(l) != length(r))
         return false;
     Iterator<const String<StartEntrySubset> >::Type lIt  = begin(l, Standard());
-    Iterator<const String<StartEntrySubset> >::Type lEnd = end(l, Standard());
     Iterator<const String<StartEntrySubset> >::Type rIt  = begin(r, Standard());
-    while (lIt != lEnd)
-    {
+    for (; lIt != end(l, Standard()); ++lIt, ++rIt)
         if (!(*lIt == *rIt))
             return false;
-        ++lIt;
-        ++rIt;
-    }
     return true;
 }
 // =======================================================================================
@@ -167,7 +168,7 @@ bool operator==(const String<StartEntrySubset> & l, const String<StartEntrySubse
 // the first set only has one element: c[15] == (35, x). If we try c.add(55, x), the functions only shifs to the next
 // set without adding the element, because it does not belong there. Calling c.add(55, x) again now add it to sets[2],
 // with sets[1] being empty.
-// Note: It is very imporant to keep the rythm of adding and reading from the set: 
+// Note: It is very imporant to keep the rythm of adding and reading from the set:
 // Keep adding while c.add() returns 0, then read using c.goNext() and c.nextRead unil the end of the subset is reached,
 // then continue adding to the next set and so on.
 struct CyclicStartEntryTable
@@ -222,14 +223,30 @@ struct CyclicStartEntryTable
                 return 0;
         }
     }
+    inline StartEntrySubset & getSetRefById(const unsigned & id)
+    {
+        return(sets[getSetNumFromId(id)]);
+    }
+    inline const StartEntrySubset & getSetRefById(const unsigned & id) const
+    {
+        return(sets[getSetNumFromId(id)]);
+    }
     // =======================================================================================
     // Function correctId()
     // =======================================================================================
     // Correct the given ID, s.t. it points to the corresponding element in the readSet.
     // Return a reference to the set.
-    inline StartEntrySubset& correctId(unsigned & id)
+    inline StartEntrySubset & correctId(unsigned & id)
     {
         StartEntrySubset& set = sets[getSetNumFromId(id)];
+        SEQAN_ASSERT_GEQ(id, set.idOffset);
+        id -= set.idOffset;
+        SEQAN_ASSERT(set.readable);
+        return set;
+    }
+    inline const StartEntrySubset & correctId(unsigned & id) const
+    {
+        const StartEntrySubset& set = sets[getSetNumFromId(id)];
         SEQAN_ASSERT_GEQ(id, set.idOffset);
         id -= set.idOffset;
         SEQAN_ASSERT(set.readable);
@@ -321,10 +338,18 @@ struct CyclicStartEntryTable
     // =======================================================================================
     // Add the entry to the current writeSet and increase the insertionCount;
     // This function does not care if the currentSet is actually the correct writeSet!
-    inline void add(const unsigned & startPos, const int & deviation)
+    inline void add(const unsigned & startPos,
+                    const unsigned & endPos,
+                    const int & deviation,
+                    const uint16_t & clipping,
+                    Orientation orientation = Orientation::FR )
     {
         SEQAN_ASSERT_EQ(sets[writeSet].readable, false);    // Never insert into a readable subset.
-        appendValue(sets[writeSet].subset, ChromosomeProfileStartEntry(startPos, deviation));
+        appendValue(sets[writeSet].subset, ChromosomeProfileStartEntry(startPos,
+                                                                       endPos,
+                                                                       deviation,
+                                                                       clipping,
+                                                                       orientation));
         ++insertionCount;
     }
     // =======================================================================================
@@ -335,8 +360,13 @@ struct CyclicStartEntryTable
     // There is no check, if the value at the desired position is valid or deprecated.
     inline ChromosomeProfileStartEntry & operator[](unsigned id)
     {
-        StartEntrySubset& readSet = correctId(id);
+        StartEntrySubset& readSet = getSetRefById(id);
         return(readSet.subset[id]);
+    }
+    inline const ChromosomeProfileStartEntry & operator[](const unsigned & id) const
+    {
+       const StartEntrySubset& readSet = getSetRefById(id);
+       return(readSet.subset[id]);
     }
     // Move the iterator for reading forward by one.
     // Return false the iterator is at the end of the current subset.
@@ -410,20 +440,35 @@ struct CyclicStartEntryTable
     // =======================================================================================
     // Function getDeviation()
     // =======================================================================================
-    // Return the insert size deviation of nextRead.
+    // Return the inner distance deviation of nextRead.
     inline int getDeviation() const
     {
-        return nextRead->insertSizeDeviation;
+        return nextRead->innerDistDeviation;
     }
     // =======================================================================================
     // Function getDeviationAt()
     // =======================================================================================
-    // Return the insert size deviation of the element with the given ID.
+    // Return the inner distance deviation of the element with the given ID.
     inline int getDeviationAt(unsigned id) const
     {
-        return getEntryAt(id).insertSizeDeviation;
+        return getEntryAt(id).innerDistDeviation;
     }
     // =======================================================================================
+    // Function getOrientation()
+    // =======================================================================================
+    // Return the orientation of nextRead.
+    inline Orientation getOrientation() const
+    {
+        return nextRead->orientation;
+    }
+    // =======================================================================================
+    // Function getOrientationAt()
+    // =======================================================================================
+    // Return the orientation of the element with the given ID.
+    inline Orientation getOrientationAt(unsigned id) const
+    {
+        return getEntryAt(id).orientation;
+    }
     // Function getStartPos()
     // =======================================================================================
     // Return firstWindow of nextRead.
@@ -440,12 +485,36 @@ struct CyclicStartEntryTable
         return getEntryAt(id).startPos;
     }
     // =======================================================================================
+    // Function getEndPos()
+    // =======================================================================================
+    // Return firstWindow of nextRead.
+    inline unsigned getEndPos() const
+    {
+        return nextRead->endPos;
+    }
+    // =======================================================================================
+    // Function getEndPosAt()
+    // =======================================================================================
+    // Return endPos of the elment with the given ID.
+    inline unsigned getEndPosAt(unsigned id) const
+    {
+        return getEntryAt(id).endPos;
+    }
+    // =======================================================================================
     // Function getEntryId()
     // =======================================================================================
     // Return the uncorrected index (i.e. the ID) of the element pointed at by nextRead.
     inline unsigned getEntryId() const
     {
         return position(nextRead) + sets[readSet].idOffset;
+    }
+    // =======================================================================================
+    // Function getClippingAt()
+    // =======================================================================================
+    // Return endPos of the elment with the given ID.
+    inline uint16_t getClippingAt(unsigned id) const
+    {
+        return getEntryAt(id).clipping;
     }
 };
 // =======================================================================================
@@ -505,7 +574,7 @@ inline void switchSets(String<CyclicStartEntryTable> & s)
 // =======================================================================================
 // Class ChromosomeProfileEndEntry
 // =======================================================================================
-// Stores the lastWindow and the insert size deviation of a specific insert. The ID equals the index of the 
+// Stores the lastWindow of a specific read pair. The ID equals the index of the
 // corresponding entry in the CyliclStartEntryTable.
 struct ChromosomeProfileEndEntry
 {
@@ -625,15 +694,10 @@ bool operator==(const EndEntrySubset & l, const EndEntrySubset & r)
     if (l.readable != r.readable)
         return false;
     Iterator<const std::vector<ChromosomeProfileEndEntry> >::Type  lIt  = begin(l.subset, Standard());
-    Iterator<const std::vector<ChromosomeProfileEndEntry> >::Type lEnd = end(l.subset, Standard());
     Iterator<const std::vector<ChromosomeProfileEndEntry> >::Type rIt  = begin(r.subset, Standard());
-    while (lIt != lEnd)
-    {
+    for (; lIt != end(l.subset, Standard()); ++lIt, ++rIt)
         if (!(*lIt == *rIt))
             return false;
-        ++lIt;
-        ++rIt;
-    }
     return true;
 }
 bool operator==(const String<EndEntrySubset> & l, const String<EndEntrySubset> & r)
@@ -641,15 +705,10 @@ bool operator==(const String<EndEntrySubset> & l, const String<EndEntrySubset> &
     if (length(l) != length(r))
         return false;
     Iterator<const String<EndEntrySubset> >::Type lIt  = begin(l, Standard());
-    Iterator<const String<EndEntrySubset> >::Type lEnd = end(l, Standard());
     Iterator<const String<EndEntrySubset> >::Type rIt  = begin(r, Standard());
-    while (lIt != lEnd)
-    {
+    for (; lIt != end(l, Standard()); ++lIt, ++rIt)
         if (!(*lIt == *rIt))
             return false;
-        ++lIt;
-        ++rIt;
-    }
     return true;
 }
 // =======================================================================================
@@ -662,9 +721,9 @@ inline bool atBegin(const Iterator<std::vector<ChromosomeProfileEndEntry>, Roote
 // =======================================================================================
 // Class CyclicEndEntryTable
 // =======================================================================================
-// Similar to CyclicStartEntryTable. 
+// Similar to CyclicStartEntryTable.
 // A notable difference is that while the CylicStartEntryTable can automatically switch read and write sets,
-// the CyclicEnd entry table cannot do so. Each time the sets in the CylicStartEntryTable are switched, 
+// the CyclicEnd entry table cannot do so. Each time the sets in the CylicStartEntryTable are switched,
 // switchReadSets() has to be called for the CyclicEndEntryTable, then all procssing of the entries has to be done
 // (including potential window merging) and then switchWriteSets has to be call for the CyclicEndEntryTable.
 // After that, new elements can be added.
@@ -850,7 +909,7 @@ struct CyclicEndEntryTable
         }
         else
         {
-            return (nextRead - 1)->lastWindow;   
+            return (nextRead - 1)->lastWindow;
         }
     }
     // =======================================================================================
@@ -894,7 +953,7 @@ struct CyclicEndEntryTable
         if (n == 0)
             return 0;
         unsigned win = posToWin(pos);
-        while(sets[cEndPosSet].at(i).lastWindow < win)
+        while (sets[cEndPosSet].at(i).lastWindow < win)
         {
             if (lookAhead)
                 ++dNextOffset;
@@ -1042,6 +1101,7 @@ struct ChromosomeProfile
     String<CyclicEndEntryTable>                     endProfiles;    // One per read group
     String<TActiveSet>                              activeReads;    // Set of IDs of active reads, one per RG
     // TODO: Maybe add string containing the maximum of each window to speed up checkActiveReads().
+    int                                             chrom;          // refID of the current chromsome. For convenience
     unsigned                                        globalMinPos;   // First position of the profile.
     unsigned                                        currentPos;     // Current position on chromosome (0-based);
     String<double>                          avgNewReadsPerWindow; // avg. # of new reads per window for each read Group.
@@ -1051,6 +1111,7 @@ struct ChromosomeProfile
                                                                 // Corresponds to startProfiles[rg].sets[readSet].right.
     String<unsigned>                        activeLoad;// Number of active reads in current writing window. One per RG.
     String<unsigned>                        maxLoad; // while the load is above this threshold no new reads are added.
+    String<unsigned>                        previousActiveLoad; // Number of active reads in the previous window. one per SAMPLE.
 
     ChromosomeProfile(unsigned numReadGroups, String<unsigned> & maximumLoad, unsigned bufferSize = 100)
     {
@@ -1059,6 +1120,7 @@ struct ChromosomeProfile
         resize(activeReads, numReadGroups, Exact());
         resize(avgNewReadsPerWindow, numReadGroups, 0.0, Exact());
         resize(activeLoad, numReadGroups, 0, Exact());
+        chrom = -1;
         globalMinPos = maxValue<unsigned>();
         currentPos = maxValue<unsigned>();
         profilesAtEnd = false;
@@ -1077,11 +1139,12 @@ struct ChromosomeProfile
     // Function add()
     // =======================================================================================
     // Append values to the read group's profile. Exspects the added Elements to be ordered by firstWindow.
-    // If necessary, one switch is performed, but not more.
-    // Return 0 if the element has been added without a switch occuring in the startProfile.
-    // Return 1 if the element has been added and a switch occured in the startProfile.
-    // Return 2 if the element has not been added and a switch occured in the startProfile.
-    inline void add(unsigned readGroup, unsigned startPos, unsigned endPos, int deviation)
+    inline void add(const unsigned & readGroup,
+                    const unsigned & startPos,
+                    const unsigned & endPos,
+                    const int & deviation,
+                    const uint16_t & clipping,
+                    const Orientation orientation = Orientation::FR )
     {
         SEQAN_ASSERT_LEQ(readGroup, length(startProfiles));
         //The starting positions are already sorted by startingWindow.
@@ -1096,14 +1159,14 @@ struct ChromosomeProfile
             activeLoad[readGroup] -= closingReads;
             if (activeLoad[readGroup] < maxLoad[readGroup]) // Maybe it dropped below the threshold now.
             {
-                currentStartEntryTable.add(startPos, deviation);
+                currentStartEntryTable.add(startPos, endPos, deviation, clipping, orientation);
                 currentEndEntryTable.add(id, endPos);
                 ++activeLoad[readGroup];
             }
         }
         else
         {
-            currentStartEntryTable.add(startPos, deviation);
+            currentStartEntryTable.add(startPos, endPos, deviation, clipping, orientation);
             currentEndEntryTable.add(id, endPos);
             ++activeLoad[readGroup];
             unsigned closingReads = currentEndEntryTable.getEndCount(startPos);
@@ -1116,7 +1179,6 @@ struct ChromosomeProfile
     // =======================================================================================
     // Call initializeIterators() and add the first reads to the set of active reads
     // and advance iterators for startWindows to the next entry where appropriate (not for endWindows!).
-    // This functions should only be called after the first add() returned a value > 0.
     inline void initializeActiveReads()
     {
         for (__uint32 rg = 0; rg < length(startProfiles); ++rg)        // Find the minimum position.
@@ -1125,7 +1187,8 @@ struct ChromosomeProfile
             currentStartEntryTable.nextRead = begin(currentStartEntryTable.sets[currentStartEntryTable.readSet].subset, Rooted());
             if (atEnd(startProfiles[rg]))                              // Skip read group, in case it is empty.
                 continue;
-            unsigned pos = startProfiles[rg].getStartPos();
+
+            unsigned pos = getSingleStartPos(rg);
             if (pos < currentPos)
             {
                 currentPos = pos;
@@ -1134,7 +1197,7 @@ struct ChromosomeProfile
         globalMinPos = currentPos;
         Iterator<String<CyclicStartEntryTable>, Rooted>::Type currentProfileIt(begin(startProfiles));
         Iterator<String<TActiveSet>, Standard >::Type itA(begin(activeReads, Standard()));
-        while(!atEnd(currentProfileIt))
+        while (!atEnd(currentProfileIt))
         {
             CyclicStartEntryTable& currentStartEntryTable = *currentProfileIt;
             if (!atEnd(currentStartEntryTable) && itA->empty())
@@ -1150,7 +1213,7 @@ struct ChromosomeProfile
                 (*itA).emplace(id);
                 ++id;
                 bool endOfSubSet = !currentStartEntryTable.goNext();
-                while(!endOfSubSet && currentStartEntryTable.getStartPos() == pos)
+                while (!endOfSubSet && currentStartEntryTable.getStartPos() == pos)
                 {
                     (*itA).emplace(id);
                     ++id;
@@ -1350,7 +1413,7 @@ struct ChromosomeProfile
     // Merges the next 'numWindows' windows for all read groups.
     // This is done by repeating the standard update process of nextWindow, without updating the endIteraros,
     // thus not removing any entries from the active set.
-    // This function changes the read and write set entries for startProfiles and endProfiles, leaving them in 
+    // This function changes the read and write set entries for startProfiles and endProfiles, leaving them in
     // an incosistent state (endProfile being left behing). Befor continuing, this has to be fixed by calling
     // endIteratorCatchUp().
     // Return true if at least one shift could be performed, false otherwise
@@ -1437,111 +1500,203 @@ struct ChromosomeProfile
     // =======================================================================================
     // Function getActiveReadsDeviations()
     // =======================================================================================
-    // Get the insert size deviations of the currently active reads for all given read groups.
+    // Get the inner distance deviations of the currently active reads for all given read groups.
     // Return the number of active reads in the given read groups.
     // If the are is highCoverage, the set of deviations is left empty.
     inline unsigned getActiveReadsDeviations(String<int> & deviations,
                                              const TReadGroupIndices & rgs,
-                                             unsigned minCov) const
+                                             unsigned minCov,
+                                             bool frOnly = true) const
     {
         SEQAN_ASSERT(empty(deviations));
         unsigned readCount = 0;
-        Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
-        Iterator<const TReadGroupIndices >::Type cReadGroupsItEnd(end(rgs));
         unsigned highCovReads = 0;
-        while (cReadGroupsIt != cReadGroupsItEnd)               // For each active read group...
+        Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
+        for (; cReadGroupsIt != end(rgs); ++cReadGroupsIt)  // For each active read group...
         {
             unsigned c =  activeReads[*cReadGroupsIt].size();
             readCount += c;    //...get the total number of active reads.
             if (c >= maxLoad[*cReadGroupsIt])
                 highCovReads += c;
-            ++cReadGroupsIt;
         }
         if (readCount < minCov)
             return readCount;
-        resize(deviations, readCount - highCovReads , 0);
-        unsigned i = 0;
-        for (cReadGroupsIt = begin(rgs); cReadGroupsIt != cReadGroupsItEnd; ++cReadGroupsIt)
+        reserve(deviations, readCount - highCovReads);
+        for (cReadGroupsIt = begin(rgs); cReadGroupsIt != end(rgs); ++cReadGroupsIt)
         {
             if (isHighCov(*cReadGroupsIt))
                 continue;
-            TActiveSet::const_iterator where(activeReads[*cReadGroupsIt].begin());
-            TActiveSet::const_iterator whereEnd(activeReads[*cReadGroupsIt].end());
-            while (where != whereEnd)
+            TActiveSet::const_iterator readIt = activeReads[*cReadGroupsIt].begin();
+            for (; readIt != activeReads[*cReadGroupsIt].end(); ++readIt)
             {
-                deviations[i] = startProfiles[*cReadGroupsIt].getDeviationAt(*where);
-                ++i;
-                ++where;
+                if (!frOnly || getSingleOrientation(*cReadGroupsIt, readIt) == Orientation::FR )
+                    appendValue(deviations, getSingleDeviation(*cReadGroupsIt, readIt));
+                else
+                    --readCount;    // Correct count of pairs for pairs with irrelevant orientations.
             }
         }
         return readCount;
     }
     // =======================================================================================
-    // Function getActiveReadsSizes()
+    // Function getActiveReadsInnerDistances()
     // =======================================================================================
-    // Get the total insert sizes of the currently active reads for all given read groups.
+    // Get the total inner distance of the currently active reads for all given read groups.
     // Works like getActiveReadsDeviations, but adds the median of the read group to the deviations.
-    inline unsigned getActiveReadsSizes(String<int> & insertSizes,
-                                        const String<Histogram> & hists,
-                                        const TReadGroupIndices & rgs,
-                                        unsigned minCov = 1) const
+    inline unsigned getActiveReadsInnerDistances (String<int> & innerDistances,
+                                                  const String<Histogram> & hists,
+                                                  const TReadGroupIndices & rgs,
+                                                  unsigned minCov = 1,
+                                                  bool frOnly = true) const
     {
-        SEQAN_ASSERT(empty(insertSizes));
+        SEQAN_ASSERT(empty(innerDistances));
         unsigned readCount = 0;
         Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
-        Iterator<const TReadGroupIndices >::Type cReadGroupsItEnd(end(rgs));
-        while (cReadGroupsIt != cReadGroupsItEnd)               // For each active read group...
+        for (; cReadGroupsIt != end(rgs); ++cReadGroupsIt)
         {
             readCount += activeReads[*cReadGroupsIt].size();    //...get the total number of active reads.
-            ++cReadGroupsIt;
         }
         if (readCount < minCov)
             return readCount;
-        resize(insertSizes, readCount);
-        unsigned i = 0;
-        for (cReadGroupsIt = begin(rgs); cReadGroupsIt != cReadGroupsItEnd; ++cReadGroupsIt)
+        reserve( innerDistances, readCount);
+        for (cReadGroupsIt = begin(rgs); cReadGroupsIt != end(rgs); ++cReadGroupsIt)
         {
             unsigned currentMedian = hists[*cReadGroupsIt].median;
-            TActiveSet::const_iterator where(activeReads[*cReadGroupsIt].begin());
-            TActiveSet::const_iterator whereEnd(activeReads[*cReadGroupsIt].end());
-            while (where != whereEnd)
+            TActiveSet::const_iterator readIt = activeReads[*cReadGroupsIt].begin();
+            for (; readIt != activeReads[*cReadGroupsIt].end(); ++readIt)
             {
-                insertSizes[i] = startProfiles[*cReadGroupsIt].getDeviationAt(*where) + currentMedian;
-                ++i;
-                ++where;
+                if (!frOnly || getSingleOrientation(*cReadGroupsIt, readIt) == Orientation::FR )
+                    appendValue( innerDistances, getSingleDeviation(*cReadGroupsIt, readIt) + currentMedian);
+                else
+                    --readCount;    // Correct count of reads for reads with irrelevant orientations.
             }
         }
         return readCount;
+    }
+    // =======================================================================================
+    // Function getActiveReadsCount()
+    // =======================================================================================
+    // Return the numbers of orientations of active reads in the given read groups.
+    inline unsigned getActiveReadsCount(const TReadGroupIndices & rgs) const
+    {
+        unsigned count = 0;
+        Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
+        for (cReadGroupsIt = begin(rgs); cReadGroupsIt != end(rgs); ++cReadGroupsIt)
+            count += activeReads[*cReadGroupsIt].size();
+
+        return count;
+    }
+    // =======================================================================================
+    // Function updateActiveLoad()
+    // =======================================================================================
+    // Updates the string of previous active load values for each sample.
+    // rgs must contain one string of all read group indices per sample
+    inline void updateActiveLoad(const TRGs & rgs)
+    {
+        SEQAN_ASSERT_EQ(length(rgs), length(previousActiveLoad));
+        for (unsigned i = 0; i < length(rgs); ++i)
+            previousActiveLoad[i] = getActiveReadsCount(rgs[i]);
+    }
+    // =======================================================================================
+    // Function assignAndupdateActiveLoad()
+    // =======================================================================================
+    // Updates the string of previous active load values for each sample and assigns the difference to the call.
+    // rgs must contain one string of all read group indices per sample
+    inline void assignAndupdateActiveLoad(JunctionCall & call,
+                                          const TRGs & rgs)
+    {
+        SEQAN_ASSERT_EQ(call.windowPosition, currentPos);
+        if (call.windowPosition == currentPos)
+        {
+            resize(call.perSampleCoverageChange, length(previousActiveLoad), Exact());
+            for (unsigned s = 0; s < length(previousActiveLoad); ++s)
+            {
+                unsigned currentActiveLoad = getActiveReadsCount(rgs[s]);
+                call.perSampleCoverageChange[s] = static_cast<float>(currentActiveLoad) / previousActiveLoad[s];
+                previousActiveLoad[s] = currentActiveLoad;
+            }
+        }
+    }
+    // =======================================================================================
+    // Function initializeActiveLoad()
+    // =======================================================================================
+    // Initializes the string of previous active load values and then call updateActiveLoad().
+    // rgs must contain one string of all read group indices per sample
+    inline void initializeActiveLoad(const TRGs & rgs)
+    {
+        resize(previousActiveLoad, length(rgs), Exact());
+        updateActiveLoad(rgs);
+    }
+    // =======================================================================================
+    // Function getActiveReadsOrientations()
+    // =======================================================================================
+    // Return the numbers of orientations of active reads in the given read groups.
+    inline OrientationCounts getActiveReadsOrientations(const TReadGroupIndices & rgs) const
+    {
+        OrientationCounts orientations;
+        Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
+        for (cReadGroupsIt = begin(rgs); cReadGroupsIt != end(rgs); ++cReadGroupsIt)
+        {
+            for (TActiveSet::const_iterator readIt = activeReads[*cReadGroupsIt].begin();
+                 readIt != activeReads[*cReadGroupsIt].end();
+                 ++readIt)
+            {
+                orientations.add(getSingleOrientation(*cReadGroupsIt, readIt));
+            }
+        }
+        return orientations;
+    }
+    // =======================================================================================
+    // Function activeReadsHaveClipping()
+    // =======================================================================================
+    // Return true if the active reads have at least minCount read pairs with clipping of at least minClip bases.
+    // Return false otherwise.
+    inline bool activeReadsHaveClipping(const TReadGroupIndices & rgs,
+                                        const unsigned & minCount,
+                                        const unsigned & minClip) const
+    {
+        unsigned c = 0;
+        for (const auto rg : rgs)
+        {
+            for (TActiveSet::const_iterator readIt = activeReads[rg].begin();
+                 readIt != activeReads[rg].end();
+                 ++readIt)
+            {
+                if (getSingleClipping(rg, readIt) >= minClip)
+                    ++c;
+                if (c >= minCount)
+                    return true;
+            }
+        }
+        return false;
     }
     // =======================================================================================
     // Function getActiveReadsFirstLast()
     // =======================================================================================
-    // Return the lowest firstWin and highest lastWin of the currently active reads for the given read groups.
-    inline Pair<unsigned> getActiveReadsFirstLast(const String<Histogram> & hists, const TReadGroupIndices & rgs) const
+    // Return the lowest startPos and highest endPos of the currently active reads for the given read groups.
+    inline Pair<unsigned> getActiveReadsFirstLast(const TReadGroupIndices & rgs,
+                                                  bool frOnly = true) const
     {
-        Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
-        Iterator<const TReadGroupIndices >::Type cReadGroupsItEnd(end(rgs));
         unsigned currentMin = maxValue<unsigned>();
         unsigned currentMax = 0;
-        for (cReadGroupsIt = begin(rgs); cReadGroupsIt != cReadGroupsItEnd; ++cReadGroupsIt)
+        Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
+        for (const auto rg : rgs)
         {
             if (isHighCov(*cReadGroupsIt))
                 continue;
-            const Histogram & hist = hists[*cReadGroupsIt];
-            int currentMedian = hist.median;
-            int currentDoubleReadLength = 2 * hist.readLength;
-            for (TActiveSet::const_iterator readIt(activeReads[*cReadGroupsIt].begin());
-                 readIt != activeReads[*cReadGroupsIt].end();
+
+            for (TActiveSet::const_iterator readIt = activeReads[rg].begin();
+                 readIt != activeReads[rg].end();
                  ++readIt)
             {
-                const unsigned firstStartPos = getSingleStartPos(*cReadGroupsIt, readIt);
-                int insertSize = startProfiles[*cReadGroupsIt].getDeviationAt(*readIt) + currentMedian;
-                insertSize = std::max(0, insertSize - currentDoubleReadLength);
-                const unsigned lastEndPos = firstStartPos + insertSize;
-                if (firstStartPos < currentMin)
-                    currentMin = firstStartPos;
-                if (lastEndPos > currentMax)
-                    currentMax = lastEndPos;
+                if (!frOnly || getSingleOrientation(rg, readIt) == Orientation::FR )
+                {
+                    const unsigned firstStartPos = getSingleStartPos(rg, readIt);
+                    const unsigned lastEndPos = getSingleEndPos(rg, readIt);
+                    if (firstStartPos < currentMin)
+                        currentMin = firstStartPos;
+                    if (lastEndPos > currentMax)
+                        currentMax = lastEndPos;
+                }
             }
         }
         if (currentMin == maxValue<unsigned>())
@@ -1549,76 +1704,185 @@ struct ChromosomeProfile
         return Pair<unsigned>(currentMin, currentMax);
     }
     // =======================================================================================
+    // Function getActiveReadsFirstLast()
+    // =======================================================================================
+    // Overload for limiting getActiveReadsFirstLast the reads to one orientation.
+    inline Pair<unsigned> getActiveReadsFirstLast(const TReadGroupIndices & rgs,
+                                                  const Orientation & o) const
+    {
+        unsigned currentMin = maxValue<unsigned>();
+        unsigned currentMax = 0;
+        for (const auto rg : rgs)
+        {
+            for (TActiveSet::const_iterator readIt = activeReads[rg].begin();
+                 readIt != activeReads[rg].end();
+                 ++readIt)
+            {
+                if (getSingleOrientation(rg, readIt) == o)
+                {
+                    const unsigned firstStartPos = getSingleStartPos(rg, readIt);
+                    const unsigned lastEndPos = getSingleEndPos(rg, readIt);
+                    if (firstStartPos < currentMin)
+                        currentMin = firstStartPos;
+                    if (lastEndPos > currentMax)
+                        currentMax = lastEndPos;
+                }
+            }
+        }
+        if (currentMin == maxValue<unsigned>())
+            currentMin = 0;
+        return Pair<unsigned>(currentMin, currentMax);
+    }
+    // =======================================================================================
+    // Function getActiveReadsMaxFirstLast()
+    // =======================================================================================
+    // Return the highest startPos and highest endPos of the currently active reads
+    // if the specified orientation for the given read groups.
+    inline Pair<unsigned> getActiveReadsMaxFirstLast(const TReadGroupIndices & rgs,
+                                                     const Orientation & o) const
+    {
+        unsigned currentStart = 0;
+        unsigned currentEnd= 0;
+
+        for (const auto rg : rgs)
+        {
+            for (TActiveSet::const_iterator readIt = activeReads[rg].begin();
+                 readIt != activeReads[rg].end();
+                 ++readIt)
+            {
+                if (getSingleOrientation(rg, readIt) == o)
+                {
+                    const unsigned startPos = getSingleStartPos(rg, readIt);
+                    const unsigned endPos = getSingleEndPos(rg, readIt);
+                    if (startPos > currentStart)
+                        currentStart = startPos;
+                    if (endPos > currentEnd)
+                        currentEnd = endPos;
+                }
+            }
+        }
+        return Pair<unsigned>(currentStart, currentEnd);
+    }
+    // =======================================================================================
+    // Function getActiveReadsMaxFirstLast()
+    // =======================================================================================
+    // Return the lowest startPos and lowest endPos of the currently active reads
+    // if the specified orientation for the given read groups.
+    inline Pair<unsigned> getActiveReadsMinFirstLast(const TReadGroupIndices & rgs,
+                                                     const Orientation & o) const
+    {
+        unsigned currentStart = maxValue<unsigned>();
+        unsigned currentEnd= maxValue<unsigned>();
+        Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
+        for (; cReadGroupsIt != end(rgs); ++cReadGroupsIt)
+        {
+            for (TActiveSet::const_iterator readIt = activeReads[*cReadGroupsIt].begin();
+                 readIt != activeReads[*cReadGroupsIt].end();
+                 ++readIt)
+            {
+                if (getSingleOrientation(*cReadGroupsIt, readIt) == o)
+                {
+                    const unsigned startPos = getSingleStartPos(*cReadGroupsIt, readIt);
+                    const unsigned endPos = getSingleEndPos(*cReadGroupsIt, readIt);
+                    if (startPos < currentStart)
+                        currentStart = startPos;
+                    if (endPos < currentEnd)
+                        currentEnd = endPos;
+                }
+            }
+        }
+        if (currentStart == maxValue<unsigned>())
+            currentStart = 0;
+        if (currentEnd == maxValue<unsigned>())
+            currentEnd = 0;
+        return Pair<unsigned>(currentStart, currentEnd);
+    }
+
+    // =======================================================================================
     // Function addSupportFirstLast()
     // =======================================================================================
     // Similar to getActiveReadsFirstLast(), but appends the values only for reads between lower and upper (inlcusive).
     // Checks for the lowest first and the highest last window.
-    inline void addSupportFirstLast(Pair<String <unsigned> > & suppFirstLasts,
-                                       const String<Histogram> & hists,
-                                       const TReadGroupIndices & rgs,
-                                       const int & lower,
-                                       const int & upper) const
+    // Also add the number of clipped bases to the supportClip string.
+    inline void addSupportFirstLast(Pair<String<unsigned> > & suppFirstLasts,
+                                    bool & supportClip,
+                                    const TReadGroupIndices & rgs,
+                                    const Pair<int> & delSuppBorders,
+                                    const unsigned minClippedPairs = 1,
+                                    const unsigned minClip = 1,
+                                    bool frOnly = true) const
     {
         Iterator<const TReadGroupIndices >::Type cReadGroupsIt(begin(rgs));
-        Iterator<const TReadGroupIndices >::Type cReadGroupsItEnd(end(rgs));
-        for (cReadGroupsIt = begin(rgs); cReadGroupsIt != cReadGroupsItEnd; ++cReadGroupsIt)
+        unsigned c = 0;
+        for (; cReadGroupsIt != end(rgs); ++cReadGroupsIt)
         {
             if (isHighCov(*cReadGroupsIt))
                 continue;
-            const Histogram & hist = hists[*cReadGroupsIt];
-            int currentMedian = hist.median;
-            int currentDoubleReadLength = 2 * hist.readLength;
-            for (TActiveSet::const_iterator readIt(activeReads[*cReadGroupsIt].begin());
+
+            for (TActiveSet::const_iterator readIt = activeReads[*cReadGroupsIt].begin();
                  readIt != activeReads[*cReadGroupsIt].end();
                  ++readIt)
             {
-                int deviation = startProfiles[*cReadGroupsIt].getDeviationAt(*readIt);
-                if (deviation >= lower && deviation <= upper)
+                if (!frOnly || getSingleOrientation(*cReadGroupsIt, readIt) == Orientation::FR )
                 {
-                    int insertSize = std::max(0, deviation + currentMedian - currentDoubleReadLength);
-                    const unsigned firstStartPos = getSingleStartPos(*cReadGroupsIt, readIt);
-                    const unsigned lastEndPos = firstStartPos + insertSize;
-                    appendValue(suppFirstLasts.i1, firstStartPos);
-                    appendValue(suppFirstLasts.i2, lastEndPos);
+                    int deviation = getSingleDeviation(*cReadGroupsIt, readIt);
+                    if (supportsDel(deviation, delSuppBorders))
+                    {
+                        appendValue(suppFirstLasts.i1, getSingleStartPos(*cReadGroupsIt, readIt));
+                        appendValue(suppFirstLasts.i2, getSingleEndPos(*cReadGroupsIt, readIt));
+                        if (getSingleClipping(*cReadGroupsIt, readIt) >= minClip)
+                            ++c;
+                    }
                 }
             }
         }
+        supportClip = c >= minClippedPairs;
     }
     // =======================================================================================
     // Function getActiveReadsNum()
     // =======================================================================================
     // Return the number or currently active read pairs for the given rg.
-    inline unsigned getActiveReadsNum(const TEntryIdType & rg)
+    inline unsigned getActiveReadsNum(const TEntryIdType & rg) const
     {
         return (activeReads[rg].size());
     }
+    // Only returns count of reads with a specific orientation. Linear running time instead of constant.
+    inline unsigned getActiveReadsNum(const TEntryIdType & rg, Orientation o) const
+    {
+        unsigned  c = 0;
+        for (TActiveSet::const_iterator readIt = activeReads[rg].begin(); readIt != activeReads[rg].end(); ++readIt)
+            if (getSingleOrientation(rg, readIt) == o)
+                ++c;
+        return c;
+    }
     //calls getActiveReadsNum() for a string of read groups.
-    inline unsigned getActiveReadsNum(const TReadGroupIndices & rgs)
+    inline unsigned getActiveReadsNum(const TReadGroupIndices & rgs) const
     {
         unsigned  c = 0;
         for (unsigned i = 0; i < length(rgs); ++i)
             c += getActiveReadsNum(rgs[i]);
         return c;
     }
-    // Return the number or currently starting active read pairs for the given rg with insert-size deviation >= minlen.
-    inline unsigned getActiveReadsNum(const TEntryIdType & rg, const unsigned & currentWindow, const int & minLen)
+    inline unsigned getActiveReadsNum(const TReadGroupIndices & rgs, Orientation o) const
     {
-        TActiveSet::const_iterator it(activeReads[rg].begin());
-        TActiveSet::const_iterator itEnd(activeReads[rg].end());
         unsigned  c = 0;
-        while(it != itEnd)
-        {
-            const ChromosomeProfileStartEntry & currentEntry = startProfiles[rg][*it];
-            if (currentEntry.insertSizeDeviation >= minLen && currentEntry.startPos == currentWindow)
+        for (unsigned i = 0; i < length(rgs); ++i)
+            c += getActiveReadsNum(rgs[i], o);
+        return c;
+    }
+    // Return the number or currently starting active read pairs for the given rg with insert-size deviation >= minlen.
+    inline unsigned getActiveReadsNum(const TEntryIdType & rg, const unsigned & currentWindow, const int & minLen) const
+    {
+        unsigned  c = 0;
+        for (TActiveSet::const_iterator readIt = activeReads[rg].begin(); readIt !=  activeReads[rg].end(); ++readIt)
+            if (getSingleDeviation(rg, readIt) >= minLen && getSingleStartPos(rg, readIt) == currentWindow)
                 ++c;
-            ++it;
-        }
         return c;
     }
     // Return the number or currently starting active read pairs for the all rg's with insert-size >= minlen.
     inline unsigned getActiveReadsNum(const TReadGroupIndices & rgs,
                                       const unsigned & currentWindow,
-                                      const int & minLen)
+                                      const int & minLen) const
     {
         unsigned  c = 0;
         for (unsigned i = 0; i < length(rgs); ++i)
@@ -1632,14 +1896,11 @@ struct ChromosomeProfile
     // Return false otherwise.
     inline bool checkActiveReads(const TEntryIdType & rg, const Pair<__int32> & borders) const
     {
-        TActiveSet::const_iterator it(activeReads[rg].begin());
-        TActiveSet::const_iterator itEnd(activeReads[rg].end());
-        while(it != itEnd)
+        for (TActiveSet::const_iterator readIt = activeReads[rg].begin(); readIt != activeReads[rg].end(); ++readIt)
         {
-            const ChromosomeProfileStartEntry & currentEntry = startProfiles[rg].getEntryAt(*it);
-            if (currentEntry.insertSizeDeviation >= borders.i1 && currentEntry.insertSizeDeviation <= borders.i2)
+            const ChromosomeProfileStartEntry & currentEntry = startProfiles[rg].getEntryAt(*readIt);
+            if (currentEntry.innerDistDeviation >= borders.i1 && currentEntry.innerDistDeviation <= borders.i2)
                 return true;
-            ++it;
         }
         return false;
     }
@@ -1647,17 +1908,12 @@ struct ChromosomeProfile
     // Return true, if checkActiveReads reads is true for at least one RG.
     inline bool checkActiveReads(const TRGs & rgs, const String<Pair<__int32> >& borders) const
     {
-        Iterator<const TRGs, Rooted>::Type sampleIt = begin(rgs, Rooted());
-        while (!atEnd(sampleIt))
+        for (Iterator<const TRGs, Standard>::Type sampleIt = begin(rgs, Standard()) ;sampleIt != end(rgs); ++sampleIt)
         {
-            Iterator<const TReadGroupIndices, Rooted>::Type rgIt = begin(*sampleIt, Rooted());
-            while(!atEnd(rgIt))
-            {
+            Iterator<const TReadGroupIndices, Standard>::Type rgIt = begin(*sampleIt, Standard());
+            for (; rgIt != end(*sampleIt, Standard()); ++rgIt)
                 if (checkActiveReads(*rgIt, borders[*rgIt]))
                     return true;
-                ++rgIt;
-            }
-            ++sampleIt;
         }
         return false;
     }
@@ -1674,7 +1930,14 @@ struct ChromosomeProfile
         return startProfiles[rg].getDeviation();
     }
     // =======================================================================================
-    // Function getSingleFirstWin()
+    // Function getSingleOrientation()
+    // =======================================================================================
+    inline Orientation getSingleOrientation(const TEntryIdType & rg,
+                                            const TActiveSet::const_iterator & actReadsIt) const
+    {
+        return startProfiles[rg].getOrientationAt(*actReadsIt);
+    }
+    // Function getSingleStartPos()
     // =======================================================================================
     inline unsigned getSingleStartPos(const TEntryIdType & rg,
                                  const TActiveSet::const_iterator & actReadsIt) const
@@ -1688,6 +1951,23 @@ struct ChromosomeProfile
     {
         return startProfiles[rg].getStartPos();
     }
+    // =======================================================================================
+    // Function getSingleEndPos()
+    // =======================================================================================
+    inline unsigned getSingleEndPos(const TEntryIdType & rg,
+                                const TActiveSet::const_iterator & actReadsIt) const
+    {
+        return startProfiles[rg].getEndPosAt(*actReadsIt);
+    }
+    // =======================================================================================
+    // Function getSingleClipping()
+    // =======================================================================================
+    // Return the amount of clipped bases at either 3'-end
+    inline uint16_t getSingleClipping(const TEntryIdType & rg,
+                                      const TActiveSet::const_iterator & actReadsIt) const
+                                     {
+                                        return startProfiles[rg].getClippingAt(*actReadsIt);
+                                     }
     // =======================================================================================
     // Function goToPosition()
     // =======================================================================================
@@ -1757,6 +2037,7 @@ struct ChromosomeProfile
         for (Iterator<String<double> >::Type it = begin(avgNewReadsPerWindow); it != end(avgNewReadsPerWindow); ++it)
             *it = 0.0;
         resetTo(0);
+        chrom = -1;
         globalMinPos = maxValue<unsigned>();
         currentPos = maxValue<unsigned>();
         profilesAtEnd = false;
@@ -1765,7 +2046,8 @@ struct ChromosomeProfile
     inline void reportStatus()
     {
         std::cout << "ChromosomeProfile status report" << std::endl;
-        std::cout << "currentPos:\t\t"  << currentPos
+        std::cout << "Chrom(rID):\t\t" << chrom
+                  << "currentPos:\t\t"  << currentPos
                   << "\nglobalMinPos:\t\t" << globalMinPos
                   << "\nprofilesAtEnd:\t\t" << profilesAtEnd
                   << "\ncurrentRightBorder:\t" << currentRightBorder
@@ -1832,14 +2114,9 @@ inline bool operator==(const ChromosomeProfile::TActiveSet & l, const Chromosome
 {
     if (l.size() != r.size())
         return false;
-    ChromosomeProfile::TActiveSet::const_iterator itL(l.begin());
-    ChromosomeProfile::TActiveSet::const_iterator itEnd(l.end());
-    while (itL != itEnd)
-    {
+    for (ChromosomeProfile::TActiveSet::const_iterator itL = l.begin(); itL != l.end(); ++itL)
         if (!(r.count(*itL)))
             return false;
-        ++itL;
-    }
     return true;
 }
 inline bool operator==(const String<ChromosomeProfile::TActiveSet>  & l,

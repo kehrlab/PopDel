@@ -3,7 +3,7 @@
 
 #include "utils_popdel.h"
 #include "parameter_parsing_popdel_call.h"
-#include "../insert_histogram_popdel.h"
+#include "../histogram_popdel.h"
 #include "load_profile_popdel_call.h"       //for initializeRois
 
 using namespace seqan;
@@ -160,17 +160,18 @@ inline bool loadMaxLoad(PopDelCallParameters & params)
 inline void loadAndCalculateParameters(PopDelCallParameters & params)
 {
     // Load the insert size histograms and profile headers.
-    loadInsertSizeHistograms(params.histograms,
-                             params.readGroups,
-                             params.rgs,
-                             params.inputFiles,
-                             params.contigNames,
-                             params.contigLengths,
-                             params.indexRegionSizes,
-                             params.smoothing,
-                             params.modRgByFileName,
-                             params.representativeContigs,
-                             params.pseudoCountFraction);
+    loadHistograms (params.histograms,
+                    params.sampleNames,
+                    params.readGroups,
+                    params.rgs,
+                    params.inputFiles,
+                    params.contigNames,
+                    params.contigLengths,
+                    params.numRegions,
+                    params.indexRegionSizes,
+                    params.smoothing,
+                    params.representativeContigs,
+                    params.pseudoCountFraction);
     std::ostringstream msg;
     msg << "Loaded insert size histograms for " << length(params.histograms) << " read groups.";
     printStatus(msg);

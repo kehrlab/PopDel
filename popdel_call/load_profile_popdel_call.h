@@ -6,7 +6,7 @@
 #include "../utils_popdel.h"
 #include "profile_structure_popdel_call.h"
 #include "parameter_parsing_popdel_call.h"
-#include "../popdel_profile/window_podel.h"
+#include "../popdel_profile/window_popdel.h"
 
 using namespace seqan;
 
@@ -309,13 +309,14 @@ Pair<CharString, __uint32> getFirstWindowCoordinate (String<String<Window> >& co
             //jump to the first region of interest.
             goNextRoi(in, i, params.nextRoi, finishedROIs, params);
 
-            readWindow(in, window, length(params.rgs[i]), params.uncompressedIn);
-
+            // decompress and read the window.
+            zlib_stream::zip_istream unzipper(in);
+            readWindow(window, unzipper, length(params.rgs[i]));
             if (isEmpty(window))
                 continue;
 
             //Convert the 256bp window to a string of 30bp windows.
-            if(!convertWindow(window, currentSampleConvertedWindows, 256, 30))
+            if(!convertWindow(currentSampleConvertedWindows, window))
             {
                 std::cerr << "[PopDel] Error in profile \"" << params.inputFiles[i] << "\"." << std::endl;
                 std::ostringstream msg;
@@ -377,12 +378,13 @@ inline bool getFirstWindowOnNextROI (Pair<CharString, __uint32> & minCoord,
             goNextRoi(in, i, params.nextRoi, finishedROIs, params);
 
             // decompress and read the window.
-            readWindow(in, window, length(params.rgs[i]), params.uncompressedIn);
+            zlib_stream::zip_istream unzipper(in);
+            readWindow(window, unzipper, length(params.rgs[i]));
             if (isEmpty(window))
                 continue;
 
             //Convert the 256bp window to a string of 30bp windows.
-            if (!convertWindow(window, currentSampleConvertedWindows, 256, 30))
+            if (!convertWindow(currentSampleConvertedWindows, window))
             {
                 std::cerr << "[PopDel] Error in profile \"" << params.inputFiles[i] << "\"." << std::endl;
                 std::ostringstream msg;
@@ -418,7 +420,6 @@ inline bool getFirstWindowOnNextROI (Pair<CharString, __uint32> & minCoord,
 // Return true, if the next segment can be loaded and false if loading has to be postponed.
 inline bool checkAndSwitch(ChromosomeProfile & profile, const TReadGroupIndices & rg, const unsigned beginPos)
 {
-    SEQAN_ASSERT(!empty(rg));
     if (profile.startProfiles[rg[0]].tooBigForNext(beginPos))
     {
 //         bool allEmpty = true;
@@ -465,16 +466,18 @@ inline void addRgRecordsToProfile(ChromosomeProfile & profile,
                                   const String<Histogram> & histograms,
                                   const Window & win)
 {
-    for (unsigned r = 0; r < length(win.insertSizes); ++r)
+    for (unsigned r = 0; r < length(win.records); ++r)
     {   // Add all records of this read group to the profile.
-        for (unsigned i = 0; i < length(win.insertSizes[r]); ++i)
+        for (unsigned i = 0; i < length(win.records[r]); ++i)
         {
-            const Pair<unsigned> & record = win.insertSizes[r][i];
-            int innerDist = static_cast<int16_t>(record.i2) + histograms[rg[r]].median - 2 * histograms[rg[r]].readLength;
-            unsigned endPos = record.i1;
-            if (innerDist > 0)
-                endPos += innerDist;
-            profile.add(rg[r], record.i1, endPos, static_cast<int16_t>(record.i2));
+            TEntryIdType readGroup = rg[r];
+            const ReadPair & record = win.records[r][i];
+            unsigned endPos = record.pos;
+            if (record.distance > 0)
+                endPos += record.distance;
+
+            int deviation = record.distance - histograms[readGroup].median3PrimeDist;
+            profile.add(readGroup, record.pos, endPos, deviation, record.clipping, record.orientation);
         }
     }
 }
@@ -484,9 +487,8 @@ inline void addRgRecordsToProfile(ChromosomeProfile & profile,
 // Read all entries until the beginning of the ROI is reached, ignoring everything befor the ROI.
 // Perform the necessary switches if necessary.
 // Return 0 on success, 2 if the contig is not present (or lies before the starting point of reading) and 3 at EOF.
-template<typename TStream>
 inline unsigned readTillRoi(ChromosomeProfile & profile,
-                            TStream & file,
+                            zlib_stream::zip_istream & unzipper,
                             Window & window,
                             const String<CharString> & contigNames,
                             Pair<CharString, __uint32> & coordinate,
@@ -495,7 +497,7 @@ inline unsigned readTillRoi(ChromosomeProfile & profile,
 {
     do
     {
-        if (!readWindow(file, window, length(rg)))
+        if (!readWindow(window, unzipper, length(rg)))
         {
             performPartialSwitches(profile, rg);
             coordinate.i1 = "";
@@ -522,9 +524,8 @@ inline unsigned readTillRoi(ChromosomeProfile & profile,
 // Return 1 if the desired chromosome has not yet been reached.
 // Return 2 if the end of the chromosome or ROI has been reached.
 // Return 3 if EOF has been reached.
-template<typename TStream>
 inline unsigned readSegment(ChromosomeProfile & profile,
-                            TStream & file,
+                            std::ifstream & file,
                             const CharString & fileName,
                             const TReadGroupIndices & rg,
                             const String<Histogram> & histograms,
@@ -533,14 +534,15 @@ inline unsigned readSegment(ChromosomeProfile & profile,
                             const GenomicRegion & roi,
                             String<Window> & convertedWindows)
 {
+    zlib_stream::zip_istream unzipper(file);
     Window window;
     while (true)
     {
-        unsigned ret = readTillRoi(profile, file, window, contigNames, coordinate, rg, roi);
+        unsigned ret = readTillRoi(profile, unzipper, window, contigNames, coordinate, rg, roi);
         if (ret > 0)
             return ret;
 
-        if(!convertWindow(window, convertedWindows, 256, 30))
+        if(!convertWindow(convertedWindows, window))
         {
             std::cerr << "[PopDel] Error in profile \"" << fileName << "\"." << std::endl;
             std::ostringstream msg;
@@ -548,6 +550,8 @@ inline unsigned readSegment(ChromosomeProfile & profile,
             ":" << window.beginPos << ". The profile \"" << fileName << "\" might be corrupted.";
             SEQAN_THROW(IOError(toCString(msg.str())));
         }
+        profile.chrom = begin(convertedWindows)->chrom;
+        // std::cout << "Reading segment and setting profile.chrom to " << profile.chrom << "." << std::endl;
         for (Iterator<const String<Window> >::Type it = begin(convertedWindows); it != end(convertedWindows); ++it)
         {
             if (contigNames[it->chrom] != roi.seqName || it->beginPos >= roi.endPos)
@@ -583,44 +587,7 @@ inline unsigned readSegment(ChromosomeProfile & profile,
             }
             addRgRecordsToProfile(profile, rg, histograms, *it);
         }
-    }
-}
-// Wrapper for handling de-compression if necessary
-inline unsigned readSegment(ChromosomeProfile & profile,
-                            std::ifstream & file,
-                            const CharString & fileName,
-                            const TReadGroupIndices & rg,
-                            const String<Histogram> & histograms,
-                            const String<CharString> & contigNames,
-                            Pair<CharString, __uint32> & coordinate,
-                            const GenomicRegion & roi,
-                            String<Window> & convertedWindows,
-                            const bool & uncompressed)
-{
-    if (uncompressed)
-    {
-        return readSegment(profile,
-                           file,
-                           fileName,
-                           rg,
-                           histograms,
-                           contigNames,
-                           coordinate,
-                           roi,
-                           convertedWindows);
-    }
-    else
-    {
-        zlib_stream::zip_istream unzipper(file);
-        return readSegment(profile,
-                           unzipper,
-                           fileName,
-                           rg,
-                           histograms,
-                           contigNames,
-                           coordinate,
-                           roi,
-                           convertedWindows);
+
     }
 }
 // =======================================================================================

@@ -12,29 +12,25 @@
 struct PopDelViewParameters
 {
     CharString infile;                                   // Input file
-    CharString outfile;                                  // Output file
 
-    bool writeHeader;                                   // Print the header
-    bool writeOnlyHeader;                               // Print ONLY the header
-    bool writeHistograms;                               // Print the histograms
-    bool uncompressedIn;                                // Read the input from an uncompressed profile
+    bool writeHeader;
+    bool writeOnlyHeader;
+    bool writeHistograms;
+    bool printClipping;
+    bool printOrientation;
+    bool viewTranslocations;
+    bool translocationsOnly;
 
-    unsigned chunkSize;                                 // BP size of on chunk when segmenting a profile
-    unsigned padding;                                   // Overlap between the chunks
-
-    unsigned indexRegionSize;                           // BP distance between the entries of the input index
-    unsigned outIndexRegionSize;                        // BP distance between the entries of the output index
-    String<GenomicRegion> regions;                               // Regions to process
+    unsigned indexRegionSize;
+    GenomicRegion region;
 
     PopDelViewParameters() :
         writeHeader(false),
         writeOnlyHeader(false),
         writeHistograms(false),
-        uncompressedIn(false),
-        chunkSize(0),
-        padding(0),
-        indexRegionSize(10000),
-        outIndexRegionSize(0)
+        printClipping(false),
+        printOrientation(false),
+        indexRegionSize(10000)
     {}
 };
 
@@ -42,14 +38,9 @@ struct PopDelViewParameters
 // Function setHiddenOptions()
 // ---------------------------------------------------------------------------------------
 // Reveal/hide certain advanced options.
-void setHiddenOptions(ArgumentParser & parser, bool hide, const PopDelViewParameters & params)
+void setHiddenOptions(ArgumentParser & /*parser*/, bool /*hide*/, const PopDelViewParameters & /*params*/)
 {
-    (void) params;
     //hideOption(parser, "i", hide);
-    hideOption(parser, "x", hide);
-    hideOption(parser, "s", hide);
-    hideOption(parser, "c", hide);
-    hideOption(parser, "p", hide);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -60,12 +51,6 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelViewParameters & para
 {
     //addOption(parser, ArgParseOption("f",  "flags-set",        "Only use reads with all bits of NUM set in the bam flag.",                                      ArgParseArgument::INTEGER, "NUM"));
     //setDefaultValue(parser, "f",  params.qualReq.flagsSet);
-    addOption(parser, ArgParseOption("c", "chunk-size", "Partition the output profile into chunks of the given size in bp. The output file name ('-o') will be extended by the generated regions.", ArgParseArgument::INTEGER, "NUM"));
-    addOption(parser, ArgParseOption("p", "padding", "Add the given number of padding bases to the end of each chunk ('-c'), so that they overlap by that amount.", ArgParseArgument::INTEGER, "NUM"));
-    addOption(parser, ArgParseOption("x", "uncompressed-in", "Read uncompressed binary profile."));
-    addOption(parser, ArgParseOption("s", "index-region-size", "Index region size for output profile. Default: Same as input profile.", ArgParseArgument::INTEGER, "NUM"));
-    setDefaultValue(parser, "padding", 0);
-    setMinValue(parser, "padding", "0");
     setHiddenOptions(parser, true, params);
 }
 
@@ -75,23 +60,26 @@ void addHiddenOptions(ArgumentParser & parser, const PopDelViewParameters & para
 // Set up the argument parser.
 void setupParser(ArgumentParser & parser, const PopDelViewParameters & params)
 {
-    setShortDescription(parser, "viewing and converting of a popdel profile file");
+    setShortDescription(parser, "viewing a popdel profile file");
     setVersion(parser, VERSION);
     setDate(parser, DATE);
     //addUsageLine(parser, "[\\fIOPTIONS\\fP] \\fIPROFILE-FILE\\fP");
     addUsageLine(parser, "\\fIPROFILE-FILE\\fP");
-    addDescription(parser, "Displays a profile file in human readable format or unzips it.");
+    addDescription(parser, "Displays a profile file in human readable format.");
 
     // Require a profile file as argument.
     addArgument(parser, ArgParseArgument(ArgParseArgument::INPUT_FILE, "INPUT"));
 
     // Add visible options.
     addOption(parser, ArgParseOption("H", "fullHelp", "Displays full list of options."));
+    addOption(parser, ArgParseOption("c", "clipping", "Print the amount of clipped bases of the read pairs."));
     addOption(parser, ArgParseOption("e", "header", "Write the header."));
     addOption(parser, ArgParseOption("E", "onlyHeader", "Only write the header."));
     addOption(parser, ArgParseOption("i", "histograms", "Write insert size histograms."));
-    addOption(parser, ArgParseOption("o", "out", "Output file name for the unzipped profile.", ArgParseArgument::OUTPUT_FILE, "FILE"));
+    addOption(parser, ArgParseOption("o", "orientation", "Print orientation of the read pairs."));
     addOption(parser, ArgParseOption("r", "region", "Limit view to this genomic region.", ArgParseArgument::STRING, "CHR:BEGIN-END"));
+    addOption(parser, ArgParseOption("t", "translocations", "Print the block of translocated records."));
+    addOption(parser, ArgParseOption("tt", "onlyTranslocations", "Print the block of translocated records."));
 
     // Add options that are visible only in the full help.
     addHiddenOptions(parser, params);
@@ -106,6 +94,7 @@ void getArgumentValues(PopDelViewParameters & params, ArgumentParser & parser)
 {
     getArgumentValue(params.infile, parser, 0);
 }
+
 // ---------------------------------------------------------------------------------------
 // Function getParameterValues()
 // ---------------------------------------------------------------------------------------
@@ -115,55 +104,16 @@ void getParameterValues(PopDelViewParameters & params, ArgumentParser & parser)
     getOptionValue(params.writeHeader, parser, "header");
     getOptionValue(params.writeOnlyHeader, parser, "onlyHeader");
     getOptionValue(params.writeHistograms, parser, "histograms");
-    getOptionValue(params.uncompressedIn, parser, "uncompressed-in");
-    if (isSet(parser, "index-region-size"))
-    {
-        if (!isSet(parser, "out"))
-        {
-            std::ostringstream msg;
-            msg << "[ERROR] Index-region-size ('-s') defined, but no output file given. Terminating.";
-            SEQAN_THROW(ParseError(toCString(msg.str())));
-        }
-        getOptionValue(params.outIndexRegionSize, parser, "index-region-size");
-    }
-
-    if (isSet(parser, "out"))
-        getOptionValue(params.outfile, parser, "out");
-
-    if (isSet(parser, "chunk-size"))
-    {
-        if (!isSet(parser, "out"))
-        {
-            std::ostringstream msg;
-            msg << "[ERROR] chunk-size ('-c') defined, but no output file given. Terminating.";
-            SEQAN_THROW(ParseError(toCString(msg.str())));
-        }
-        getOptionValue(params.chunkSize, parser, "chunk-size");
-    }
-
-    if (isSet(parser, "padding"))
-    {
-        if (!isSet(parser, "out"))
-        {
-            std::ostringstream msg;
-            msg << "[ERROR] padding ('-p') defined, but no output file given. Terminating.";
-            SEQAN_THROW(ParseError(toCString(msg.str())));
-        }
-        if (!isSet(parser, "chunk-size"))
-        {
-            std::ostringstream msg;
-            msg << "[ERROR] padding ('-p') defined, but no chunk-size ('-p') specified. Terminating.";
-            SEQAN_THROW(ParseError(toCString(msg.str())));
-        }
-        getOptionValue(params.padding, parser, "padding");
-    }
+    getOptionValue(params.printClipping, parser, "clipping");
+    getOptionValue(params.printOrientation, parser, "orientation");
+    getOptionValue(params.viewTranslocations, parser, "translocations");
+    getOptionValue(params.translocationsOnly, parser, "onlyTranslocations");
 
     if (isSet(parser, "region"))
     {
         CharString region;
         getOptionValue(region, parser, "region");
-        resize(params.regions, 1, Exact());
-        parse(params.regions[0], region);
+        parse(params.region, region);
     }
 }
 

@@ -26,7 +26,7 @@ typedef String<TReadGroupIndices> TRGs;
 // =======================================================================================
 // Class Dad
 // =======================================================================================
-// Class for counting how the insertSizes of a read group overlap the different histograms.
+// Class for counting how the tip distances of a read group match the different histograms.
 struct Dad
 {
     unsigned ref;       // only in ref hist (or left of it).
@@ -71,56 +71,95 @@ struct Call
     unsigned significantWindows;   // Number of significant windows that where merged into this variant.
     String<Triple<unsigned> > gtLikelihoods; // PHRED-scaled GT likelihhods of each sample. Order: HomRef, Het, HomDel.
     unsigned char filter;           // 8 Bits indicating the failed filters. 1 at the position indicates failed filter.
+    bool hasClipping;               // True if some of the reads leading to the call were soft-clipped.
     bool isOutside;            // True if the window the call is bases on lies outside of the deletion area.
                                     // (right to left) 1.: LR ratio test failed, 2.: High coverage, 3.:Sample Number
-    Call() :
-    initialLength(0),
-    iterations(0),
-    deletionLength(0),
-    likelihoodRatio(0.0),
-    frequency(0.0),
-    windowPosition(0),
-    position(0),
-    endPosition(0),
-    significantWindows(0),
-    filter(0),
-    isOutside(false){}
 
-    Call(__uint32 initLen,
-         __uint32 itNum,
-         __uint32 delLen,
-         double llr,
-         double f,
-         unsigned wPos,
-         unsigned pos,
-         unsigned endPos = 0) :
-    initialLength(initLen),
-    iterations(itNum),
-    deletionLength(delLen),
-    likelihoodRatio(llr),
-    frequency(f),
-    windowPosition(wPos),
-    position(pos),
-    endPosition(endPos),
-    significantWindows(0),
-    isOutside(false){}
+    private:
+        void init(__uint32 initLen,
+                  __uint32 itNum,
+                  __uint32 delLen,
+                  double llr,
+                  double f,
+                  unsigned wPos,
+                  unsigned pos,
+                  unsigned endPos)
+        {
+            initialLength = initLen;
+            iterations = itNum;
+            deletionLength = delLen;
+            likelihoodRatio = llr;
+            frequency = f;
+            windowPosition = wPos;
+            position = pos;
+            endPosition = endPos;
+            significantWindows = 0;
+            filter = 0;
+            hasClipping = false;
+            isOutside = false;
+        }
 
-    void reset(void)
-    {
-        initialLength = 0;
-        iterations = 0;
-        deletionLength = 0;
-        likelihoodRatio = 0;
-        clear(lads);
-        clear(dads);
-        frequency = 0;
-        windowPosition = 0;
-        position = 0;
-        endPosition = 0;
-        significantWindows = 0;
-        filter = 0;
-        isOutside = false;
-    }
+    public:
+        Call()
+        {
+            init(0,0,0,0,0,0,0,0);
+        }
+        Call(__uint32 initLen,
+             __uint32 itNum,
+             __uint32 delLen,
+             double llr,
+             double f,
+             unsigned wPos,
+             unsigned pos,
+             unsigned endPos = 0)
+        {
+            init(initLen, itNum, delLen, llr, f, wPos, pos, endPos);
+        }
+        Call(__uint32 initLen,
+             __uint32 itNum,
+             __uint32 delLen,
+             double llr,
+             double f,
+             unsigned wPos,
+             Pair<unsigned> startAndEndPos)
+        {
+            init(initLen, itNum, delLen, llr, f, wPos, startAndEndPos.i1, startAndEndPos.i2);
+        }
+        void reset(void)
+        {
+            initialLength = 0;
+            iterations = 0;
+            deletionLength = 0;
+            likelihoodRatio = 0;
+            clear(lads);
+            clear(dads);
+            frequency = 0;
+            windowPosition = 0;
+            position = 0;
+            endPosition = 0;
+            significantWindows = 0;
+            filter = 0;
+            hasClipping = false;
+            isOutside = false;
+        }
+        // =======================================================================================
+        // Function print()
+        // =======================================================================================
+        // Prints some information about the call. Only for debugging and testing purposes,
+        void print(void) const
+        {
+            std::cout << windowPosition << "~" << position << "-" << endPosition << "(" << initialLength << "->" << deletionLength << "%"
+            << frequency << "@" << likelihoodRatio << std::endl;
+            std::cout << "LADs:";
+            for (auto it = begin(lads); it != end(lads); ++it)
+                std::cout << *it << ",";
+            std::cout << std::endl;
+            std::cout << "DADs:";
+            for (auto it = begin(dads); it != end(dads); ++it)
+                std::cout << "<" << it->ref << "," << it->both << "," << it->between << "," << it->alt
+                          << "," << it->right << ">,",
+            std::cout << std::endl;
+        }
 };
 // =======================================================================================
 // Functions
@@ -280,7 +319,8 @@ inline bool checkAndExtend(Call & a, Call & b, const double & stddev)
 // =======================================================================================
 // Function checkEnoughOverlap()
 // =======================================================================================
-// Return true if the calls a and b overlap for at least for f-percent of the smaller variant's number of windows.
+// Return true if the calls a and b overlap for at least for f-percent of the smaller variant's length.
+// or if the overlap + 2 stddev is smaller then then smaller variant's length.
 inline bool checkEnoughOverlap(const Call & a, const Call & b, const double & stddev, const double f = 0.25)
 {
     unsigned aSpan = a.endPosition - a.position;
@@ -336,10 +376,15 @@ inline bool lowerCall(const Call & l, const Call & r)
     else
         return false;
 }
-inline void setFreqFromGTs(Call & call)
+// =======================================================================================
+// Function setFreqFromGTs()
+// =======================================================================================
+// Set the allele frequency by counting the number of variant alleles in all samples.
+template<typename TCall>
+inline void setFreqFromGTs(TCall & call)
 {
     unsigned alleleCount = 0;
-    for (Iterator<String<Triple<unsigned> > >::Type it = begin(call.gtLikelihoods); it != end(call.gtLikelihoods); ++it)
+    for (auto it = begin(call.gtLikelihoods); it != end(call.gtLikelihoods); ++it)
     {
         if (it->i1 == 0)
         {
@@ -500,16 +545,16 @@ inline bool setGenotypes(const Iterator<String<Call>, Standard >::Type & start,
     return true;
 }
 // =======================================================================================
-// Function getStartPosition()
+// Function getMedianPosition()
 // =======================================================================================
-// Return the median of the collected stat position estimates as the final start position.
-// startPositions is cleared during this process.
-inline unsigned getStartPosition(String<unsigned> & startPositions)
+// Return the median of the collected position estimates as the final position.
+// positions is cleared during this process.
+inline unsigned getMedianPosition(String<unsigned> & positions)
 {
-    SEQAN_ASSERT(!empty(startPositions));
-    std::sort(begin(startPositions), end(startPositions));
-    unsigned start = startPositions[length(startPositions) / 2];
-    clear(startPositions);
+    SEQAN_ASSERT(!empty(positions));
+    std::sort(begin(positions), end(positions));
+    unsigned start = positions[length(positions) / 2];
+    clear(positions);
     return start;
 }
 // =======================================================================================
@@ -525,21 +570,50 @@ inline unsigned getDeletionLength(String<unsigned> & sizeEstimates)
     clear(sizeEstimates);
     return len;
 }
+// =======================================================================================
+// Function endPosFallBack()
+// =======================================================================================
+// Check the clipping of the call and if the endPos matches startPos + deletionLength.
+// If there is not sufficient clipping and the positions do not match, fall back to calculating
+// EndPos as StarPos + deletionLength
+inline void endPosFallBack(unsigned & endPos,
+                           const Iterator<String<Call>, Standard >::Type & start,
+                           const Iterator<String<Call>, Standard >::Type & last,
+                           const unsigned & startPos,
+                           const unsigned & deletionLength,
+                           const double & stddev)
+{
+    unsigned lenEnd = startPos + deletionLength;
+    if (std::min(lenEnd, endPos) + stddev < std::max(lenEnd, endPos))
+    {
+        for (Iterator<String<Call>, Standard >::Type it = start; it  < last; ++it)
+        {
+            if (it->hasClipping)
+                return;
+        }
+        //std::cout << "Falling Back: " << startPos << "-" << endPos << " (" << deletionLength << ") " << "\t->\t" << lenEnd << " (DIFF: " << static_cast<int>(endPos) - static_cast<int>(lenEnd) << ")" <<std::endl;
+        endPos = lenEnd;
+    }
+}
 inline void mergeWindowRange(const Iterator<String<Call>, Standard >::Type & start,
                              const Iterator<String<Call>, Standard >::Type & last,
                              String<Triple<String<unsigned> > > & lads,
                              String<String<String<unsigned>, Array<5> > > & dads,
                              String<Triple<unsigned> > & genotypes,
                              String<unsigned> & startPositions,
+                             String<unsigned> & endPositions,
                              String<unsigned> & sizeEstimates,
                              long double & lr,
                              unsigned & callCount,
                              unsigned & winCount,
                              unsigned & significantWindows,
-                             const double & r)
+                             const double & r,
+                             const double & stddev)
 {
-    start->position = getStartPosition(startPositions);
+    start->position = getMedianPosition(startPositions);
+    start->endPosition = getMedianPosition(endPositions);
     start->deletionLength = getDeletionLength(sizeEstimates);
+    endPosFallBack(start->endPosition, start, last, start->position, start->deletionLength, stddev);
     start->likelihoodRatio = lr / winCount;
     if (setGenotypes(start, last, lads, dads, genotypes))
     {
@@ -560,11 +634,14 @@ inline void mergeWindowRange(const Iterator<String<Call>, Standard >::Type & sta
     }
 }
 // =======================================================================================
-// Function unifyCalls()
+// Function mergeDeletionWindows()
 // =======================================================================================
-// Unifies duplicate calls in c.
+// Merge window deletion calls.
 // Return false if the string of calls is empty, true otherwise.
-inline bool unifyCalls(String<Call> & calls, const double & stddev, const double & r, const bool outputFailed = false)
+inline bool mergeDeletionWindows(String<Call> & calls,
+                                 const double & stddev,
+                                 const double & r,
+                                 const bool outputFailed = false)
 {
     if (length(calls) <= 1u)
         return false;
@@ -580,6 +657,7 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
     String<Triple<unsigned> > genotypes;
     resize(genotypes, length(currentIt->gtLikelihoods), Triple<unsigned>(0, 0, 0));
     String<unsigned> startPositions;
+    String<unsigned> endPositions;
     String<unsigned> sizeEstimates;
     String<Triple<String<unsigned> > > lads;
     resize(lads, length(currentIt->lads));
@@ -589,6 +667,7 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
         resize(*it, 5, Exact());
 
     append(startPositions, currentIt->position);
+    append(endPositions, currentIt->endPosition);
     append(sizeEstimates, currentIt->deletionLength);
     unsigned callCount = 1;
     unsigned winCount = 1;
@@ -603,6 +682,7 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
             if (checkAllPass(*it))
             {
                 appendValue(startPositions, it->position);
+                append(endPositions, it->endPosition);
                 appendValue(sizeEstimates, it->deletionLength);
                 ++significantWindows;
             }
@@ -613,7 +693,20 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
             if (it == last)
             {
                 if (!empty(startPositions))
-                    mergeWindowRange(currentIt, it, lads, dads, genotypes, startPositions, sizeEstimates, lr, callCount, winCount, significantWindows, r);
+                    mergeWindowRange(currentIt,
+                                     it,
+                                     lads,
+                                     dads,
+                                     genotypes,
+                                     startPositions,
+                                     endPositions,
+                                     sizeEstimates,
+                                     lr,
+                                     callCount,
+                                     winCount,
+                                     significantWindows,
+                                     r,
+                                     stddev);
 
                 break;
             }
@@ -621,7 +714,20 @@ inline bool unifyCalls(String<Call> & calls, const double & stddev, const double
         else
         {
             if (winCount != 1 && !empty(startPositions))
-                mergeWindowRange(currentIt, it, lads, dads, genotypes, startPositions, sizeEstimates, lr, callCount, winCount, significantWindows, r);
+                mergeWindowRange(currentIt,
+                                 it,
+                                 lads,
+                                 dads,
+                                 genotypes,
+                                 startPositions,
+                                 endPositions,
+                                 sizeEstimates,
+                                 lr,
+                                 callCount,
+                                 winCount,
+                                 significantWindows,
+                                 r,
+                                 stddev);
             else
                 markInvalidCall(*currentIt);
 
@@ -663,6 +769,10 @@ inline double sum(const Pair<double> & p)
 
 // Return the sum of all three values in a triple of unsigned integers.
 inline unsigned sum(const Triple<unsigned> & t)
+{
+    return (t.i1 + t.i2 + t.i3);
+}
+inline double sum(const Triple<double> & t)
 {
     return (t.i1 + t.i2 + t.i3);
 }
@@ -725,6 +835,33 @@ inline int32_t max(const String<int32_t> & s)
             currentMax = *it;
     }
     return currentMax;
+}
+
+template<typename TNum>
+inline TNum max(const Triple<TNum> & t)
+{
+    TNum currentMax = t.i1 >= t.i2 ? t.i1:t.i2;
+    if (t.i3 > currentMax)
+        currentMax = t.i3;
+
+    return currentMax;
+}
+template<typename TNum>
+inline unsigned whichMax(const Triple<TNum> & t)
+{
+    if (t.i1 >= t.i2)
+    {
+        if (t.i1 >= t.i3)
+            return 0;
+        else
+            return 2;
+    }
+    else if (t.i2 >= t.i3)
+    {
+        return 1;
+    }
+    else
+        return 2;
 }
 // =======================================================================================
 // Function printStatus()
@@ -910,24 +1047,26 @@ void loadFilenames(String<CharString> & files)
     msg << "Loaded " << length(files) << " filenames from \'" << inputfilename << "\'.";
     printStatus(msg);
 }
-
 // =======================================================================================
-// Function _getReadGroup()
+// Function getReadGroup()
 // =======================================================================================
 // Extract the read-group encoded in tags.
 // Return the read-group as a CharString.
-inline CharString getReadGroup(CharString & tags)
+inline CharString getReadGroup(const CharString & tags)
 {
-    BamTagsDict dict(tags);                                          // TODO: Catch if RG tag doen't exist. Error message.
+    BamTagsDict dict(tags);                                        // TODO: Catch if RG tag doen't exist. Error message.
     unsigned key = 0;
-    findTagKey(key, dict, "RG");                                     //TODO faster access if position in dict is known
+    findTagKey(key, dict, "RG");                                   //TODO faster access if position in dict is known
     CharString rg = "";
     extractTagValue(rg, dict, key);
     return rg;
 }
+// =======================================================================================
+// Function getReadGroup()
+// =======================================================================================
 // Extract the read-group encoded in tags
 // Return its rank in the header by extracting it from in the map of read groups.
-inline unsigned getReadGroup(CharString & tags,
+inline unsigned getReadGroup(const CharString & tags,
                              const std::map<CharString, unsigned> & readGroups,
                              bool merge = false)
 {
@@ -938,6 +1077,11 @@ inline unsigned getReadGroup(CharString & tags,
     SEQAN_ASSERT_NEQ(readGroups.count(rg), 0u);
     return readGroups.at(rg);
 }
+// =======================================================================================
+// Function getRgIdFromKstring()
+// =======================================================================================
+// Extact the ID from the kstring of the @RG line in the header.
+// Return true on success, false otherwise.
 inline bool getRgIdFromKstring(CharString & id, const kstring_t & k)
 {
     SEQAN_ASSERT(empty(id));
@@ -958,7 +1102,48 @@ inline bool getRgIdFromKstring(CharString & id, const kstring_t & k)
     return !empty(id);
 }
 // =======================================================================================
-// Function _getReadGroups()
+// Function getRgIdFromKstring()
+// =======================================================================================
+// Extact the SM from the kstring of the @RG line in the header.
+// Return true on success, false otherwise.
+inline bool getSMFromKstring(CharString & sm, const kstring_t & k)
+{
+    SEQAN_ASSERT(empty(sm));
+    SEQAN_ASSERT_GT(k.l, 7u);
+    SEQAN_ASSERT_EQ(k.s[0], '@');
+    SEQAN_ASSERT_EQ(k.s[1], 'R');
+    SEQAN_ASSERT_EQ(k.s[2], 'G');
+    SEQAN_ASSERT_EQ(k.s[3], '\t');
+    SEQAN_ASSERT_EQ(k.s[4], 'I');
+    SEQAN_ASSERT_EQ(k.s[5], 'D');
+    SEQAN_ASSERT_EQ(k.s[6], ':');
+    unsigned i = 9; // 7 Is the first letter of the ID, 8 or above is the tab after the ID
+    clear(sm);
+    while (i < k.l && empty(sm))
+    {
+        if (k.s[i] == 'S' && i < k.l - 1)
+        {
+            ++i;
+            if (k.s[i] == 'M' && i < k.l - 1)
+            {
+                ++i;
+                if (k.s[i] == ':' && i < k.l - 1)
+                {
+                    ++i;
+                    while (i < k.l && k.s[i] != '\t')
+                    {
+                        appendValue(sm, k.s[i]);
+                        ++i;
+                    }
+                }
+            }
+        }
+        ++i;
+    }
+    return !empty(sm);
+}
+// =======================================================================================
+// Function getReadGroups()
 // =======================================================================================
 // Extract all read group IDs and their rank in the header and write them to map.
 // Return the number of read groups in the header.
@@ -998,6 +1183,51 @@ inline unsigned getReadGroups(std::map<CharString, unsigned> & readGroups, HtsFi
         ks_free(&kstring);
     }
     return readGroups.size();
+}
+// =======================================================================================
+// Function getSampleName()
+// =======================================================================================
+// Get the sample name encoded in the @RG SM-tag.
+// Return true on success, false otherwise.
+// Throw an error, if multiple conflicting sample names are found.
+inline bool getSampleName(CharString & sampleName, HtsFile & file)
+{
+    int good = 0;
+    int pos = 0;
+    while (true)
+    {
+        kstring_t kstring = KS_INITIALIZE;
+        good = sam_hdr_find_line_pos(file.hdr, "RG", pos, &kstring);
+        if (good == 0)
+        {
+            CharString sm = "";
+            if (getSMFromKstring(sm, kstring))
+            {
+                if (sampleName == "")
+                {
+                    sampleName = sm;
+                }
+                else if (sampleName != sm)
+                {
+                    std::ostringstream msg;
+                    msg << "[PopDel] Found conflicting SM-tags in the alignment file! Previsously found 'SM:"
+                        << sampleName
+                        << "'. But now found 'SM:"
+                        << sm
+                        << "'. PopDel profile must only be used on single sample alignemnt files. Terminating.";
+                    SEQAN_THROW(ParseError(toCString(msg.str())));
+                }
+            }
+            ++pos;
+        }
+        else
+        {
+            ks_free(&kstring);
+            break;
+        }
+        ks_free(&kstring);
+    }
+    return !empty(sampleName);
 }
 // =======================================================================================
 // Functions for genomic interval loading and processing
@@ -1041,13 +1271,25 @@ inline bool lowerGenomicRegion(const GenomicRegion & r1, const GenomicRegion & r
         return true;
     else if (isGreater(cmp))                                    //r1.seqName is lexicographically bigger
         return false;
-    else if (r1.beginPos <= r2.beginPos)
-        return true;
     else
-        return false;
+        return r1.beginPos < r2.beginPos;
 }
 // =======================================================================================
-// Function fillInvalidPositions()
+// Struct lowerRIDGenomicRegion()
+// =======================================================================================
+// Return true if the first GenomicRegion starts before the second one starts.
+// This Function uses the rIDs for defining the ordering of contigs.
+inline bool lowerRIDGenomicRegion(const GenomicRegion & r1, const GenomicRegion & r2)
+{
+    if (r1.rID < r2.rID)                                            //r1.seqName is lexicographically smaller
+        return true;
+    else if (r1.rID > r2.rID)                                    //r1.seqName is lexicographically bigger
+        return false;
+    else
+        return r1.beginPos < r2.beginPos;
+}
+// =======================================================================================
+// Function _fillInvalidPositions()
 // =======================================================================================
 // Replace invalid values of GenomicRegions object with processable values.
 // Use 0 for start position. Use end position of sequence for end position of interval.
@@ -1066,17 +1308,7 @@ inline void fillInvalidPositions(GenomicRegion & itv,
         }
     }
 }
-// Wrapper for application on String of GenomicRegions.
-inline void fillInvalidPositions(String<GenomicRegion> & itvs,
-                                 const String<String<char> > & contigNames,
-                                 const String<int32_t> & contigLengths)
-{
-    for (unsigned i = 0; i < length(itvs); ++i)
-        fillInvalidPositions(itvs[i], contigNames, contigLengths);
-}
-// =======================================================================================
-// Function findInterval()
-// =======================================================================================
+
 inline Iterator<const String<GenomicRegion> >::Type findInterval(const String<GenomicRegion> & intervals,
                                                                  const GenomicRegion & roi)
 {
@@ -1295,6 +1527,7 @@ inline void mergeOverlappingIntervals(String<GenomicRegion> & intervals, int max
     TIter itEnd = end(intervals);
     TIter it = begin(intervals);
     String<GenomicRegion> mergedIntervals;
+    reserve(mergedIntervals, length(intervals), Exact());
     appendValue(mergedIntervals, *it);
     TIter last = begin(mergedIntervals);
     ++it;
@@ -1431,6 +1664,16 @@ inline bool lowerCoord(const Pair<CharString, unsigned> & first,
         return false;
 }
 // =======================================================================================
+// Function rIDAlreadyProcessed()
+// =======================================================================================
+// Return true if the rID has been marked as completely processed in finishedRIDs.
+// Return false otherwise.
+inline bool rIDAlreadyProcessed(const String<bool> & finishedRIDs, const int32_t rID)
+{
+    SEQAN_ASSERT_LT(rID, static_cast<int32_t>(length(finishedRIDs)));
+    return finishedRIDs[rID];
+}
+// =======================================================================================
 // Function isValidCall()
 // =======================================================================================
 // Check if a call in the buffer is valid or not. This is necessary since the buffer gets not completely cleared.
@@ -1439,10 +1682,10 @@ inline bool isValidCall(const Call & call)
     return call.iterations != 0;        // only true if the call has been changed since the last pass.
 }
 // =======================================================================================
-// Function getSampleName()
+// Function getSampleNameFromPath()
 // =======================================================================================
 // Extract the last part of the path to get the file/sample name without file format ending.
-inline Infix<const String<char> >::Type getSampleName(const String<char> & path)
+inline Infix<const String<char> >::Type getSampleNameFromPath(const String<char> & path)
 {
     String<char> filename;
     unsigned lastDelimPos = 0;
@@ -1479,6 +1722,26 @@ unsigned calculatePercentile(String<unsigned> values, const double & p) // No re
         return values[j];
     else
         return values[j-1];
+}
+struct Sorted{};
+// -----------------------------------------------------------------------------
+// Function getPercentile()
+// -----------------------------------------------------------------------------
+// Return the value in s at percentile p. s will be sorted in the process, if the flag Sorted() ist not useed
+// Uses the nearest rank method: No more then p*100 percent of the values in s are < returned value.
+// Note: Don't try to use this on an (potentially) empty string!
+inline unsigned getPercentile(const String<unsigned> & s, double p, Sorted sorted)
+{
+    (void) sorted;
+    SEQAN_ASSERT_GT(length(s), 0u);
+    int lPre = std::ceil(static_cast<double>(length(s)) * p);
+    unsigned l = lPre == 0 ? 0u : lPre - 1;
+    return s[l];
+}
+inline unsigned getPercentile(String<unsigned> & s, double p = 0.8)
+{
+    std::sort(begin(s), end(s));
+    return getPercentile(s, p, Sorted());
 }
 // -----------------------------------------------------------------------------
 // Function calculatePhredGL()
@@ -1533,5 +1796,53 @@ inline double phredsToFrequency(const String<Triple<unsigned> > & phredGLs)
     else
         return static_cast<double>(alleles) / n;
 }
+inline bool addToSampleNames(String<CharString> & sampleNames, const CharString & sampleName)
+{
+    CharString s = sampleName;
+    unsigned c = 1;
+    for (Iterator<const String<CharString> >::Type it = begin(sampleNames); it != end(sampleNames); ++it)
+    {
+        if (*it == s)
+        {
+            ++c;
+            s = sampleName;
+            appendValue(s, '#');
+            append(s, std::to_string(c));
+        }
+    }
+    if (c > 1)
+    {
+        std::ostringstream msg;
+        msg << "WARNING: Duplicate sample name '" << sampleName << "'. Renaming it to " << s << ".";
+        printStatus(msg);
+    }
+    appendValue(sampleNames, s);
+    return c == 1;
+}
+// Return a Pair consisting of the left and right border that determines if a read supports a deletion or not.
+inline Pair<int> getDelSupportBorders(const unsigned & deletion_length,
+                                      const int & lowerQuantileDist,
+                                      const int & upperQuantileDist)
+{
+    return Pair<int>(deletion_length - lowerQuantileDist, deletion_length + upperQuantileDist);
+}
+// Return true if the given insert size deviatino supports the given deletion, false otherwise.
+inline bool supportsDel(const int & deviation, const Pair<int> & borders)
+{
+    return deviation >= borders.i1 && deviation <= borders.i2;
+}
+// -----------------------------------------------------------------------------
+// Function add()
+// -----------------------------------------------------------------------------
+// Add the values in r to those in l.
+template <typename TNumL, typename TNumR>
+inline void add(String<TNumL> & l, const String<TNumR> & r)
+{
+    SEQAN_ASSERT_EQ(length(l), length(r));
+    if (empty(r))
+        return;
 
+    for (unsigned i = 0; i < length(l); ++i)
+        l[i] += r[i];
+}
 #endif /* UTILS_POPDEL_H_ */

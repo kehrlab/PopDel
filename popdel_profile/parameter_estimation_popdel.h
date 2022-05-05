@@ -5,11 +5,23 @@
 #include <seqan/bam_io.h>
 
 #include "../utils_popdel.h"
-#include "../insert_histogram_popdel.h"
+#include "../histogram_popdel.h"
 #include "profile_parameter_parsing_popdel.h"
 
 using namespace seqan;
 
+
+void printParams(const CharString & rg, const unsigned & n, const Histogram & hist)
+{
+    std::cout << "All read groups merged into \'" << rg << "\':";
+    std::cout << "  SampledReadPairs=" << n;
+    std::cout << "  Median=" << hist.median;
+    std::cout << "  Mean=" << hist.mean;
+    std::cout << "  StdDev=" << hist.stddev;
+    std::cout << "  AvgCoverage=" << hist.coverage;
+    std::cout << "  ReadLength=" << hist.readLength;
+    std::cout << std::endl;
+}
 // ---------------------------------------------------------------------------------------
 // Function printReadGroupParams()
 // ---------------------------------------------------------------------------------------
@@ -17,33 +29,13 @@ using namespace seqan;
 void printReadGroupParams(const PopDelProfileParameters & params)
 {
     typedef PopDelProfileParameters::TReadGroups::const_iterator TReadGroupIter;
+    TReadGroupIter it = params.readGroups.begin();
     TReadGroupIter itEnd = params.readGroups.end();
     if (params.mergeRG && params.readGroups.size() > 1)
-    {
-        TReadGroupIter it = params.readGroups.begin();
-        std::cout << "All read groups merged into \'" << it->first << "\':";
-        std::cout << "  SampledReadPairs=" << params.sampleSize[it->second];
-        std::cout << "  Median=" << params.histograms[it->second].median;
-        std::cout << "  Mean=" << params.histograms[it->second].mean;
-        std::cout << "  StdDev=" << params.histograms[it->second].stddev;
-        std::cout << "  AvgCoverage=" << params.histograms[it->second].coverage;
-        std::cout << "  ReadLength=" << params.histograms[it->second].readLength;
-        std::cout << std::endl;
-    }
+        printParams(it->first, params.sampleSize[it->second], params.histograms[it->second]);
     else
-    {
-        for (TReadGroupIter it = params.readGroups.begin(); it != itEnd; ++it)
-        {
-            std::cout << "Read group \'" << it->first << "\':";
-            std::cout << "  SampledReadPairs=" << params.sampleSize[it->second];
-            std::cout << "  Median=" << params.histograms[it->second].median;
-            std::cout << "  Mean=" << params.histograms[it->second].mean;
-            std::cout << "  StdDev=" << params.histograms[it->second].stddev;
-            std::cout << "  AvgCoverage=" << params.histograms[it->second].coverage;
-            std::cout << "  ReadLength=" << params.histograms[it->second].readLength;
-            std::cout << std::endl;
-        }
-    }
+        for (; it != itEnd; ++it)
+            printParams(it->first, params.sampleSize[it->second], params.histograms[it->second]);
 }
 // ---------------------------------------------------------------------------------------
 // Function printWindowParams()
@@ -58,15 +50,29 @@ void printWindowParameters(const PopDelProfileParameters & params)
     printStatus(msg);
 }
 // ---------------------------------------------------------------------------------------
-// Function addToInsertSizeHistograms()
+// Function getReadLength()
 // ---------------------------------------------------------------------------------------
+// Return the read length infered from a BamAlignmentRecord.
+// Corrects for hard-clipped bases by adding them to the length of the sequence
+inline unsigned getReadLength(const BamAlignmentRecord & record)
+{
+    SEQAN_ASSERT_GT(record._n_cigar, 0u);
+    unsigned clip = 0;
+    if (record.cigar[0].operation == 'H')
+        clip += record.cigar[0].count;
+
+    if (record.cigar[record._n_cigar - 1].operation == 'H')
+        clip += record.cigar[record._n_cigar - 1].count;
+
+    return record._l_qseq + clip;
+}
 // Read all records in the specified region of infile, check and add them to the set of insert size histograms.
-inline void addToInsertSizeHistograms(String<Histogram> & histograms,
-                                      const GenomicRegion & interval,
-                                      HtsFile & infile,
-                                      String<unsigned> & sampleSize,
-                                      BamQualReq & qualReq,
-                                      const std::map<CharString, unsigned> & readGroups)
+inline void addToHistograms(String<Histogram> & histograms,
+                            const GenomicRegion & interval,
+                            HtsFile & infile,
+                            String<unsigned> & sampleSize,
+                            BamQualReq & qualReq,
+                            const std::map<CharString, unsigned> & readGroups)
 {
     bool mergeRG = (length(histograms) == 1u && readGroups.size() > 1);
     if (!setRegion(infile, toCString(interval.seqName), interval.beginPos, interval.endPos))
@@ -79,41 +85,29 @@ inline void addToInsertSizeHistograms(String<Histogram> & histograms,
             continue;
         if (record.rID != interval.rID || record.beginPos > interval.endPos)        //Break if region has been passed.
             break;
-        if (!meetsRequirements(record, qualReq) || record.beginPos > record.pNext)  //Check requirements of record.
-            continue;
-        unsigned rg = getReadGroup(record.tags, readGroups, mergeRG);
-        unsigned insertSize = std::min(std::abs(record.tLen), static_cast<__int32>(length(histograms[rg].values) - 1));
-        histograms[rg].values[insertSize] += 1.0;
-        ++sampleSize[rg];
-        if (histograms[rg].readLength == 0)
+        if (meetsRequirements(record, qualReq) && getPairOrientation(record.flag) == Orientation::FR)
         {
-            if (record.cigar[0].operation == 'H')
-            {
-                unsigned clip = record.cigar[0].count;
-                if (record.cigar[length(record.cigar) - 1].operation != 'H')
-                {
-                    clip += record.cigar[length(record.cigar) - 1].count;
-                }
-                histograms[rg].readLength = record._l_qseq + clip;
-            }
-            else
-            {
-                histograms[rg].readLength = record._l_qseq;
-            }
+            unsigned rg = getReadGroup(record.tags, readGroups, mergeRG);
+            if (histograms[rg].readLength == 0)
+                histograms[rg].readLength = getReadLength(record);
+
+            unsigned insertSize = std::min(std::abs(record.tLen),
+                                           static_cast<__int32>(length(histograms[rg].values) - 1));
+            histograms[rg].values[insertSize] += 1.0;
+            ++sampleSize[rg];
         }
     }
 }
 // ---------------------------------------------------------------------------------------
-// Function getInsertSizeHistograms()
+// Function getHistograms()
 // ---------------------------------------------------------------------------------------
 typedef Iterator<const String<GenomicRegion> >::Type TItvIter;
-// Call addToInsertSizeHistograms for each specified interval.
+// Call addToHistograms for each specified interval.
 // Return the iterator to the first unused interval (or to the end of the container).
-// Requires both the file and the index to be open already (like after the creation of of BWI object.)
-inline TItvIter getInsertSizeHistograms(String<Histogram> & histograms,
-                                        HtsFile & infile,
-                                        const String<GenomicRegion> & intervals,
-                                        PopDelProfileParameters & params)
+inline TItvIter getHistograms (String<Histogram> & histograms,
+                               HtsFile & infile,
+                               const String<GenomicRegion> & intervals,
+                               PopDelProfileParameters & params)
 {
 
     Histogram hist;
@@ -132,16 +126,16 @@ inline TItvIter getInsertSizeHistograms(String<Histogram> & histograms,
     TItvIter itvEnd = end(intervals);
 
     bool enough = false;
-    while (itv != itvEnd && !enough)                               //Call _addToInsertSizeHistograms for each interval.
+    while (itv != itvEnd && !enough)                               //Call _addToHistograms for each interval.
     {
-        addToInsertSizeHistograms(histograms,
-                                  *itv,
-                                  infile,
-                                  params.sampleSize,
-                                  params.qualReq,
-                                  params.readGroups);
+        addToHistograms(histograms,
+                        *itv,
+                        infile,
+                        params.sampleSize,
+                        params.qualReq,
+                        params.readGroups);
         enough = true;
-        for (Iterator<String<unsigned> >::Type it = begin(params.sampleSize); it != end(params.sampleSize); ++it)
+        for (Iterator<const String<unsigned> >::Type it = begin(params.sampleSize); it != end(params.sampleSize); ++it)
         {
             if (*it < params.minSampling)
             {
@@ -179,9 +173,9 @@ inline TItvIter getInsertSizeHistograms(String<Histogram> & histograms,
     {
         std::ostringstream msg;
         if (params.mergeRG && params.readGroups.size() > 1)
-            msg << "Determined insert size histogram of merged read groups using the interval(s): ";
+            msg << "Determined inner distance histogram of merged read groups using the interval(s): ";
         else
-            msg << "Determined insert size histograms for all read groups using the interval(s): ";
+            msg << "Determined inner distance histograms for all read groups using the interval(s): ";
         bool p = false;
         for (TItvIter it = begin(intervals); it != itv; ++it)
         {
@@ -231,54 +225,10 @@ inline void calculateCoverage(Histogram & histogram, __uint32 totalIntervalLengt
 //               << totalIntervalLength << " readLength: " << histogram.readLength << std::endl;
     histogram.coverage = (counts / totalIntervalLength) * histogram.readLength * 2;
 }
-// ---------------------------------------------------------------------------------------
-// Function writeHistograms()
-// ---------------------------------------------------------------------------------------
-// Write all histograms to output file, one line per read goup.
-// Contents per line: RG min max median stddev readLength counts1 counts2 ... countsN
-void writeHistograms(const CharString & outfile,
-                     const std::map<CharString, unsigned> & readGroups,
-                     const String<Histogram> & histograms)
-{
-    typedef std::map<CharString, unsigned>::const_iterator TReadGroupIter;
-    typedef Iterator<const String<double> >::Type THistIter;
-    CharString histogramFile = outfile;
-    histogramFile += ".hist";
-    // Open output file.
-    std::ofstream histfile(toCString(histogramFile));
-    if (!histfile.is_open())
-    {
-        std::ostringstream msg;
-        msg << "[PopDel] Could not open file \'" << histogramFile << "\' for writing.";
-        SEQAN_THROW(IOError(toCString(msg.str())));
-    }
-    // Write histogram on one line per read group.
-    for(TReadGroupIter rgIt = readGroups.begin(); rgIt != readGroups.end(); ++rgIt)
-    {
-        const Histogram & hist = histograms[rgIt->second];
-        unsigned minValue = getHistLeftBorder(hist);
-        unsigned maxValue = getHistRightBorder(hist);
-        histfile << rgIt->first << "\t" << minValue << "\t" << maxValue;
-        histfile << "\t" << hist.median << "\t" << hist.stddev << "\t" << hist.readLength;
-        THistIter it = begin(hist.values);
-        THistIter itEnd = begin(hist.values);
-        it += minValue;
-        itEnd += maxValue;
-        while (it != itEnd)
-        {
-            histfile << "\t" << *it;
-            ++it;
-        }
-        histfile << std::endl;
-    }
-    std::ostringstream msg;
-    msg << "Histograms written to \'" << histogramFile << "\'.";
-    printStatus(msg);
-}
 // =======================================================================================
 // Function checkCoverage()
 // =======================================================================================
-// Gives a warning of the coverage of a read group is below minCov 
+// Gives a warning of the coverage of a read group is below minCov
 inline void checkCoverage(const PopDelProfileParameters & params,
                           const unsigned minCov = 5)
 {
@@ -320,11 +270,15 @@ void calculateParameters(HtsFile & infile, PopDelProfileParameters & params)
         params.outfile = params.bamfile;
         append(params.outfile, ".profile");
     }
-    getReadGroups(params.readGroups, infile, params.mergeRG); // Get the read groups and chromosome names/lengths from bam file header.
+    getReadGroups(params.readGroups, infile, params.mergeRG); // Get the read groups and chromosome names/lengths from the file header.
+    if (params.sampleName == "")
+        if (!getSampleName(params.sampleName, infile))
+            params.sampleName = getSampleNameFromPath(params.bamfile);
     std::ostringstream msg;
-    msg << "Found " << length(params.readGroups) << " read groups in input bam file \'" << params.bamfile << "\'.";
+    msg << "Found " << length(params.readGroups) << " read groups in input alignment file \'" << params.bamfile << "\'.";
     if (params.mergeRG && params.readGroups.size() > 1)
         msg << " All read groups will be merged into read group \'" << params.readGroups.begin()->first << "\'.";
+
     printStatus(msg);
     if (length(params.rois) == 0)                                      // Estimate the genomic regions.
     {
@@ -334,12 +288,13 @@ void calculateParameters(HtsFile & infile, PopDelProfileParameters & params)
             << " sequences with a total length of " << totalLength << " base pairs.";
         printStatus(msg);
     }
-      // Read list of intervals to use for parameter calculation.
     String<GenomicRegion> intervals;
     readIntervals(intervals, params.intervalFile, infile, params.rois, params.referenceVersion);
     mergeOverlappingIntervals(intervals);                                // Handle the regular intervals for sampling
     setRIDs(intervals, infile);
-    TItvIter itvEnd = getInsertSizeHistograms(params.histograms, infile, intervals, params);// Calculate insert size hist for each RG...
+    std::stable_sort(begin(intervals), end(intervals), &lowerRIDGenomicRegion);
+
+    TItvIter itvEnd = getHistograms (params.histograms, infile, intervals, params);// Calculate hist for each RG...
                                                                         //...and get the read length at the same time.
     unsigned totalItvLen = totalIntervalLength(intervals, itvEnd);
     for (unsigned i = 0; i < length(params.histograms); ++i)            // For all histograms...

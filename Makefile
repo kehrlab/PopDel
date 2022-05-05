@@ -13,14 +13,15 @@ SEQAN_LIB=.
 CXXFLAGS+=-I$(SEQAN_LIB) -DSEQAN_HAS_ZLIB=1 -DSEQAN_USE_HTSLIB=1 -std=c++14 -DSEQAN_DISABLE_VERSION_CHECK
 LDLIBS=-lz -lpthread -lhts
 
-DATE=on 2021-03-25
-VERSION=1.5.0
+DATE=on 2022-05-05
+VERSION=2.0.0-alpha
 CXXFLAGS+=-DDATE=\""$(DATE)"\" -DVERSION=\""$(VERSION)"\"
 
-# Enable warnings
-CXXFLAGS+=-W -Wall -Wno-long-long -pedantic -Wno-variadic-macros -Wno-unused-result
+# Enable warnings, disable some
+CXXFLAGS+=-W -Wall -Wno-long-long -pedantic -Wno-variadic-macros -Wno-unused-result -Wno-deprecated-copy -Wno-class-memaccess -Wno-deprecated-declarations
 
-HEADERS=parse_popdel.h insert_histogram_popdel.h workflow_popdel.h utils_popdel.h
+
+HEADERS=parse_popdel.h histogram_popdel.h workflow_popdel.h utils_popdel.h
 HEADERS+=popdel_profile/*.h
 HEADERS+=popdel_call/*.h
 HEADERS+=popdel_view/*.h
