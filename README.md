@@ -5,7 +5,7 @@ PopDel - Population-wide Deletion Calling
 
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat-square)](http://bioconda.github.io/recipes/popdel/README.html) [![GitHub license](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://raw.githubusercontent.com/kehrlab/PopDel/master/LICENSE) [![GitHub Releases](https://img.shields.io/github/release/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/releases) [![GitHub Issues](https://img.shields.io/github/issues/kehrlab/PopDel.svg)](https://github.com/kehrlab/PopDel/issues)
 
-<b>Input</b>: BAM/CRAM files (tested for up to 50,000) from short read paired end whole genome sequencing data
+<b>Input</b>: BAM/CRAM files (tested for up to 50,000) from short-read paired-end whole-genome sequencing data
 
 <b>Output</b>: Called deletions in VCF file
 
