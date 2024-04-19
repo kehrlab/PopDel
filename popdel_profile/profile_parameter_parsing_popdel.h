@@ -108,7 +108,7 @@ void setupParser(ArgumentParser & parser, const PopDelProfileParameters & params
     // Add visible options.
     addOption(parser, ArgParseOption("H", "fullHelp",          "Displays full list of options."));
     addSection(parser, "PopDel profile options");
-    addOption(parser, ArgParseOption("r", "reference",         "Reference genome version used for the mapping. Not used when using custom sampling intervals (option '-i'). One of 'GRCh37', 'GRCh38', 'hg19', 'hg38' (case-insensitive).", ArgParseArgument::STRING, "REF"));
+    addOption(parser, ArgParseOption("r", "reference",         "Reference genome version used for the mapping. Not used when using custom sampling intervals (option '-i'). One of 'T2T', 'GRCh38', 'GRCh37', 'hg38', 'hg19' (case-insensitive).", ArgParseArgument::STRING, "REF"));
     addOption(parser, ArgParseOption("d", "max-deletion-size", "Maximum size of deletions.", ArgParseArgument::INTEGER, "NUM"));
     addOption(parser, ArgParseOption("i", "intervals",         "File with genomic intervals for parameter estimation instead of default intervals (see README). One closed interval per line, formatted as \'CHROM:START-END\', 1-based coordinates.", ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("mrg","merge-read-groups","Merge all read groups of the sample. Only advised if they share the same properties!"));
@@ -155,11 +155,11 @@ inline void parseReferenceGenome(CharString & refVersion, const ArgumentParser &
     }
     refVersion = ref;
     toLower(refVersion);
-    if (refVersion != "grch38" && refVersion != "hg38" && refVersion != "grch37" && refVersion != "hg19")
+    if (refVersion != "grch38" && refVersion != "hg38" && refVersion != "grch37" && refVersion != "hg19" && refVersion != "t2t")
     {
         std::ostringstream msg;
-        msg << "[PopDel] If defined, reference genome version (-r, --reference) must be one of 'GRCh37', 'GRCh38',"
-               " 'hg19', 'hg38' (case-insensitive). Got '" << ref << "' instead. Terminating.";
+        msg << "[PopDel] If defined, reference genome version (-r, --reference) must be one of 'T2T', 'GRCh38', 'GRCh37',"
+               " 'hg38', 'hg19' (case-insensitive). Got '" << ref << "' instead. Terminating.";
         SEQAN_THROW(ParseError(toCString(msg.str())));
     }
 }

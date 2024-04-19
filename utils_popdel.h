@@ -1101,26 +1101,12 @@ void createRegularIntervals(String<GenomicRegion> & intervals,
     CharString r = referenceVersion;
     toLower(r);
     std::string prefix = "";
-    bool oldBuild = true;
 
     if (r == "grch38" || r == "hg38")
     {
         prefix = "chr";
-        oldBuild = false;
-    }
-    else if ( r == "hg19")
-    {
-        prefix = "chr";
-    }
-    else if  (r == "grch37")
-    {
-        prefix = "";
-    }
-
-    if (!oldBuild)
-    {
-        msg << "Using default sampling intervals for GRCh38/hg38.";
-        parse(tmpIntervals[0], prefix + "1:35000000-36000000");
+	msg << "Using default sampling intervals for GRCh38/hg38.";
+	parse(tmpIntervals[0], prefix + "1:35000000-36000000");
         parse(tmpIntervals[1], prefix + "2:174000000-175000000");
         parse(tmpIntervals[2], prefix + "3:36500000-37500000");
         parse(tmpIntervals[3], prefix + "4:88000000-89000000");
@@ -1143,8 +1129,17 @@ void createRegularIntervals(String<GenomicRegion> & intervals,
         parse(tmpIntervals[20], prefix + "21:21000000-22000000");
         parse(tmpIntervals[21], prefix + "22:25000000-26000000");
     }
-    else
+    else if (r == "hg19" || r == "grch37")
     {
+	if (r == "hg19")
+	{
+            prefix = "chr";
+	}
+	else if  (r == "grch37")
+	{
+	    prefix = "";
+	}
+
         msg << "Using default sampling intervals for GRCh37/hg19.";
         parse(tmpIntervals[0], prefix + "1:35000000-36000000");
         parse(tmpIntervals[1], prefix + "2:174000000-175000000");
@@ -1169,6 +1164,35 @@ void createRegularIntervals(String<GenomicRegion> & intervals,
         parse(tmpIntervals[20], prefix + "21:21000000-22000000");
         parse(tmpIntervals[21], prefix + "22:34000000-35000000");
     }
+    else if (r == "t2t")
+    {
+	prefix = "chr";
+
+	msg << "Using default sampling intervals for T2T.";
+        parse(tmpIntervals[0], prefix + "1:34862671-35862889");
+        parse(tmpIntervals[1], prefix + "2:174486328-175488756");
+        parse(tmpIntervals[2], prefix + "3:36501211-37501538");
+        parse(tmpIntervals[3], prefix + "4:91326486-92331326");
+        parse(tmpIntervals[4], prefix + "5:38249055-39249508");
+        parse(tmpIntervals[5], prefix + "6:37824746-38824389");
+        parse(tmpIntervals[6], prefix + "7:37140330-38140895");
+        parse(tmpIntervals[7], prefix + "8:19264816-20265041");
+        parse(tmpIntervals[8], prefix + "9:19012888-20013866");
+        parse(tmpIntervals[9], prefix + "10:19019031-20018540");
+        parse(tmpIntervals[10], prefix + "11:19120148-20120642");
+        parse(tmpIntervals[11], prefix + "12:18876696-19878375");
+        parse(tmpIntervals[12], prefix + "13:29222575-30221906");
+        parse(tmpIntervals[13], prefix + "14:20198012-21197787");
+        parse(tmpIntervals[14], prefix + "15:23740521-24741559");
+        parse(tmpIntervals[15], prefix + "16:25279621-26276377");
+        parse(tmpIntervals[16], prefix + "17:31945727-32945877");
+        parse(tmpIntervals[17], prefix + "18:31190236-32190327");
+        parse(tmpIntervals[18], prefix + "19:33518257-34518549");
+        parse(tmpIntervals[19], prefix + "20:34726695-35726351");
+        parse(tmpIntervals[20], prefix + "21:19362386-20367614");
+        parse(tmpIntervals[21], prefix + "22:34457342-35458830");
+    }
+
     printStatus(msg);
     for (Iterator<const String<GenomicRegion> >::Type roiIt = begin(rois); roiIt != end(rois); ++roiIt)
     {
