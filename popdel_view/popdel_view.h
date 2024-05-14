@@ -34,7 +34,7 @@ inline void printWindow(TStream & stream,
             stream << "\t" << static_cast<int>(it->pos - window.beginPos);
             stream << ":" << it->distance;
             if (printClipping)
-                stream << "(" << it->clipping << ")";
+                stream << "(" << (int) it->clipping[0] << "," << (int) it->clipping[1] << "," << (int) it->clipping[2] << "," << (int) it->clipping[3] << ")";
             if (printOrientation)
                 stream << ":" << it->orientation;
             ++it;
@@ -44,7 +44,7 @@ inline void printWindow(TStream & stream,
             stream << "," << static_cast<int>(it->pos - window.beginPos);
             stream << ":" << it->distance;
             if (printClipping)
-                stream << "(" << it->clipping << ")";
+                stream << "(" << (int) it->clipping[0] << "," << (int) it->clipping[1] << "," << (int) it->clipping[2] << "," << (int) it->clipping[3] << ")";
             if (printOrientation)
                 stream << ":" << it->orientation;
             ++it;
@@ -126,7 +126,7 @@ inline void printTranslocationWindow(TStream & stream,
             stream << ",";
             stream << static_cast<int>(it->first.pos - window.beginPos);
             if (printClipping)
-                stream << "(" << static_cast<unsigned>(it->first.clip) << ")";
+                stream << "(" << static_cast<unsigned>(it->first.clip_0) << "," << static_cast<unsigned>(it->first.clip_1) << ")";
             if (printOrientation)
             {
                 stream << ":";
@@ -137,7 +137,7 @@ inline void printTranslocationWindow(TStream & stream,
             }
             stream << "+" << contigNames[it->second.refID] << ":" << it->second.pos + 1;
             if (printClipping)
-                stream << "(" << static_cast<unsigned>(it->second.clip) << ")";
+                stream << "(" << static_cast<unsigned>(it->second.clip_0) << "," << static_cast<unsigned>(it->second.clip_1) << ")";
             if (printOrientation)
             {
                 stream << ":";

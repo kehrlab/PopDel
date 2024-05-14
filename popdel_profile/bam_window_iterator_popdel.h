@@ -29,6 +29,7 @@ struct BamWindowIterator
     int32_t leftTipPos;                                   // clipped 3' end of the leftmost read of the pair
     int32_t distance;                                     // FR-reads: 5'-end distance. Other reads: 3'-end distance.
     int32_t totalClipping;                                // Total ammount of soft clipping in both reads of the pair.
+    std::vector<uint8_t> clipping;                        // Number of clipped bases at all read ends: (5', 3', 3', 5')
     Orientation orientation;                              // Orientation of the current pair
     int32_t maxDeletionSize;                              // Biggest tip distance of all RGs to be considered.
     String<int32_t> maxTipDistances;                      // Max. tip distance per RG.
@@ -201,13 +202,13 @@ inline bool isRightAlignment(const BamAlignmentRecord & record)
 // Because we tLen is ambigous, we cannot give the exact end of the second's read 3' end, without looking at it.
 // Therefore, we calculate the highest possible distance between the tips, based on the read length and pNExt.
 // For normally oriented read pairs this equals to the inner distance.
-inline int getAbsTipDistance(const BamWindowIterator & bwi)
+inline int32_t getAbsTipDistance(const BamWindowIterator & bwi)
 {
-    int a = bwi.nextRecord.beginPos;
+    int32_t a = bwi.nextRecord.beginPos;
     if (!hasFlagRC(bwi.nextRecord))
         a += getAlignmentLengthInRef(bwi.nextRecord) - 1;
 
-    int b;
+    int32_t b;
     if (hasFlagNextRC(bwi.nextRecord))
         b = bwi.nextRecord.pNext;
     else
@@ -258,14 +259,14 @@ inline bool processLeftAlignment(BamWindowIterator & bwi)
 // =======================================================================================
 // Return the position of the record's 3'-end.
 // This equals r.beginPos for reverse complement reads and r.beginPos + getAlignmentLengthInRef(r) -1 for forward reads.
-inline int getTip(const BamAlignmentRecord & r)
+inline int32_t getTip(const BamAlignmentRecord & r)
 {
     if (hasFlagRC(r))
         return r.beginPos;
     else
         return r.beginPos + getAlignmentLengthInRef(r) - 1;
 }
-inline int getTip(const GoodReadBufferEntry & r)
+inline int32_t getTip(const GoodReadBufferEntry & r)
 {
     if (r.flag & 16)         // read is reverse complement
         return r.clippedLeftEnd;
@@ -276,8 +277,8 @@ inline int getTip(const GoodReadBufferEntry & r)
 // Function assignTipAndDistance()
 // =======================================================================================
 // Assign the position of the tip of the left read and the distance between the tips (3' ends) of the reads.
-inline void assignTipAndDistance(int & leftTipPos,
-                                 int & distance,
+inline void assignTipAndDistance(int32_t & leftTipPos,
+                                 int32_t & distance,
                                  const GoodReadBufferEntry & leftRead,
                                  const BamAlignmentRecord & rightRead)
 {
@@ -285,8 +286,8 @@ inline void assignTipAndDistance(int & leftTipPos,
     distance = getTip(rightRead) - leftTipPos;
 }
 //Overload in case the first read is the BamAlignmentRecord record.
-inline void assignTipAndDistance(int & leftTipPos,
-                                 int & distance,
+inline void assignTipAndDistance(int32_t & leftTipPos,
+                                 int32_t & distance,
                                  const BamAlignmentRecord & leftRead,
                                  const GoodReadBufferEntry & rightRead)
 {
@@ -320,6 +321,81 @@ inline int getTotalClipping(const BamAlignmentRecord & b,
     return getTotalClipping(g, b);
 }
 // =======================================================================================
+// Function getClipping()
+// =======================================================================================
+// Return the individual number of clipped bases at all read ends in a pair
+// assumes that r1 is the first read in pair (according to alignment position)
+inline std::vector<uint8_t> getClipping(const BamAlignmentRecord & r1, const BamAlignmentRecord & r2)
+{
+    std::vector<uint8_t> clipping{0, 0, 0, 0};
+    if (hasFlagRC(r1)) // read is reverse complement
+    {
+        clipping[0] = getRightClip(r1);
+        clipping[1] = getLeftClip(r1);
+    } else {
+        clipping[0] = getLeftClip(r1);
+        clipping[1] = getRightClip(r1);
+    }
+
+    if (hasFlagRC(r2)) // read is reverse complement
+    {
+        clipping[2] = getLeftClip(r2);
+        clipping[3] = getRightClip(r2);
+    } else {
+        clipping[2] = getRightClip(r2);
+        clipping[3] = getLeftClip(r2);
+    }
+    return clipping;
+}
+
+inline std::vector<uint8_t> getClipping(const BamAlignmentRecord & r, const GoodReadBufferEntry & g)
+{
+    std::vector<uint8_t> clipping{0, 0, 0, 0};
+    if (hasFlagRC(r)) // read is reverse complement
+    {
+        clipping[0] = getRightClip(r);
+        clipping[1] = getLeftClip(r);
+    } else {
+        clipping[0] = getLeftClip(r);
+        clipping[1] = getRightClip(r);
+    }
+
+    if (g.flag & 16) // read is reverse complement
+    {
+        clipping[2] = g.clippedLeftEnd - g.fullLeftEnd;
+        clipping[3] = g.fullRightEnd - g.clippedRightEnd;
+    } else {
+        clipping[2] = g.fullRightEnd - g.clippedRightEnd;
+        clipping[3] = g.clippedLeftEnd - g.fullLeftEnd;
+    }
+    return clipping;
+}
+
+inline std::vector<uint8_t> getClipping(const GoodReadBufferEntry & g, const BamAlignmentRecord & r)
+{
+    std::vector<uint8_t> clipping{0, 0, 0, 0};
+
+    if (g.flag & 16) // read is reverse complement
+    {
+        clipping[0] = g.fullRightEnd - g.clippedRightEnd;
+        clipping[1] = g.clippedLeftEnd - g.fullLeftEnd;
+    } else {
+        clipping[0] = g.clippedLeftEnd - g.fullLeftEnd;
+        clipping[1] = g.fullRightEnd - g.clippedRightEnd;
+    }
+
+    if (hasFlagRC(r)) // read is reverse complement
+    {
+        clipping[2] = getLeftClip(r);
+        clipping[3] = getRightClip(r);
+    } else {
+        clipping[2] = getRightClip(r);
+        clipping[3] = getLeftClip(r);
+    }
+    return clipping;
+}
+
+// =======================================================================================
 // Function processRightAlignment()
 // =======================================================================================
 // Processes a (probable) right alignment by correcting for the clipping and adding it to the map of good reads.
@@ -336,11 +412,13 @@ inline bool processRightAlignment(BamWindowIterator & bwi)
         {   // left and right read have been confused due to soft clipping. 'bwi.nextRecord' is the left read.
             bwi.orientation = getPairOrientation(fwd->second);
             assignTipAndDistance(bwi.leftTipPos, bwi.distance, bwi.nextRecord, fwd->second);
+            bwi.clipping = getClipping(bwi.nextRecord, fwd->second);
         }
         else
         {
             bwi.orientation = getPairOrientation(bwi.nextRecord);
             assignTipAndDistance(bwi.leftTipPos, bwi.distance, fwd->second, bwi.nextRecord);
+            bwi.clipping = getClipping(fwd->second, bwi.nextRecord);
         }
         bwi.totalClipping = getTotalClipping(bwi.nextRecord, fwd->second);
         SEQAN_ASSERT_GEQ(bwi.totalClipping, 0);
@@ -573,7 +651,7 @@ inline void addRecordToWindows(BamWindowIterator & bwi)
     addRecord(*posToWindow(bwi.leftTipPos, bwi),
               bwi.leftTipPos,
               bwi.distance,
-              bwi.totalClipping,
+              bwi.clipping,
               bwi.orientation,
               getReadGroup(bwi.nextRecord.tags, bwi.readGroups, bwi.mergeRG),
               length(bwi.readGroups));
@@ -588,12 +666,12 @@ inline void resetWindows(BamWindowIterator & bwi)
     // Set the interval to the next interval with good read pairs.
     bwi.currentWindowInterval = bwi.currentReadingInterval;
     // Set the window begin position.
-    int maxTipDistance = max(bwi.maxTipDistances);
-    int tipPos = getTip(bwi.nextRecord);
-    unsigned pos = tipPos > maxTipDistance ? tipPos - maxTipDistance : 0;
+    int32_t maxTipDistance = max(bwi.maxTipDistances);
+    int32_t tipPos = getTip(bwi.nextRecord);
+    uint32_t pos = tipPos > maxTipDistance ? tipPos - maxTipDistance : 0;
     bwi.currentWindowBegin = (pos / bwi.windowShift) * bwi.windowShift;
     // Clear all windows and set their chromosome and begin position.
-    for (int i = bwi.currentWindowBegin;
+    for (int32_t i = bwi.currentWindowBegin;
          i < bwi.currentWindowBegin + maxTipDistance + bwi.windowSize + 1;
          i += bwi.windowShift)
         *posToWindow(i, bwi) = Window(bwi.currentWindowInterval->rID, i);

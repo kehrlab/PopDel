@@ -102,17 +102,29 @@ inline Orientation getSwitchedOrientation(const Orientation o)
 struct ReadPair
 {
     unsigned pos;                   // Position of the 3' end of the leftmost read in the pair
-    int distance;                   // FR-reads: 5'-end distance. Other reads; 3'-end distance
-    uint16_t clipping;              // Total number of clipped bases in both reads
+    int32_t distance;                   // FR-reads: 5'-end distance. Other reads; 3'-end distance
+    std::vector<uint8_t> clipping;   // number of clipped bases (5', left; 3', left; 3', right; 5', right)
+    uint16_t totalClipping;
     Orientation orientation;
 
     ReadPair():
-        pos(0), distance(0), clipping(0), orientation(Orientation::FR )
+        pos(0), distance(0), clipping(std::vector<uint8_t>(4, 0)), totalClipping(0), orientation(Orientation::FR )
     {}
 
-    ReadPair(unsigned p, unsigned i, unsigned c, Orientation o = Orientation::FR ):
-        pos(p), distance(i), clipping(c), orientation(o)
+    ReadPair(unsigned p, unsigned i, uint8_t c, Orientation o = Orientation::FR ):
+        pos(p), distance(i), clipping({0, c/2, c/2, 0}), totalClipping(c), orientation(o)
     {}
+
+    ReadPair(unsigned p, unsigned i, uint8_t c_0, uint8_t c_1, uint8_t c_2, uint8_t c_3, Orientation o = Orientation::FR ):
+        pos(p), distance(i), clipping({c_0, c_1, c_2, c_3}), totalClipping(c_0 + c_1 + c_2 + c_3), orientation(o)
+    {}
+
+    ReadPair(unsigned p, unsigned i, std::vector<uint8_t> c, Orientation o = Orientation::FR ):
+        pos(p), distance(i), clipping(c), totalClipping(0), orientation(o)
+    {
+        for (unsigned j = 0; j < clipping.size(); ++j)
+            totalClipping += clipping[j];
+    }
 
     bool operator <(const ReadPair & r)
     {
@@ -126,7 +138,7 @@ struct ReadPair
 };
 inline bool operator==(const ReadPair& l, const ReadPair& r)
 {
-    return l.pos == r.pos && l.distance == r.distance && l.clipping == r.clipping && l.orientation == r.orientation;
+    return l.pos == r.pos && l.distance == r.distance && l.clipping[0] == r.clipping[0] && l.clipping[1] == r.clipping[1] && l.clipping[2] == r.clipping[2] && l.clipping[3] == r.clipping[3] && l.orientation == r.orientation;
 }
 inline bool operator!=(const ReadPair& l, const ReadPair& r)
 {
@@ -180,8 +192,8 @@ inline void reset(TWindow & window)
 // Aggregate tipDistance and numWindows as pair and add it to window for read group.
 inline void addRecord(Window & window,
                       __int32 beginPos,     // clipped 3'-end of the leftmost read in the pair
-                      int tipDistance,
-                      unsigned clipping,
+                      int32_t tipDistance,
+                      std::vector<uint8_t> clipping,
                       Orientation orientation,
                       unsigned readGroup,
                       unsigned numReadGroups)
@@ -204,7 +216,7 @@ inline unsigned countClippedPairs(const Window & window, unsigned rg)
     unsigned c = 0;
     for (unsigned  i = 0; i < length(window.records[rg]); ++i)
     {
-        if (window.records[rg][i].clipping > 0u)
+        if (window.records[rg][i].totalClipping > 0u)
             ++c;
     }
     return c;
@@ -314,12 +326,15 @@ inline void writeWindow(zlib_stream::zip_ostream & stream,
                  it != end(window.records[rg], Standard());
                  ++it, ++id)
                  {
-                     if (it->clipping > 0u)
+                     if (it->totalClipping > 0u)
                      {
-                         SEQAN_ASSERT_LEQ(it->clipping, 255u);
-                         unsigned char clipping = it->clipping;
-                         stream.write(reinterpret_cast<char *>(&id), sizeof(uint32_t));
-                         stream.write(reinterpret_cast<char *>(&clipping), sizeof(unsigned char));
+                        stream.write(reinterpret_cast<char *>(&id), sizeof(uint32_t));
+                        for (unsigned cl = 0; cl < it->clipping.size(); ++cl)
+                        {
+                            SEQAN_ASSERT_LEQ(it->clipping[cl], 255u);
+                            unsigned char clipping = it->clipping[cl];
+                            stream.write(reinterpret_cast<char *>(&clipping), sizeof(unsigned char));
+                        }
                      }
                  }
         }
@@ -433,20 +448,27 @@ inline void readOrientations(String<ReadPair> & records, zlib_stream::zip_istrea
 // Function readClipping()
 // =======================================================================================
 // Read all clipping info of the window's records and create a map of ID:clipping.
-inline void readClipping(std::map<unsigned, uint16_t> & clipMap,
+inline void readClipping(std::map<unsigned, std::vector<uint8_t>> & clipMap,
                          zlib_stream::zip_istream & stream,
                          const unsigned & numClippedRecords)
 {
     for (unsigned i = 0; i < numClippedRecords; ++i)
     {
         unsigned id = 0;
-        unsigned clipping = 0;
+        std::vector<uint8_t> clipping(4, 0);
+
         stream.read(reinterpret_cast<char *>(&id), sizeof(uint32_t));
         if (!stream.good())
             SEQAN_THROW(ParseError("[PopDel] Unable to read id of clipped read pair."));
-        stream.read(reinterpret_cast<char *>(&clipping), sizeof(unsigned char));
-        if (!stream.good())
-            SEQAN_THROW(ParseError("[PopDel] Unable to read number of clipped bases."));
+        for (unsigned i = 0; i < clipping.size(); ++i)
+        {
+            uint8_t tempClip = 0;
+            stream.read(reinterpret_cast<char *>(&tempClip), sizeof(unsigned char));
+            if (!stream.good())
+                SEQAN_THROW(ParseError("[PopDel] Unable to read number of clipped bases."));
+            clipping[i] = tempClip;
+        }
+        
         clipMap[id] = clipping;
     }
 }
@@ -475,16 +497,16 @@ inline void readRecords(String<ReadPair> & records,
 // =======================================================================================
 // Add the clipping info from the map to the records.
 inline void addClippingToRecords(String<ReadPair> & records,
-                                 const std::map<unsigned, uint16_t> & clipMap,
+                                 const std::map<unsigned, std::vector<uint8_t>> & clipMap,
                                  const unsigned & numClippedRecords)
 {
     if (numClippedRecords == 0)
         return;
     unsigned  processed = 0;
-    const std::map<unsigned, uint16_t>::const_iterator mapEnd = clipMap.end();
+    const std::map<unsigned, std::vector<uint8_t>>::const_iterator mapEnd = clipMap.end();
     for (unsigned  i = 0; i < length(records) && processed < numClippedRecords; ++i)
     {
-        std::map<unsigned, uint16_t>::const_iterator it = clipMap.find(i);
+        std::map<unsigned, std::vector<uint8_t>>::const_iterator it = clipMap.find(i);
         if (it != mapEnd)
         {
             records[i].clipping = it->second;
@@ -508,7 +530,7 @@ inline bool readWindow(Window & window,
     resize(window.records, numReadGroups);
     for (unsigned rg = 0; rg < numReadGroups; ++rg)
     {
-        std::map<unsigned, uint16_t> clipMap;
+        std::map<unsigned, std::vector<uint8_t>> clipMap;
         unsigned numRecords = readNumRecords(stream);
         unsigned numClippedRecords = readNumClippedRecords(stream);
         unsigned numNonFRRecords = readNumNonFRRecords(stream);

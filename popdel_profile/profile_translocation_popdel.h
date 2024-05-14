@@ -28,17 +28,19 @@ struct TranslocationRead
 {
     uint32_t        refID;          // ID of the chromsome the read is mapped to
     uint32_t        pos;            // Position on the reference
-    unsigned char   clip;           // Number of soft clipped bases at the 3'-end of the read.
+    unsigned char   clip_0;           // Number of soft clipped bases at the 5'-end of the read.
+    unsigned char   clip_1;           // Number of soft clipped bases at the 3'-end of the read.
 
-    TranslocationRead(): refID(maxValue<uint32_t>()), pos(0), clip(0) {}
+    TranslocationRead(): refID(maxValue<uint32_t>()), pos(0), clip_0(0), clip_1(0) {}
 
-    TranslocationRead(unsigned r, unsigned p, unsigned c): refID(r), pos(p), clip(c) {}
+    TranslocationRead(unsigned r, unsigned p, unsigned c_0, unsigned c_1): refID(r), pos(p), clip_0(c_0), clip_1(c_1) {}
 
     TranslocationRead& operator= (TranslocationRead other)
     {
         std::swap(refID, other.refID);
         std::swap(pos, other.pos);
-        std::swap(clip, other.clip);
+        std::swap(clip_0, other.clip_0);
+        std::swap(clip_1, other.clip_1);
         return *this;
     }
 };
@@ -52,13 +54,15 @@ struct TranslocationPair
     TranslocationRead second;
     Orientation orientation;            // Orientation of first and second, in this order.
 
-    TranslocationPair(unsigned r, unsigned p, unsigned char c, Orientation o)
+    TranslocationPair(unsigned r, unsigned p, unsigned char c_0, unsigned char c_1, Orientation o)
     {
         first.refID = r;
         first.pos = p;
-        first.clip = c;
+        first.clip_0 = c_0;
+        first.clip_1 = c_1;
         orientation = o;
     }
+
     TranslocationPair(const TranslocationRead & f, const TranslocationRead & s, Orientation o)
     {
         first = f;
@@ -67,10 +71,11 @@ struct TranslocationPair
     }
     inline void print()
     {
-        std::cout << first.refID << ":" << first.pos << "(" << static_cast<int>(first.clip) << ")+"
-                  << second.refID << ":" << second.pos << "(" << static_cast<int>(second.clip) << ")";
+        std::cout << first.refID << ":" << first.pos << "(" << static_cast<int>(first.clip_0) << "," << static_cast<int>(first.clip_1) << ")+"
+                  << second.refID << ":" << second.pos << "(" << static_cast<int>(second.clip_0) << "," << static_cast<int>(second.clip_1) << ")";
     }
 };
+
 inline bool operator<(const TranslocationPair & l, const TranslocationPair & r)
 {
     if (l.first.refID > r.first.refID)
@@ -289,11 +294,12 @@ struct TranslocationBuffer
     // Function insert()
     // =======================================================================================
     // Insert a pair with the given values as the first read in the pair.
-    inline void insert(const CharString & qname, uint32_t refID, uint32_t pos, uint32_t clip, bool reverse)
+    inline void insert(const CharString & qname, uint32_t refID, uint32_t pos, uint32_t clip_0, uint32_t clip_1, bool reverse)
     {
-        SEQAN_ASSERT_LEQ(clip, 255u);
+        SEQAN_ASSERT_LEQ(clip_0, 255u);
+        SEQAN_ASSERT_LEQ(clip_1, 255u);
         Orientation o = reverse ? Orientation::RF : Orientation::FF; // Orientation of mate is preliminary
-        pairs.emplace(qname, TranslocationPair(refID, pos, clip, o));
+        pairs.emplace(qname, TranslocationPair(refID, pos, clip_0, clip_1, o));
     }
     // =======================================================================================
     // Function update()
@@ -302,11 +308,13 @@ struct TranslocationBuffer
     inline void update(std::map<CharString, TranslocationPair>::iterator it,
                        uint32_t refID,
                        uint32_t pos,
-                       uint32_t clip,
+                       uint32_t clip_0,
+                       uint32_t clip_1,
                        bool reverse)
     {
-        SEQAN_ASSERT_LEQ(clip, 255u);
-        it->second.second = TranslocationRead(refID, pos, clip);
+        SEQAN_ASSERT_LEQ(clip_0, 255u);
+        SEQAN_ASSERT_LEQ(clip_1, 255u);
+        it->second.second = TranslocationRead(refID, pos, clip_0, clip_1);
         if (it->second.orientation == Orientation::FF)  // Must match orientation in insert()!
             it->second.orientation = reverse ? Orientation::FR : Orientation::FF;
         else
@@ -399,19 +407,22 @@ inline bool meetsTranslocRequirements(const BamAlignmentRecord & record, const u
 // Determine the parameters of a translocationBuffer entry from the record.
 inline void createTranslocationBufferEntry(const BamAlignmentRecord & record,
                                            unsigned & pos,
-                                           unsigned & clip,
+                                           unsigned & clip_0,
+                                           unsigned & clip_1,
                                            bool & reverse)
 {
     reverse = hasFlagRC(record);
     if (reverse)
     {
         pos = record.beginPos;
-        clip = getLeftClip(record);
+        clip_0 = getRightClip(record);
+        clip_1 = getLeftClip(record);
     }
     else
     {
         pos = record.beginPos + getAlignmentLengthInRef(record) - 1;
-        clip = getRightClip(record);
+        clip_0 = getLeftClip(record);
+        clip_1 = getRightClip(record);
     }
 }
 // =======================================================================================
@@ -421,10 +432,11 @@ inline void createTranslocationBufferEntry(const BamAlignmentRecord & record,
 inline void processTranslocatedRecord(TranslocationBuffer & buffer, const BamAlignmentRecord & record)
 {
     unsigned pos;
-    unsigned clip;
+    unsigned clip_0;
+    unsigned clip_1;
     bool reverse;
-    createTranslocationBufferEntry(record, pos, clip, reverse);
-    buffer.insert(record.qName, record.rID, pos, clip, reverse);
+    createTranslocationBufferEntry(record, pos, clip_0, clip_1, reverse);
+    buffer.insert(record.qName, record.rID, pos, clip_0, clip_1, reverse);
 }
 // Overload for updating the record instead of inserting a new one
 inline void processTranslocatedRecord(TranslocationBuffer & buffer,
@@ -432,10 +444,11 @@ inline void processTranslocatedRecord(TranslocationBuffer & buffer,
                                       const BamAlignmentRecord & record)
 {
     unsigned pos;
-    unsigned clip;
+    unsigned clip_0;
+    unsigned clip_1;
     bool reverse;
-    createTranslocationBufferEntry(record, pos, clip, reverse);
-    buffer.update(it, record.rID, pos, clip, reverse);
+    createTranslocationBufferEntry(record, pos, clip_0, clip_1, reverse);
+    buffer.update(it, record.rID, pos, clip_0, clip_1, reverse);
 }
 // =======================================================================================
 // Function getTranslocationWindowBorder()
@@ -548,15 +561,19 @@ inline void writeWindowRecords(zlib_stream::zip_ostream & stream,
     for (;first != last; ++first)
     {
         char offset = first->first.pos - winStartPos;
-        unsigned char clip = first->first.clip;
+        unsigned char clip_0 = first->first.clip_0;
+        unsigned char clip_1 = first->first.clip_1;
         uint32_t refID2 = first->second.refID;
         uint32_t pos2 = first->second.pos;
-        unsigned char clip2 = first->second.clip;
+        unsigned char clip_2 = first->second.clip_0;
+        unsigned char clip_3 = first->second.clip_1;
         stream.write(reinterpret_cast<char *>(&offset), sizeof(char));
-        stream.write(reinterpret_cast<char *>(&clip), sizeof(unsigned char));
+        stream.write(reinterpret_cast<char *>(&clip_0), sizeof(unsigned char));
+        stream.write(reinterpret_cast<char *>(&clip_1), sizeof(unsigned char));
         stream.write(reinterpret_cast<char *>(&refID2), sizeof(uint32_t));
         stream.write(reinterpret_cast<char *>(&pos2), sizeof(uint32_t));
-        stream.write(reinterpret_cast<char *>(&clip2), sizeof(unsigned char));
+        stream.write(reinterpret_cast<char *>(&clip_2), sizeof(unsigned char));
+        stream.write(reinterpret_cast<char *>(&clip_3), sizeof(unsigned char));
     }
 }
 // =======================================================================================

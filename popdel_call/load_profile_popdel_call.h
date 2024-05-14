@@ -91,7 +91,7 @@ inline void recreateOrder(String<GenomicRegion> & allRois, const String<String<c
                 break;
             }
         }
-    }
+    } 
     std::sort(begin(order), end(order));
     String<GenomicRegion> reOrdered;
     reserve(reOrdered, length(allRois), Exact());
@@ -477,7 +477,7 @@ inline void addRgRecordsToProfile(ChromosomeProfile & profile,
                 endPos += record.distance;
 
             int deviation = record.distance - histograms[readGroup].median3PrimeDist;
-            profile.add(readGroup, record.pos, endPos, deviation, record.clipping, record.orientation);
+            profile.add(readGroup, record.pos, endPos, deviation, record.clipping[1] + record.clipping[2], record.orientation);
         }
     }
 }

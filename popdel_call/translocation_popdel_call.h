@@ -12,9 +12,10 @@
 struct FirstTranslocationRead
 {
     uint32_t        pos;            // Position on the reference
-    unsigned char   clip;           // Number of soft clipped bases at the 3'-end of the read.
+    unsigned char   clip_0;           // Number of soft clipped bases at the 5'-end of the read.
+    unsigned char   clip_1;           // Number of soft clipped bases at the 3'-end of the read.
 
-    FirstTranslocationRead(): pos(0), clip(0) {}
+    FirstTranslocationRead(): pos(0), clip_0(0), clip_1(0) {}
 };
 // =======================================================================================
 // Struct FirstTranslocationRead
@@ -35,7 +36,14 @@ struct TranslocationWindowEntry
     TranslocationWindowEntry(unsigned p, unsigned c, Orientation o)
     {
         first.pos = p;
-        first.clip = c;
+        first.clip_1 = c;
+        orientation = o;
+    }
+    TranslocationWindowEntry(unsigned p, unsigned c_0, unsigned c_1, Orientation o)
+    {
+        first.pos = p;
+        first.clip_0 = c_0;
+        first.clip_1 = c_1;
         orientation = o;
     }
     TranslocationWindowEntry(const FirstTranslocationRead & f, const TranslocationRead & s, Orientation o)
@@ -236,7 +244,10 @@ inline void readRecords(String<TranslocationWindowEntry> & records,
         if (!stream.good())
             SEQAN_THROW(ParseError("[PopDel] Unable to read position offset in translocation block."));
         records[i].first.pos += windowBeginPos;
-        stream.read(reinterpret_cast<char *>(&records[i].first.clip), sizeof(unsigned char));
+        stream.read(reinterpret_cast<char *>(&records[i].first.clip_0), sizeof(unsigned char));
+        if (!stream.good())
+            SEQAN_THROW(ParseError("[PopDel] Unable to read clipping of first translocation read."));
+        stream.read(reinterpret_cast<char *>(&records[i].first.clip_1), sizeof(unsigned char));
         if (!stream.good())
             SEQAN_THROW(ParseError("[PopDel] Unable to read clipping of first translocation read."));
         stream.read(reinterpret_cast<char *>(&records[i].second.refID), sizeof(uint32_t));
@@ -245,7 +256,10 @@ inline void readRecords(String<TranslocationWindowEntry> & records,
         stream.read(reinterpret_cast<char *>(&records[i].second.pos), sizeof(uint32_t));
         if (!stream.good())
             SEQAN_THROW(ParseError("[PopDel] Unable to read position of second translocation read."));
-        stream.read(reinterpret_cast<char *>(&records[i].second.clip), sizeof(unsigned char));
+        stream.read(reinterpret_cast<char *>(&records[i].second.clip_0), sizeof(unsigned char));
+        if (!stream.good())
+            SEQAN_THROW(ParseError("[PopDel] Unable to read clipping of second translocation read."));
+        stream.read(reinterpret_cast<char *>(&records[i].second.clip_1), sizeof(unsigned char));
         if (!stream.good())
             SEQAN_THROW(ParseError("[PopDel] Unable to read clipping of second translocation read."));
     }
