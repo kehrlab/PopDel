@@ -495,7 +495,7 @@ inline int processRecord(BamWindowIterator & bwi)
     {
         if (isTranslocated(bwi.nextRecord))
         {
-            if (meetsTranslocRequirements(bwi.nextRecord))
+            if (meetsTranslocRequirements(bwi.nextRecord, bwi.qualReq.minMappingQual))
                 checkAndAddTranslocatedRecord(bwi);
             else
                 checkAndRemoveTranslocatedRecord(bwi);
