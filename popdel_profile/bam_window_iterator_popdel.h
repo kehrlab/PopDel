@@ -250,8 +250,8 @@ inline bool processLeftAlignment(BamWindowIterator & bwi)
         return false;                                                   // Fwd. read starts after current interval.
     if (bwi.nextRecord.pNext < bwi.currentReadingInterval->beginPos)
         return true;                                                    // Rev. read ends before current interval.
-    if (inMaxRange(bwi))
-        bwi.goodLeftReads[bwi.nextRecord.qName] = GoodReadBufferEntry(bwi);
+    // if (inMaxRange(bwi))                                             // general-purpose profiles do not need max distance
+    bwi.goodLeftReads[bwi.nextRecord.qName] = GoodReadBufferEntry(bwi);
     return true;
 }
 // =======================================================================================
