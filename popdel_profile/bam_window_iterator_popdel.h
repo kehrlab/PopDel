@@ -800,6 +800,8 @@ void initialize(BamWindowIterator & bwi,
     calculateMaxTipDistances (bwi, hists);
     bwi.intervals = intervals;
     initContigStatusList(bwi, numContigs);
+    resize(bwi.blacklist.regions, numContigs, Exact());
+
     // Set the quality requirements for reads.
     bwi.qualReq = qualReq;
     // Open the input bam file, read the header and go to the reverse read of the first good read pair in infile.

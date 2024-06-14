@@ -241,7 +241,7 @@ struct TranslocationBlacklist
     // Return true of the position given by contig and pos is contained in the blacklist, false otherwise.
     inline bool contains(const unsigned rID, const unsigned pos) const
     {
-        if (length(regions) == 0)
+        if (length(regions) <= rID) // make sure that contig number is in range
             return false;
         auto it = std::lower_bound(begin(regions[rID]), end(regions[rID]), pos, comesAfterRange);
         if (it == end(regions[rID]))
