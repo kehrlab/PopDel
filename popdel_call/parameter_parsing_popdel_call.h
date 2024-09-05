@@ -184,6 +184,7 @@ struct PopDelCallParameters
     unsigned translocationThreshold;                // Minimum (absolute) number of translocated read pairs.
     double relTranslocationThreshold;              // Minimum relative proportion of translocated read pairs.
     bool delOnly;
+    bool somatic;
 
     PopDelCallParameters() :
     histogramsFile(""),
@@ -201,7 +202,7 @@ struct PopDelCallParameters
     fileCount(0),
     sampleNum(0),
     representativeContigs(false),
-    maxDeletionSize(10000),
+    maxDeletionSize(1000000),
     minSampleFraction(0.1),
     meanStddev(0.0),
     windowWiseOutput(false),
@@ -211,7 +212,8 @@ struct PopDelCallParameters
     relOrientationThreshold(0.1),
     translocationThreshold(2),
     relTranslocationThreshold(0.1),
-    delOnly(false)
+    delOnly(false),
+    somatic(false)
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -292,6 +294,7 @@ void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
                                                                    "See parameter -r.",                                                        ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("s",  "min-sample-fraction",  "Minimum fraction of samples which is required to have enough data in the window.", ArgParseArgument::DOUBLE, "NUM"));
     addOption(parser, ArgParseOption("x", "del-only", "Exclusively call deletions. Ignore other SVs."));
+    addOption(parser, ArgParseOption("S", "somatic", "Use genotype weights for somatic variant detection in cell populations"));
 
     // Set default values for visible options.
     setDefaultValue(parser, "a", params.defaultMaxLoad);
@@ -365,6 +368,10 @@ void getParameterValues(PopDelCallParameters & params, ArgumentParser & parser)
     if (isSet(parser, "del-only"))
     {
         params.delOnly = true;
+    }
+    if (isSet(parser, "somatic"))
+    {
+        params.somatic = true;
     }
 }
 

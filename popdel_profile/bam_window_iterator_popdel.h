@@ -163,7 +163,7 @@ inline Orientation getPairOrientation(const GoodReadBufferEntry & entry)
 // Function posToWindow()
 // ---------------------------------------------------------------------------------------
 // Return an iterator to the window which overlaps the position 'pos'.
-inline Iterator<String<Window> >::Type posToWindow(const unsigned & pos, BamWindowIterator & bwi)
+inline Iterator<String<Window> >::Type posToWindow(const int32_t & pos, BamWindowIterator & bwi)
 {
     unsigned windowIndex =  pos / bwi.windowShift;          // Begin position of the window that overlaps pos.
     unsigned w = windowIndex % length(bwi.activeWindows);   // Index of this window in the String of windows.
@@ -250,8 +250,8 @@ inline bool processLeftAlignment(BamWindowIterator & bwi)
         return false;                                                   // Fwd. read starts after current interval.
     if (bwi.nextRecord.pNext < bwi.currentReadingInterval->beginPos)
         return true;                                                    // Rev. read ends before current interval.
-    // if (inMaxRange(bwi))                                             // general-purpose profiles do not need max distance
-    bwi.goodLeftReads[bwi.nextRecord.qName] = GoodReadBufferEntry(bwi);
+    if (inMaxRange(bwi))                                             
+        bwi.goodLeftReads[bwi.nextRecord.qName] = GoodReadBufferEntry(bwi);
     return true;
 }
 // =======================================================================================
@@ -648,6 +648,7 @@ inline void addRecordToWindows(BamWindowIterator & bwi)
     //Note: bwi.nextRecords is the rightmost read of a pair at this point!
     SEQAN_ASSERT_LEQ(posToWindow(bwi.leftTipPos, bwi)->beginPos, bwi.leftTipPos);
     SEQAN_ASSERT_GT(posToWindow(bwi.leftTipPos, bwi)->beginPos + 256, bwi.leftTipPos);
+
     addRecord(*posToWindow(bwi.leftTipPos, bwi),
               bwi.leftTipPos,
               bwi.distance,

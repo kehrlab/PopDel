@@ -101,7 +101,7 @@ inline Orientation getSwitchedOrientation(const Orientation o)
 // Holds the properties of one record (=read pair) in the window.
 struct ReadPair
 {
-    unsigned pos;                   // Position of the 3' end of the leftmost read in the pair
+    uint32_t pos;                   // Position of the 3' end of the leftmost read in the pair
     int32_t distance;                   // FR-reads: 5'-end distance. Other reads; 3'-end distance
     std::vector<uint8_t> clipping;   // number of clipped bases (5', left; 3', left; 3', right; 5', right)
     uint16_t totalClipping;
@@ -191,7 +191,7 @@ inline void reset(TWindow & window)
 // =======================================================================================
 // Aggregate tipDistance and numWindows as pair and add it to window for read group.
 inline void addRecord(Window & window,
-                      __int32 beginPos,     // clipped 3'-end of the leftmost read in the pair
+                      int32_t beginPos,     // clipped 3'-end of the leftmost read in the pair
                       int32_t tipDistance,
                       std::vector<uint8_t> clipping,
                       Orientation orientation,
@@ -348,11 +348,13 @@ inline void writeWindow(zlib_stream::zip_ostream & stream,
             stream.write(reinterpret_cast<char *>(&orientations[0]), numChars);
         }
 
-        // Now write the records
+        // Now write the records      
         for (TValueIter it = begin(window.records[rg], Standard()); it != end(window.records[rg], Standard()); ++it)
         {
             if (static_cast<unsigned>(it->pos) > beginPos + 255u || static_cast<unsigned>(it->pos) < beginPos)
+            {
                 SEQAN_THROW(ParseError("Invalid offset in Window!"));
+            }
 
             char posOffset = it->pos - window.beginPos;
             int32_t distance = it->distance;

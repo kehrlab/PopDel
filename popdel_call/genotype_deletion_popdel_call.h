@@ -358,6 +358,58 @@ inline Triple<double> compute_gt_likelihoods(double allele_frequency)
     gt_likelihoods.i3 = std::max(allele_frequency * allele_frequency, pseudoFreq);
     return gt_likelihoods;
 }
+
+// -----------------------------------------------------------------------------
+// Function compute_gt_likelihoods()
+// -----------------------------------------------------------------------------
+// Return the computed genotype likelihoods given the allele frequency.
+inline Triple<double> compute_gt_likelihoods_somatic(double allele_frequency)
+{
+    SEQAN_ASSERT_GEQ(allele_frequency, 0.0);
+    double pseudoFreq = 0.0000000001;
+    Triple<double> gt_likelihoods;
+    gt_likelihoods.i1 = std::max(1 - allele_frequency, pseudoFreq);
+    gt_likelihoods.i2 = std::max(allele_frequency, pseudoFreq);
+    gt_likelihoods.i3 = pseudoFreq;
+    return gt_likelihoods;
+}
+
+// -----------------------------------------------------------------------------
+// Function compute_gt_likelihoods()
+// -----------------------------------------------------------------------------
+// Return the computed genotype likelihoods given the allele frequency.
+inline Triple<double> compute_gt_likelihoods_germ(double allele_frequency)
+{
+    SEQAN_ASSERT_GEQ(allele_frequency, 0.0);
+    double pseudoFreq = 0.0000000001;
+    Triple<double> gt_likelihoods;
+
+    if (allele_frequency <= 0.75)
+    {
+        gt_likelihoods.i1 = pseudoFreq;
+        gt_likelihoods.i2 = 1 - 2 * pseudoFreq;
+        gt_likelihoods.i3 = pseudoFreq;
+    } else if (allele_frequency > 0.75)
+    {
+        gt_likelihoods.i1 = pseudoFreq;
+        gt_likelihoods.i2 = pseudoFreq;
+        gt_likelihoods.i3 = 1 - 2 * pseudoFreq;
+    }
+
+    return gt_likelihoods;
+}
+
+inline Triple<double> compute_gt_likelihoods_cellpop(double allele_frequency)
+{
+    SEQAN_ASSERT_GEQ(allele_frequency, 0.0);
+    Triple<double> gt_likelihoods;
+    if (allele_frequency <= 0.4)
+        gt_likelihoods = compute_gt_likelihoods_somatic(allele_frequency);
+    else
+        gt_likelihoods = compute_gt_likelihoods_germ(allele_frequency);
+    return gt_likelihoods;
+}
+
 // -----------------------------------------------------------------------------
 // Function update_deletion_length()    //TODO: Export RefShift into own function.
 // -----------------------------------------------------------------------------
@@ -600,7 +652,11 @@ inline __uint32 performIterativeUpdates(String<Triple<long double> > & data_like
         freq = update_allele_frequency(data_likelihoods, gtLikelihoods);
         if (freq == 0)
             break;
-        gtLikelihoods = compute_gt_likelihoods(freq);
+
+        if (params.somatic) // genotype weights for cell population
+            gtLikelihoods = compute_gt_likelihoods_cellpop(freq);
+        else
+            gtLikelihoods = compute_gt_likelihoods(freq);
         // Break if the current deletion length and frequency combination have already been observed.
         if (checkDelAlreadySeen(data_likelihoods,
             rgWiseDataLikelihoods,
