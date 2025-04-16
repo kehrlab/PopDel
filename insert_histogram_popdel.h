@@ -152,11 +152,11 @@ inline void writeHistograms(TStream & stream,
         stream.write(reinterpret_cast<char *>(&rgLen), sizeof(uint32_t));
         stream.write(reinterpret_cast<char *>(&readGroups[i][0]), length(readGroups[i]));
         stream.write("\0", 1);
-        stream.write(reinterpret_cast<char *>(&histograms[i].median), sizeof(uint16_t));
+        stream.write(reinterpret_cast<char *>(&histograms[i].median), sizeof(uint32_t));
         stream.write(reinterpret_cast<char *>(&histograms[i].stddev), sizeof(double));
-        stream.write(reinterpret_cast<char *>(&histograms[i].readLength), sizeof(uint16_t));
-        stream.write(reinterpret_cast<char *>(&histStart), sizeof(uint16_t));
-        stream.write(reinterpret_cast<char *>(&histEnd), sizeof(uint16_t));
+        stream.write(reinterpret_cast<char *>(&histograms[i].readLength), sizeof(uint32_t));
+        stream.write(reinterpret_cast<char *>(&histStart), sizeof(uint32_t));
+        stream.write(reinterpret_cast<char *>(&histEnd), sizeof(uint32_t));
         for (; it != itEnd; ++it)
         {
             double val = *it;
@@ -419,7 +419,7 @@ inline void readProfileHeader(TStream & stream,
             SEQAN_THROW(ParseError(toCString(msg.str())));
         }
         // Read the insert size statistics.
-        stream.read(reinterpret_cast<char *>(&histograms[i].median), sizeof(uint16_t));
+        stream.read(reinterpret_cast<char *>(&histograms[i].median), sizeof(uint32_t));
         if (!stream.good())
         {
             msg << "Unable to read median insert size.";
@@ -431,20 +431,20 @@ inline void readProfileHeader(TStream & stream,
             msg << "Unable to read standard deviation of insert size.";
             SEQAN_THROW(ParseError(toCString(msg.str())));
         }
-        stream.read(reinterpret_cast<char *>(&histograms[i].readLength), sizeof(uint16_t));
+        stream.read(reinterpret_cast<char *>(&histograms[i].readLength), sizeof(uint32_t));
         if (!stream.good())
         {
             msg << "Unable to read read length.";
             SEQAN_THROW(ParseError(toCString(msg.str())));
         }
-        stream.read(reinterpret_cast<char *>(&histograms[i].offset), sizeof(uint16_t));
+        stream.read(reinterpret_cast<char *>(&histograms[i].offset), sizeof(uint32_t));
         if (!stream.good())
         {
             msg << "Unable to read offset of insert size histogram.";
             SEQAN_THROW(ParseError(toCString(msg.str())));
         }
         unsigned histEnd = 0;
-        stream.read(reinterpret_cast<char *>(&histEnd), sizeof(uint16_t));
+        stream.read(reinterpret_cast<char *>(&histEnd), sizeof(uint32_t));
         if (!stream.good())
         {
             msg << "Unable to read insert size histogram size.";

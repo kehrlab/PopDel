@@ -335,6 +335,35 @@ inline Triple<long double> compute_data_likelihoods(Triple<long double> & gtLogs
     }
     return res;
 }
+
+// -----------------------------------------------------------------------------
+// Function compute_gt_likelihoods_somatic()
+// -----------------------------------------------------------------------------
+// Return the computed genotype likelihoods given the allele frequency.
+inline Triple<double> compute_gt_likelihoods_somatic(double allele_frequency)
+{
+    SEQAN_ASSERT_GEQ(allele_frequency, 0.0);
+    double pseudoFreq = 0.0000000001;
+    Triple<double> gt_likelihoods;
+
+    if (allele_frequency <= 0.4)
+    {
+        gt_likelihoods.i1 = std::max(1 - 2*allele_frequency + pseudoFreq , pseudoFreq);
+        gt_likelihoods.i2 = std::max(2 * allele_frequency - 2 * pseudoFreq, pseudoFreq);
+        gt_likelihoods.i3 = pseudoFreq;
+    } else if (allele_frequency < 0.75)
+    {
+        gt_likelihoods.i1 = pseudoFreq;
+        gt_likelihoods.i2 = 1.;
+        gt_likelihoods.i3 = pseudoFreq;
+    } else {
+        gt_likelihoods.i1 = pseudoFreq;
+        gt_likelihoods.i2 = pseudoFreq;
+        gt_likelihoods.i3 = 1.;
+    }
+    return gt_likelihoods;
+}
+
 // -----------------------------------------------------------------------------
 // Function compute_gt_likelihoods()
 // -----------------------------------------------------------------------------
@@ -349,6 +378,8 @@ inline Triple<double> compute_gt_likelihoods(double allele_frequency)
     gt_likelihoods.i3 = std::max(allele_frequency * allele_frequency, pseudoFreq);
     return gt_likelihoods;
 }
+
+
 // -----------------------------------------------------------------------------
 // Function update_deletion_length()    //TODO: Export RefShift into own function.
 // -----------------------------------------------------------------------------
@@ -548,7 +579,12 @@ inline bool genotype_deletion_window(String<Call> & calls,
                                                            referenceShifts,
                                                            params.histograms);
         // Compute likelihood of genotypes given the allele frequency
-        Triple<double> gtLikelihoods = compute_gt_likelihoods(freq);
+        Triple<double> gtLikelihoods;
+        if (!params.somatic)
+            gtLikelihoods = compute_gt_likelihoods(freq);
+        else
+            gtLikelihoods = compute_gt_likelihoods_somatic(freq);
+
         // Update the deletion length using the frequency estimate.
         unsigned len = *it;
 
@@ -587,7 +623,10 @@ inline bool genotype_deletion_window(String<Call> & calls,
             freq = update_allele_frequency(data_likelihoods, gtLikelihoods);
             if (freq == 0)
                 break;
-            gtLikelihoods = compute_gt_likelihoods(freq);
+            if (!params.somatic)
+                gtLikelihoods = compute_gt_likelihoods(freq);
+            else
+                gtLikelihoods = compute_gt_likelihoods_somatic(freq);
 
             // Check if this pair of deletion length and allele frequency has already been observed. Break if TRUE.
             std::map<int,double>::iterator v = visited.find(len);

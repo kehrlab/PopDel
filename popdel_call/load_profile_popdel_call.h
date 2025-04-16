@@ -470,11 +470,11 @@ inline void addRgRecordsToProfile(ChromosomeProfile & profile,
         for (unsigned i = 0; i < length(win.insertSizes[r]); ++i)
         {
             const Pair<unsigned> & record = win.insertSizes[r][i];
-            int innerDist = static_cast<int16_t>(record.i2) + histograms[rg[r]].median - 2 * histograms[rg[r]].readLength;
+            int innerDist = static_cast<int32_t>(record.i2) + histograms[rg[r]].median - 2 * histograms[rg[r]].readLength;
             unsigned endPos = record.i1;
             if (innerDist > 0)
                 endPos += innerDist;
-            profile.add(rg[r], record.i1, endPos, static_cast<int16_t>(record.i2));
+            profile.add(rg[r], record.i1, endPos, static_cast<int32_t>(record.i2));
         }
     }
 }

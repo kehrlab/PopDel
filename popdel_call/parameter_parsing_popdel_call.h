@@ -179,6 +179,7 @@ struct PopDelCallParameters
     String<unsigned> maxLoad;                       // Maximum number of active reads per read group.
     unsigned pseudoCountFraction;                   // max(hist)/pseudoCountFraction = min value of hist
     bool uncompressedIn;                            // True if uncompressed profiles are read.
+    bool somatic;                                   // If true, use genotype weights for cell populations instead of HWE
 
     PopDelCallParameters() :
     histogramsFile(""),
@@ -203,7 +204,8 @@ struct PopDelCallParameters
     windowWiseOutput(false),
     defaultMaxLoad(100),
     pseudoCountFraction(500),
-    uncompressedIn(false)
+    uncompressedIn(false),
+    somatic(false)
     {}
 };
 // ---------------------------------------------------------------------------------------
@@ -283,6 +285,7 @@ void setupParser(ArgumentParser & parser, const PopDelCallParameters & params)
     addOption(parser, ArgParseOption("R", "ROI-file",              "File listing one or more regions of interest, one region per line. "
                                                                    "See parameter -r.",                                                        ArgParseArgument::INPUT_FILE, "FILE"));
     addOption(parser, ArgParseOption("s",  "min-sample-fraction",  "Minimum fraction of samples which is required to have enough data in the window.", ArgParseArgument::DOUBLE, "NUM"));
+    addOption(parser, ArgParseOption("C",  "cell-population",      "Use genotype weights for cell population instead of human population."));
 
     // Set default values for visible options.
     setDefaultValue(parser, "a", params.defaultMaxLoad);
@@ -356,6 +359,10 @@ void getParameterValues(PopDelCallParameters & params, ArgumentParser & parser)
     if (isSet(parser, "uncompressed-in"))
     {
         params.uncompressedIn = true;
+    }
+    if (isSet(parser, "cell-population"))
+    {
+        params.somatic = true;
     }
 }
 

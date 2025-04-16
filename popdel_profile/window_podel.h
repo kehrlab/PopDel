@@ -108,14 +108,14 @@ inline void writeWindow(TStream & stream,
         else                                                                    // Write the first insert size.
         {
             stream << "\t" << static_cast<int>((*it).i1 - window.beginPos);
-            stream << ":" << static_cast<int16_t>((*it).i2 - _round(histograms[i].median));
+            stream << ":" << static_cast<int32_t>((*it).i2 - _round(histograms[i].median));
             ++it;
         }
 
         while (it != itEnd)                                                     // Write the remaining insert sizes.
         {
             stream << "," << static_cast<int>((*it).i1 - window.beginPos);
-            stream << ":" << static_cast<int16_t>((*it).i2 - _round(histograms[i].median));
+            stream << ":" << static_cast<int32_t>((*it).i2 - _round(histograms[i].median));
             ++it;
         }
     }
@@ -143,14 +143,14 @@ inline void writeWindow(TStream & stream,
         else                                                                    // Write the first insert size.
         {
             stream << "\t" << static_cast<int>((*it).i1 - window.beginPos);
-            stream << ":" << static_cast<int16_t>((*it).i2);
+            stream << ":" << static_cast<int32_t>((*it).i2);
             ++it;
         }
 
         while (it != itEnd)                                                     // Write the remaining insert sizes.
         {
             stream << "," << static_cast<int>((*it).i1 - window.beginPos);
-            stream << ":" << static_cast<int16_t>((*it).i2);
+            stream << ":" << static_cast<int32_t>((*it).i2);
             ++it;
         }
     }
@@ -189,8 +189,8 @@ inline void writeWindow(TStream & stream,
                 SEQAN_THROW(ParseError("Too big offset in Window!"));
             char posOffset = (*it).i1 - window.beginPos;
             stream.write(reinterpret_cast<char *>(&posOffset), sizeof(char));
-            int16_t insertSizeDeviation = (*it).i2 - _round(histograms[rg].median);
-            stream.write(reinterpret_cast<char *>(&insertSizeDeviation), sizeof(int16_t));
+            int32_t insertSizeDeviation = (*it).i2 - _round(histograms[rg].median);
+            stream.write(reinterpret_cast<char *>(&insertSizeDeviation), sizeof(int32_t));
             ++it;
         }
     }
@@ -205,7 +205,7 @@ inline unsigned posToWin(const unsigned & pos, const unsigned windowSize = 30u)
 // =======================================================================================
 // Read the entires of the next window in theopened and unzipped stream.
 // Note that this will potentially safe an signed value in an unsigned variable (window.i2).
-// The correct value can be retrieved by casting this value to int16_t.
+// The correct value can be retrieved by casting this value to int32_t.
 // Return true on sucess and false if EOF has been reached.
 template<typename TStream>
 inline bool readWindow(TStream & stream,
@@ -242,7 +242,7 @@ inline bool readWindow(TStream & stream,
             if (!stream.good())
                 SEQAN_THROW(ParseError("[PopDel] Unable to read position offset."));
             window.insertSizes[rg][i].i1 += window.beginPos;
-            stream.read(reinterpret_cast<char *>(&window.insertSizes[rg][i].i2), sizeof(int16_t));
+            stream.read(reinterpret_cast<char *>(&window.insertSizes[rg][i].i2), sizeof(int32_t));
             if (!stream.good())
                 SEQAN_THROW(ParseError("[PopDel] Unable to read insert size deviation."));
         }
@@ -285,7 +285,7 @@ inline bool readWindow(TStream& stream,
             if (!stream.good())
                 SEQAN_THROW(ParseError("[PopDel] Unable to read position offset."));
             window.insertSizes[rg][i].i1 += window.beginPos;
-            stream.read(reinterpret_cast<char *>(&window.insertSizes[rg][i].i2), sizeof(int16_t));
+            stream.read(reinterpret_cast<char *>(&window.insertSizes[rg][i].i2), sizeof(int32_t));
             if (!stream.good())
                 SEQAN_THROW(ParseError("[PopDel] Unable to read insert size deviation."));
             window.insertSizes[rg][i].i2 += _round(histograms[rg].median);
